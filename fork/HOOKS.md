@@ -20,3 +20,5 @@ Cada fichero de Bruno modificado tiene que aparecer aquí. Un ID no se reutiliza
 | H-14 | código | `packages/bruno-electron/src/index.js` | handler de la ventana Acerca de | Usa `src/fork/about-page.js` (logo y nombre propios; mantiene el copyright de Bruno) | — | v4.3.0-fork.3 |
 | H-15 | código | `packages/bruno-electron/src/app/mock-server/mock-server.js` | error de puerto ocupado | Nombre de la app en el mensaje | — | v4.3.0-fork.4 |
 | H-16 | código | `packages/bruno-electron/src/index.js` | registro de IPC, tras `registerFilesystemIpc` | Registra los canales `fork:sensitive-environments:*`, que leen y escriben `.michi.json` en la raíz de la colección (`src/fork/sensitive-environments-file.js`) | — | v4.3.0-fork.5 |
+| H-17 | código | `packages/bruno-electron/src/index.js` | registro de IPC, tras H-16 | Registra los canales `fork:git:*` del panel de git (`src/fork/git/git-ipc.js`) | — | v4.3.0-fork.7 |
+| H-18 | código | `packages/bruno-app/src/components/Sidebar/index.js` | `sidebarSections` | Añade la sección *Git* de la barra lateral (`components/fork/SourceControl`) | — | v4.3.0-fork.7 |

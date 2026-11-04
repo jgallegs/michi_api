@@ -538,6 +538,7 @@ app.on('ready', async () => {
   registerNotificationsIpc(mainWindow, collectionWatcher);
   registerFilesystemIpc(mainWindow);
   require('./fork/sensitive-environments-file').register(); // [FORK H-16]
+  require('./fork/git/git-ipc').register(); // [FORK H-17]
   registerSystemMonitorIpc(mainWindow, systemMonitor);
   registerGitIpc(mainWindow);
   registerOpenAPISyncIpc(mainWindow);

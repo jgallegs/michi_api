@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.3.0-fork.7 (2026-11-04)
+
+Base: Bruno v4.3.0.
+
+- **Panel Git** en la barra lateral, para la colección de la pestaña activa: rama y commits por delante y por detrás (con fetch automático), cambios locales con diff, commit de los ficheros elegidos, **Sync seguro** (fetch, guarda los cambios sin commit, fast-forward o merge, los restaura y hace push), **conflictos guiados** (Keep mine, Take remote, Edit, Mark resolved, Finish, Cancel), aviso de **detached HEAD** con "Return to main" (rescata los commits huérfanos en una rama) y **Discard recuperable** ("Saved changes"). Hecho sobre `simple-git`, que ya traía Bruno.
+
 ## v4.3.0-fork.6 (2026-11-04)
 
 Base: Bruno v4.3.0.
