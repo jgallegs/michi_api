@@ -17,6 +17,16 @@ node fork/scripts/check-diff.mjs
 
 Comprueba que fuera de `fork/` solo cambian enganches registrados, y que no hay palabras prohibidas ni secretos en las líneas añadidas.
 
+## Compilar para Windows
+
+```bash
+node fork/scripts/build-win.mjs
+```
+
+Genera en `packages/bruno-electron/out/` el instalador (`Brunillo-Setup-<versión>.exe`) y el ejecutable portable (`Brunillo-<versión>-portable.exe`). La identidad de la app (nombre, `appId`, icono, versión `<upstream>-fork.<n>`) está en `fork/packaging/` y extiende la configuración de Bruno sin modificarla. La app se instala y guarda sus datos (`%APPDATA%\Brunillo`) aparte de una instalación del Bruno oficial. El número de versión del fork está en `fork/packaging/RELEASE`.
+
+Si electron-builder falla al extraer `winCodeSign` con un error de enlaces simbólicos ("no dispone de un privilegio requerido"), extrae el paquete a mano, sin la carpeta `darwin`, en `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0`.
+
 ## Funciones
 
 | Función | Desde | Descripción |
