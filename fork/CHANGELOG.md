@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.3.0-fork.4 (2026-11-04)
+
+Base: Bruno v4.3.0.
+
+- El resto de textos de la interfaz que nombran la app (formato de colección, importar/exportar, preferencias, avisos, bienvenida...) pasan a decir **Michi**. Se sustituyen al compilar desde una lista de frases (`packages/bruno-app/plugins/fork/branding-phrases.js`), sin editar los fuentes de Bruno. Se mantienen en "Bruno" los valores que se escriben en ficheros y los textos que se refieren al proyecto Bruno (su documentación, su GitHub, Golden Edition y su changelog).
+
 ## v4.3.0-fork.3 (2026-11-04)
 
 Base: Bruno v4.3.0.

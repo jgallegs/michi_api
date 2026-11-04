@@ -14,7 +14,8 @@ Cada fichero de Bruno modificado tiene que aparecer aquí. Un ID no se reutiliza
 | H-08 | código | `packages/bruno-app/src/components/AppTitleBar/index.js` | barra de título, texto central | Nombre de la app (`APP_NAME`) | — | v4.3.0-fork.3 |
 | H-09 | código | `packages/bruno-app/src/components/AppTitleBar/AppMenu/index.js` | menú Help | Etiqueta "About Michi" | — | v4.3.0-fork.3 |
 | H-10 | código | `packages/bruno-app/src/components/WelcomeModal/index.js` | cabecera de la bienvenida | "Welcome to / Set up" con el nombre de la app | — | v4.3.0-fork.3 |
-| H-11 | build | `packages/bruno-app/rsbuild.config.mjs` | `html.title` | Título del documento (título de la ventana). Igual que `APP_NAME` | — | v4.3.0-fork.3 |
+| H-11 | build | `packages/bruno-app/rsbuild.config.mjs` | `plugins` | Añade el plugin `plugins/fork/branding.mjs`: título del documento y textos visibles con el nombre de la app, sustituidos al compilar desde la lista `plugins/fork/branding-phrases.js` (sin tocar los fuentes de Bruno) | — | v4.3.0-fork.3 (plugin desde fork.4) |
 | H-12 | código | `packages/bruno-electron/src/index.js` | `BrowserWindow` principal, `title` | Título inicial de la ventana | — | v4.3.0-fork.3 |
 | H-13 | código | `packages/bruno-electron/src/app/menu-template.js` | menú nativo Help | "About Michi" y ventana Acerca de propia (`src/fork/about-page.js`) | — | v4.3.0-fork.3 |
 | H-14 | código | `packages/bruno-electron/src/index.js` | handler de la ventana Acerca de | Usa `src/fork/about-page.js` (logo y nombre propios; mantiene el copyright de Bruno) | — | v4.3.0-fork.3 |
+| H-15 | código | `packages/bruno-electron/src/app/mock-server/mock-server.js` | error de puerto ocupado | Nombre de la app en el mensaje | — | v4.3.0-fork.4 |
