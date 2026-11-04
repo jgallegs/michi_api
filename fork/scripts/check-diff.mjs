@@ -131,8 +131,9 @@ const main = () => {
   }
 
   for (const file of untracked) {
-    const content = existsSync(file) ? readFileSync(file, 'utf8') : '';
-    scanLines(file, content.split(/\r?\n/), forbiddenWords);
+    const buffer = existsSync(file) ? readFileSync(file) : Buffer.alloc(0);
+    const isBinary = buffer.includes(0);
+    scanLines(file, isBinary ? [] : buffer.toString('utf8').split(/\r?\n/), forbiddenWords);
     if (!isForkPath(file)) {
       fail(`${file}: new file outside a fork/ folder`);
     }
