@@ -25,6 +25,8 @@ node fork/scripts/build-win.mjs
 
 Genera en `packages/bruno-electron/out/` el instalador (`Michi-Setup-<versión>.exe`) y el ejecutable portable (`Michi-<versión>-portable.exe`). La identidad de la app (nombre, `appId`, icono, versión `<upstream>-fork.<n>`) está en `fork/packaging/` y extiende la configuración de Bruno sin modificarla. La app se instala y guarda sus datos (`%APPDATA%\Brunillo`) aparte de una instalación del Bruno oficial. El número de versión del fork está en `fork/packaging/RELEASE`.
 
+También genera `out/fast-portable/`: un lanzador (`Michi.vbs` y la carpeta `Michi/` con `launcher.ps1` y el `.zip` de la app) para usar la app sin instalarla. Descomprime solo la primera vez de cada versión, en `%LOCALAPPDATA%\Michi-portable\<versión>`, y comparte los datos con la versión instalada (`%APPDATA%\Michi`).
+
 Si electron-builder falla al extraer `winCodeSign` con un error de enlaces simbólicos ("no dispone de un privilegio requerido"), extrae el paquete a mano, sin la carpeta `darwin`, en `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0`.
 
 ## Funciones

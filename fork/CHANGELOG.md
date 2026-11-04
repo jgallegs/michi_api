@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.3.0-fork.6 (2026-11-04)
+
+Base: Bruno v4.3.0.
+
+- **Portable rápido**: además del instalador y del portable de un solo fichero, el build genera `out/fast-portable/` (`<Product>.vbs` + `<Product>/launcher.ps1` + `<Product>-<versión>-win.zip`). La primera vez descomprime la app en `%LOCALAPPDATA%\<Product>-portable\<versión>` y después arranca directamente. El portable de un solo fichero descomprime unos 460 MB en cada arranque.
+
 ## v4.3.0-fork.5 (2026-11-04)
 
 Base: Bruno v4.3.0.

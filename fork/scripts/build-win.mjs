@@ -45,4 +45,18 @@ for (const file of fs.readdirSync(webDir)) {
 
 run(`npx electron-builder --win --config "${config}"`, electronDir);
 
+// Fast portable bundle: <Product>.vbs + <Product>/{launcher.ps1, <Product>-<version>-win.zip}
+const outDir = path.join(electronDir, 'out');
+const zipName = fs.readdirSync(outDir).find((file) => file.endsWith('-win.zip'));
+if (zipName) {
+  const product = zipName.split('-')[0];
+  const bundleDir = path.join(outDir, 'fast-portable');
+  fs.mkdirSync(path.join(bundleDir, product), { recursive: true });
+  fs.copyFileSync(path.join(repoRoot, 'fork/packaging/launcher/launcher.vbs'), path.join(bundleDir, `${product}.vbs`));
+  fs.copyFileSync(path.join(repoRoot, 'fork/packaging/launcher/launcher.ps1'), path.join(bundleDir, product, 'launcher.ps1'));
+  fs.copyFileSync(path.join(outDir, zipName), path.join(bundleDir, product, zipName));
+  console.log(`
+Fast portable bundle in ${bundleDir}`);
+}
+
 console.log(`\nArtifacts in ${path.join(electronDir, 'out')}`);

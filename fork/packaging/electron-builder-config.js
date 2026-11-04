@@ -36,9 +36,12 @@ module.exports = {
     icon: path.join(__dirname, 'icons/icon.ico'),
     target: [
       { target: 'nsis', arch: ['x64'] },
-      { target: 'portable', arch: ['x64'] }
+      { target: 'portable', arch: ['x64'] },
+      { target: 'zip', arch: ['x64'] }
     ],
-    publisherName: PRODUCT_NAME
+    publisherName: PRODUCT_NAME,
+    // Used by the zip target, consumed by fork/packaging/launcher (nsis and portable set their own names).
+    artifactName: '${productName}-${version}-win.${ext}'
   },
   nsis: {
     ...upstream.nsis,
