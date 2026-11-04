@@ -1,0 +1,19 @@
+# Fork
+
+Este repositorio es un fork de [Bruno](https://github.com/usebruno/bruno) (MIT) con funciones añadidas a la aplicación de escritorio.
+Las colecciones no cambian: todo lo que se abre o se guarda con el fork sigue siendo compatible con el Bruno oficial.
+
+## Cómo está organizado
+
+- El código propio vive en carpetas `fork/`: esta carpeta, `packages/bruno-app/src/components/fork/`, etc.
+- En ficheros de Bruno solo hay **enganches** de pocas líneas, marcados con `[FORK H-xx]` y registrados en [HOOKS.md](HOOKS.md).
+- `UPSTREAM_VERSION` indica el tag de Bruno sobre el que está la rama.
+
+## Antes de abrir una MR
+
+```bash
+node fork/scripts/check-diff.mjs
+```
+
+Comprueba que fuera de `fork/` solo cambian enganches registrados, y que no hay palabras prohibidas ni secretos en las líneas añadidas.
+
