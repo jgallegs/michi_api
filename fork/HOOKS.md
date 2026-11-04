@@ -11,3 +11,10 @@ Cada fichero de Bruno modificado tiene que aparecer aquí. Un ID no se reutiliza
 | H-05 | código | `packages/bruno-app/src/pages/Main.js` | dentro de los providers, junto a `children` | Monta la ventana de confirmación con el tema de la app | — | v4.3.0-fork.1 |
 | H-06 | código | `packages/bruno-app/src/components/Bruno/index.js` | inicio del componente | Muestra el logo propio (`components/fork/AppLogo`) en barra de título, bienvenida y pantalla de error | — | v4.3.0-fork.2 |
 | H-07 | build | `packages/bruno-electron/src/about/256x256.png` | fichero completo (binario) | Icono de la ventana y del "Acerca de". Se regenera con `fork/packaging/make-icon.py`; al actualizar Bruno, conservar el nuestro | — | v4.3.0-fork.2 |
+| H-08 | código | `packages/bruno-app/src/components/AppTitleBar/index.js` | barra de título, texto central | Nombre de la app (`APP_NAME`) | — | v4.3.0-fork.3 |
+| H-09 | código | `packages/bruno-app/src/components/AppTitleBar/AppMenu/index.js` | menú Help | Etiqueta "About Michi" | — | v4.3.0-fork.3 |
+| H-10 | código | `packages/bruno-app/src/components/WelcomeModal/index.js` | cabecera de la bienvenida | "Welcome to / Set up" con el nombre de la app | — | v4.3.0-fork.3 |
+| H-11 | build | `packages/bruno-app/rsbuild.config.mjs` | `html.title` | Título del documento (título de la ventana). Igual que `APP_NAME` | — | v4.3.0-fork.3 |
+| H-12 | código | `packages/bruno-electron/src/index.js` | `BrowserWindow` principal, `title` | Título inicial de la ventana | — | v4.3.0-fork.3 |
+| H-13 | código | `packages/bruno-electron/src/app/menu-template.js` | menú nativo Help | "About Michi" y ventana Acerca de propia (`src/fork/about-page.js`) | — | v4.3.0-fork.3 |
+| H-14 | código | `packages/bruno-electron/src/index.js` | handler de la ventana Acerca de | Usa `src/fork/about-page.js` (logo y nombre propios; mantiene el copyright de Bruno) | — | v4.3.0-fork.3 |

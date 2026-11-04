@@ -7,9 +7,9 @@ const repoRoot = path.resolve(__dirname, '../..');
 const electronDir = path.join(repoRoot, 'packages/bruno-electron');
 const upstream = require(path.join(electronDir, 'electron-builder-config.js'));
 
-const PRODUCT_NAME = 'Brunillo';
-const PACKAGE_NAME = 'brunillo';
-const APP_ID = 'app.brunillo.desktop';
+const PRODUCT_NAME = 'Michi';
+const PACKAGE_NAME = 'michi';
+const APP_ID = 'app.michi.desktop';
 
 const readTrimmed = (file) => fs.readFileSync(path.join(repoRoot, file), 'utf8').trim();
 const upstreamVersion = readTrimmed('fork/UPSTREAM_VERSION').replace(/^v/, '');

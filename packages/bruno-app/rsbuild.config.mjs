@@ -54,7 +54,7 @@ export default defineConfig({
     }
   },
   html: {
-    title: 'Bruno'
+    title: 'Michi' // [FORK H-11] keep in sync with components/fork/branding.js
   },
   tools: {
     rspack: {

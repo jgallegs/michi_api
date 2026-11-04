@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.3.0-fork.3 (2026-11-04)
+
+Base: Bruno v4.3.0.
+
+- La app pasa a llamarse **Michi**: ejecutable, instalador, accesos directos, carpeta de datos (`%APPDATA%\Michi`), título de la ventana, barra de título, menú y ventana "Acerca de", y bienvenida. Los textos que nombran el formato de colección (Bruno) no cambian.
+
 ## v4.3.0-fork.2 (2026-11-04)
 
 Base: Bruno v4.3.0.

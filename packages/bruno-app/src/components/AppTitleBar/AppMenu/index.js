@@ -3,6 +3,7 @@ import { IconMenu2 } from '@tabler/icons';
 import MenuDropdown from 'ui/MenuDropdown';
 import ActionIcon from 'ui/ActionIcon';
 import StyledWrapper from './StyledWrapper';
+import { APP_NAME } from 'components/fork/branding'; // [FORK H-09]
 
 const AppMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -122,7 +123,7 @@ const AppMenu = () => {
       submenu: [
         {
           id: 'about',
-          label: 'About Bruno',
+          label: `About ${APP_NAME}`, // [FORK H-09]
           onClick: () => ipcRenderer?.invoke('renderer:open-about')
         },
         {

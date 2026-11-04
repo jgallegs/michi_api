@@ -2,7 +2,8 @@ const { ipcMain } = require('electron');
 const os = require('os');
 const { BrowserWindow } = require('electron');
 const { version } = require('../../package.json');
-const aboutBruno = require('./about-bruno');
+const aboutBruno = require('../fork/about-page'); // [FORK H-13]
+const { APP_NAME } = require('../fork/branding'); // [FORK H-13]
 
 const template = [
   {
@@ -96,7 +97,7 @@ const template = [
     role: 'help',
     submenu: [
       {
-        label: 'About Bruno',
+        label: `About ${APP_NAME}`, // [FORK H-13]
         click: () => {
           const aboutWindow = new BrowserWindow({
             width: 350,

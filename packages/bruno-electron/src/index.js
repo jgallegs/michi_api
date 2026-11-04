@@ -260,7 +260,7 @@ app.on('ready', async () => {
       preload: path.join(__dirname, 'preload.js'),
       webviewTag: true
     },
-    title: 'Bruno',
+    title: require('./fork/branding').APP_NAME, // [FORK H-12]
     icon: path.join(__dirname, 'about/256x256.png'),
     titleBarStyle: isMac ? 'hiddenInset' : isWindows ? 'hidden' : undefined,
     frame: isLinux ? false : true,
@@ -349,7 +349,7 @@ app.on('ready', async () => {
 
   ipcMain.handle('renderer:open-about', () => {
     const { version } = require('../package.json');
-    const aboutBruno = require('./app/about-bruno');
+    const aboutBruno = require('./fork/about-page'); // [FORK H-14]
     const aboutWindow = new BrowserWindow({
       width: 350,
       height: 250,

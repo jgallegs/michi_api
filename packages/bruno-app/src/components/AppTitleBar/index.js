@@ -18,6 +18,7 @@ import ActionIcon from 'ui/ActionIcon';
 import IconSidebarToggle from 'components/Icons/IconSidebarToggle';
 import CreateWorkspace from 'components/WorkspaceSidebar/CreateWorkspace';
 import ImportWorkspace from 'components/WorkspaceSidebar/ImportWorkspace';
+import { APP_NAME } from 'components/fork/branding'; // [FORK H-08]
 
 import IconBottombarToggle from 'components/Icons/IconBottombarToggle/index';
 import AppMenu from './AppMenu';
@@ -298,7 +299,7 @@ const AppTitleBar = () => {
         {/* Center section: Bruno logo + text */}
         <div className="titlebar-center">
           <Bruno width={18} />
-          <span className="bruno-text">Bruno</span>
+          <span className="bruno-text">{APP_NAME}</span> {/* [FORK H-08] */}
         </div>
 
         {/* Right section: Action buttons */}
