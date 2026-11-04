@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.3.0-fork.8 (2026-11-04)
+
+Base: Bruno v4.3.0.
+
+- **Vista Git en pestaña**: botón "Open the Git view" en el panel (o clic en un fichero). A la izquierda, el panel; a la derecha, el **diff a dos columnas** del fichero elegido. En los conflictos muestra **el remoto a la izquierda y tu versión a la derecha**, con "Take remote (left)" y "Keep mine (right)". Enganches H-19 a H-21.
+
 ## v4.3.0-fork.7 (2026-11-04)
 
 Base: Bruno v4.3.0.

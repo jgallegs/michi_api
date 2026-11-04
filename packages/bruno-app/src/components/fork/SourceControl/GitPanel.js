@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { IconAlertTriangle, IconArrowDown, IconArrowUp, IconGitBranch, IconGitMerge, IconRefresh } from '@tabler/icons';
+import { IconAlertTriangle, IconArrowDown, IconArrowUp, IconGitBranch, IconGitMerge, IconLayoutColumns, IconRefresh } from '@tabler/icons';
 import Button from 'ui/Button';
 import ActionIcon from 'ui/ActionIcon';
 import Checkbox from 'ui/Checkbox';
@@ -33,7 +33,9 @@ const ConfirmModal = ({ title, children, confirmText, onConfirm, onCancel }) => 
   </Modal>
 );
 
-const GitPanel = ({ folder, status, error, loading, refresh }) => {
+// onOpenFile (optional) replaces the diff modal, e.g. to show the file in the Git tab;
+// onOpenView (optional) adds a button that opens the Git tab.
+const GitPanel = ({ folder, status, error, loading, refresh, onOpenFile, onOpenView, selectedFile }) => {
   const [busy, setBusy] = useState(null);
   const [selected, setSelected] = useState([]);
   const [message, setMessage] = useState('');
@@ -81,6 +83,10 @@ const GitPanel = ({ folder, status, error, loading, refresh }) => {
   const allSelected = changes.length > 0 && selectedChanges.length === changes.length;
 
   const openDiff = async (file) => {
+    if (onOpenFile) {
+      onOpenFile(file);
+      return;
+    }
     try {
       setDiff({ file, text: await gitApi.diff(folder, file) });
     } catch (err) {
@@ -115,6 +121,11 @@ const GitPanel = ({ folder, status, error, loading, refresh }) => {
         <ActionIcon label="Fetch from the remote" aria-label="Fetch from the remote" onClick={() => refresh({ fetch: true })} disabled={loading}>
           <IconRefresh size={14} strokeWidth={1.5} />
         </ActionIcon>
+        {onOpenView && (
+          <ActionIcon label="Open the Git view" aria-label="Open the Git view" onClick={onOpenView} data-testid="git-open-view">
+            <IconLayoutColumns size={14} strokeWidth={1.5} />
+          </ActionIcon>
+        )}
         <Button size="xs" onClick={handleSync} disabled={Boolean(busy) || inOperation || status.detached} data-testid="git-sync">
           {busy === 'sync' ? 'Syncing...' : 'Sync'}
         </Button>
@@ -152,8 +163,12 @@ const GitPanel = ({ folder, status, error, loading, refresh }) => {
             <strong>{remainingConflicts ? `${remainingConflicts} file(s) in conflict` : 'All conflicts resolved'}</strong>
             <p>{OPERATION_TEXT[status.operation]}</p>
             {status.conflicts.map((file) => (
-              <div key={file} className="conflict">
-                <span className="path" title={file}>{file}</span>
+              <div key={file} className={`conflict ${selectedFile === file ? 'selected' : ''}`}>
+                {onOpenFile ? (
+                  <button type="button" className="path link" title={`${file} (compare both versions)`} onClick={() => onOpenFile(file)}>{file}</button>
+                ) : (
+                  <span className="path" title={file}>{file}</span>
+                )}
                 <div className="conflict-actions">
                   <Button size="xs" variant="ghost" onClick={() => run('resolve', () => gitApi.resolve(folder, file, 'mine'), { quiet: true })}>Keep mine</Button>
                   <Button size="xs" variant="ghost" onClick={() => run('resolve', () => gitApi.resolve(folder, file, 'theirs'), { quiet: true })}>Take remote</Button>
@@ -191,7 +206,7 @@ const GitPanel = ({ folder, status, error, loading, refresh }) => {
       {changes.length === 0 && <p className="muted">No local changes.</p>}
       <ul className="files">
         {changes.map((file) => (
-          <li key={file.path}>
+          <li key={file.path} className={selectedFile === file.path ? 'selected' : ''}>
             <Checkbox checked={selected.includes(file.path)} onChange={() => toggle(file.path)} ariaLabel={`Select ${file.path}`} />
             <button type="button" className="path link" title={`${file.path} (view changes)`} onClick={() => openDiff(file.path)}>
               {file.path}

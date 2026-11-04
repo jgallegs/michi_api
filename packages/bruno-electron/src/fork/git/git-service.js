@@ -365,15 +365,46 @@ const dropSavedChanges = async (root, ref) => {
   return { result: 'ok' };
 };
 
+// Unified diff of a whole new or deleted text, so every caller can parse the same format.
+const wholeFileDiff = (content, sign) => {
+  const lines = content.replace(/\r?\n$/, '').split(/\r?\n/);
+  const range = sign === '+' ? `-0,0 +1,${lines.length}` : `-1,${lines.length} +0,0`;
+  const body = lines.map((line) => `${sign}${line}`).join('\n');
+  return `@@ ${range} @@\n${body}\n`;
+};
+
 const fileDiff = async (root, file) => {
   assertInsideRoot(root, [file]);
   const g = git(root);
   const tracked = (await g.raw(['ls-files', '--', file])).trim();
   if (!tracked) {
-    const content = fs.readFileSync(path.join(root, file), 'utf8');
-    return content.split('\n').map((line) => `+${line}`).join('\n');
+    return wholeFileDiff(fs.readFileSync(path.join(root, file), 'utf8'), '+');
   }
-  return g.raw(['diff', 'HEAD', '--', file]);
+  return g.raw(['diff', '--no-color', 'HEAD', '--', file]);
+};
+
+// Remote version on the left, the user's version on the right, for a file in conflict.
+const conflictDiff = async (root, file) => {
+  assertInsideRoot(root, [file]);
+  const g = git(root);
+  const stages = {};
+  for (const line of (await g.raw(['ls-files', '-u', '--', file])).split('\n').filter(Boolean)) {
+    const [meta] = line.split('\t');
+    const [, sha, stage] = meta.split(' ');
+    stages[stage] = sha;
+  }
+  const operation = await operationInProgress(root);
+  // During a merge "ours" (stage 2) is the local side; when restoring saved changes the stash is "theirs".
+  const mine = operation === 'merge' ? stages['2'] : stages['3'];
+  const remote = operation === 'merge' ? stages['3'] : stages['2'];
+  const blob = (sha) => g.raw(['cat-file', '-p', sha]);
+
+  let diff;
+  if (mine && remote) diff = await g.raw(['diff', '--no-color', remote, mine]);
+  else if (mine) diff = wholeFileDiff(await blob(mine), '+');
+  else if (remote) diff = wholeFileDiff(await blob(remote), '-');
+  else diff = '';
+  return { diff, mineDeleted: !mine, remoteDeleted: !remote };
 };
 
 module.exports = {
@@ -391,5 +422,6 @@ module.exports = {
   finishOperation,
   restoreSavedChanges,
   dropSavedChanges,
-  fileDiff
+  fileDiff,
+  conflictDiff
 };

@@ -31,6 +31,7 @@ const register = () => {
   handle('fork:git:restore-saved', (root, ref) => service.restoreSavedChanges(root, ref));
   handle('fork:git:drop-saved', (root, ref) => service.dropSavedChanges(root, ref));
   handle('fork:git:diff', (root, file) => service.fileDiff(root, file));
+  handle('fork:git:conflict-diff', (root, file) => service.conflictDiff(root, file));
   handle('fork:git:open-file', async (root, file) => {
     const target = path.resolve(root, file);
     if (!target.startsWith(root + path.sep)) {

@@ -23,5 +23,6 @@ export const gitApi = {
   restoreSaved: (folder, ref) => call('fork:git:restore-saved', folder, ref),
   dropSaved: (folder, ref) => call('fork:git:drop-saved', folder, ref),
   diff: (folder, file) => call('fork:git:diff', folder, file),
+  conflictDiff: (folder, file) => call('fork:git:conflict-diff', folder, file),
   openFile: (folder, file) => call('fork:git:open-file', folder, file)
 };

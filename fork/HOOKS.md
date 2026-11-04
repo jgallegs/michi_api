@@ -22,3 +22,6 @@ Cada fichero de Bruno modificado tiene que aparecer aquí. Un ID no se reutiliza
 | H-16 | código | `packages/bruno-electron/src/index.js` | registro de IPC, tras `registerFilesystemIpc` | Registra los canales `fork:sensitive-environments:*`, que leen y escriben `.michi.json` en la raíz de la colección (`src/fork/sensitive-environments-file.js`) | — | v4.3.0-fork.5 |
 | H-17 | código | `packages/bruno-electron/src/index.js` | registro de IPC, tras H-16 | Registra los canales `fork:git:*` del panel de git (`src/fork/git/git-ipc.js`) | — | v4.3.0-fork.7 |
 | H-18 | código | `packages/bruno-app/src/components/Sidebar/index.js` | `sidebarSections` | Añade la sección *Git* de la barra lateral (`components/fork/SourceControl`) | — | v4.3.0-fork.7 |
+| H-19 | código | `packages/bruno-app/src/components/RequestTabPanel/index.js` | antes de `environment-settings` | Pinta la pestaña Git (`components/fork/SourceControl/GitTab`) | — | v4.3.0-fork.8 |
+| H-20 | código | `packages/bruno-app/src/components/RequestTabs/RequestTab/index.js` | lista `specialTabs` | Registra el tipo de pestaña `fork-git` como pestaña especial | — | v4.3.0-fork.8 |
+| H-21 | código | `packages/bruno-app/src/components/RequestTabs/RequestTab/SpecialTab.js` | inicio de `getTabInfo` | Icono y título "Git" de la pestaña | — | v4.3.0-fork.8 |

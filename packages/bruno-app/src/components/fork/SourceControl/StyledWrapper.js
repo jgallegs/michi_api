@@ -100,7 +100,12 @@ const StyledWrapper = styled.div`
     }
     .link { background: none; border: none; padding: 0; cursor: pointer; color: inherit; }
     .link:hover { text-decoration: underline; }
+    li.selected { background: ${(props) => props.theme.background.surface1}; border-radius: 0.25rem; }
   }
+
+  .conflict .link { background: none; border: none; padding: 0; cursor: pointer; color: inherit; font-family: monospace; text-align: left; max-width: 100%; }
+  .conflict .link:hover { text-decoration: underline; }
+  .conflict.selected .link { font-weight: 700; }
 
   .state { font-family: monospace; font-weight: 700; width: 1rem; text-align: center; }
   .state-modified, .state-renamed { color: ${(props) => props.theme.status.warning.text}; }

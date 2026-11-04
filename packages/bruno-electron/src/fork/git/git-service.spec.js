@@ -209,11 +209,35 @@ describe('fork git service', () => {
     await expect(service.commit(alice, [], 'x')).rejects.toMatchObject({ code: 'NO_FILES' });
   });
 
+  it('shows the remote version against mine for a file in conflict', async () => {
+    const { alice, bob } = setupTeam();
+    commitAndPush(bob, 'orders.bru', 'url: bob\n', 'bob change');
+    write(alice, 'orders.bru', 'url: alice\n');
+    await service.commit(alice, ['orders.bru'], 'alice change');
+    await service.sync(alice);
+
+    const { diff, mineDeleted, remoteDeleted } = await service.conflictDiff(alice, 'orders.bru');
+    expect(diff).toContain('-url: bob');
+    expect(diff).toContain('+url: alice');
+    expect(mineDeleted || remoteDeleted).toBe(false);
+  });
+
+  it('keeps the same orientation when restoring saved changes clashes', async () => {
+    const { alice, bob } = setupTeam();
+    commitAndPush(bob, 'orders.bru', 'url: bob\n', 'bob change');
+    write(alice, 'orders.bru', 'url: alice local\n');
+    await service.sync(alice);
+
+    const { diff } = await service.conflictDiff(alice, 'orders.bru');
+    expect(diff).toContain('-url: bob');
+    expect(diff).toContain('+url: alice local');
+  });
+
   it('returns a diff for tracked and untracked files', async () => {
     const { alice } = setupTeam();
     write(alice, 'orders.bru', 'url: two\n');
     write(alice, 'scratch.bru', 'url: scratch\n');
     expect(await service.fileDiff(alice, 'orders.bru')).toContain('+url: two');
-    expect(await service.fileDiff(alice, 'scratch.bru')).toContain('+url: scratch');
+    expect(await service.fileDiff(alice, 'scratch.bru')).toBe('@@ -0,0 +1,1 @@\n+url: scratch\n');
   });
 });

@@ -1,12 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { IconGitBranch } from '@tabler/icons';
 import SidebarSection from 'components/Sidebar/SidebarSection';
 import GitPanel from './GitPanel';
 import useGitStatus from './useGitStatus';
+import { openGitView } from './selection';
+
+export { default as GitTab } from './GitTab';
+export { default as GitTabTitle } from './GitTabTitle';
+export { GIT_TAB_TYPE } from './selection';
 
 // Sidebar section with a git panel for the collection of the active tab (selectable when several are open).
 const GitSection = () => {
+  const dispatch = useDispatch();
   const collections = useSelector((state) => state.collections.collections);
   const activeCollectionUid = useSelector((state) => state.tabs.tabs.find((tab) => tab.uid === state.tabs.activeTabUid)?.collectionUid);
   const workspaces = useSelector((state) => state.workspaces.workspaces);
@@ -49,7 +55,15 @@ const GitSection = () => {
         </div>
       )}
       {collection ? (
-        <GitPanel folder={collection.pathname} status={status} error={error} loading={loading} refresh={refresh} />
+        <GitPanel
+          folder={collection.pathname}
+          status={status}
+          error={error}
+          loading={loading}
+          refresh={refresh}
+          onOpenFile={(file) => openGitView(dispatch, collection, { file })}
+          onOpenView={() => openGitView(dispatch, collection)}
+        />
       ) : (
         <p style={{ padding: '0.5rem 0.625rem' }}>Open a collection to see its git status.</p>
       )}
