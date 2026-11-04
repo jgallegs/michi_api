@@ -1,6 +1,8 @@
 import React from 'react';
+import AppLogo, { USE_APP_LOGO } from 'components/fork/AppLogo'; // [FORK H-06]
 
 const Bruno = ({ width }) => {
+  if (USE_APP_LOGO) return <AppLogo width={width} />; // [FORK H-06]
   return (
     <svg id="emoji" width={width} viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
       <g id="color">

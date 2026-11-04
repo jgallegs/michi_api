@@ -32,3 +32,4 @@ Si electron-builder falla al extraer `winCodeSign` con un error de enlaces simb�
 | Función | Desde | Descripción |
 |---|---|---|
 | Entornos sensibles | v4.3.0-fork.1 | Interruptor *Sensitive* en el detalle de cada entorno de colección. Con él activo, el selector de entorno muestra un aviso y cada envío o ejecución del runner pide confirmación. La marca se guarda solo en el equipo (no en la colección) |
+| Logo propio | v4.3.0-fork.2 | El logo de la app sale de `fork/packaging/icons/app-logo.svg`. `python fork/packaging/make-icon.py` genera el icono del ejecutable, el icono de la ventana (H-07) y el componente `components/fork/AppLogo`, que sustituye al logo de Bruno en la interfaz (H-06). Con `USE_APP_LOGO = false` vuelve el logo original |
