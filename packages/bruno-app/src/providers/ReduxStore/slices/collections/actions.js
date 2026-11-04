@@ -117,6 +117,7 @@ import {
   hydrateCollectionTabs,
   hydrateSnapshotLookups
 } from 'utils/snapshot';
+import { confirmSendInSensitiveEnvironment } from 'components/fork/SensitiveEnvironment/guard'; // [FORK H-03]
 
 // Display name for a cloned/pasted item: always "<source> copy" (semantic).
 // Filename uniqueness is resolved silently by the electron main process
@@ -614,6 +615,10 @@ export const sendRequest = (item, collectionUid) => (dispatch, getState) => {
   return new Promise(async (resolve, reject) => {
     if (!collection) {
       return reject(new Error('Collection not found'));
+    }
+
+    if (!(await confirmSendInSensitiveEnvironment(collection, item))) { // [FORK H-03]
+      return resolve();
     }
 
     if (item.response?.stream?.running && item.cancelTokenUid) {

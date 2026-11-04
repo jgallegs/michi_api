@@ -15,6 +15,7 @@ import ActionIcon from 'ui/ActionIcon';
 import ResponsiveTabs from 'ui/ResponsiveTabs';
 import { updateTabState } from 'providers/ReduxStore/slices/tabs';
 import useEnvironmentTabs from 'hooks/useEnvironmentTabs';
+import { SensitiveEnvironmentToggle } from 'components/fork/SensitiveEnvironment'; // [FORK H-01]
 import StyledWrapper from './StyledWrapper';
 
 const EnvironmentDetails = ({ environment, setIsModified, collection, searchQuery, setSearchQuery, isSearchExpanded, setIsSearchExpanded, debouncedSearchQuery, searchInputRef }) => {
@@ -247,6 +248,7 @@ const EnvironmentDetails = ({ environment, setIsModified, collection, searchQuer
         </div>
         {nameError && isRenaming && <div className="title-error">{nameError}</div>}
         <div className="actions">
+          <SensitiveEnvironmentToggle collection={collection} environment={environment} /> {/* [FORK H-01] */}
           <InheritsFrom
             environment={environment}
             environments={environments}

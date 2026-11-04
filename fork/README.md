@@ -17,3 +17,8 @@ node fork/scripts/check-diff.mjs
 
 Comprueba que fuera de `fork/` solo cambian enganches registrados, y que no hay palabras prohibidas ni secretos en las líneas añadidas.
 
+## Funciones
+
+| Función | Desde | Descripción |
+|---|---|---|
+| Entornos sensibles | v4.3.0-fork.1 | Interruptor *Sensitive* en el detalle de cada entorno de colección. Con él activo, el selector de entorno muestra un aviso y cada envío o ejecución del runner pide confirmación. La marca se guarda solo en el equipo (no en la colección) |

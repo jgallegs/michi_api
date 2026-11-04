@@ -12,6 +12,7 @@ import CreateEnvironment from '../EnvironmentSettings/CreateEnvironment';
 import ImportEnvironmentModal from 'components/Environments/Common/ImportEnvironmentModal';
 import CreateGlobalEnvironment from 'components/WorkspaceHome/WorkspaceEnvironments/CreateEnvironment';
 import ToolHint from 'components/ToolHint';
+import { SensitiveEnvironmentBadge } from 'components/fork/SensitiveEnvironment'; // [FORK H-02]
 import StyledWrapper from './StyledWrapper';
 import { transparentize } from 'polished';
 
@@ -271,6 +272,7 @@ const EnvironmentSelector = ({ collection }) => {
   return (
     <StyledWrapper width={dropdownWidth}>
       <div className="environment-selector flex align-center cursor-pointer">
+        <SensitiveEnvironmentBadge collection={collection} /> {/* [FORK H-02] */}
         <Dropdown
           onCreate={(ref) => (dropdownTippyRef.current = ref)}
           onHidden={() => setSearchText('')}

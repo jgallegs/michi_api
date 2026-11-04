@@ -12,6 +12,7 @@ import { areItemsLoading } from 'utils/collections';
 import RunnerTags from 'components/RunnerResults/RunnerTags/index';
 import { getEffectiveTagsForItem, getRequestItemsForCollectionRun } from 'utils/collections/index';
 import Button from 'ui/Button';
+import { confirmRunInSensitiveEnvironment } from 'components/fork/SensitiveEnvironment/guard'; // [FORK H-04]
 
 // stable reference, so an unset runnerTags doesn't invalidate the run counts on every render
 const NO_RUNNER_TAGS = { include: [], exclude: [] };
@@ -29,6 +30,7 @@ const RunCollectionItem = ({ collectionUid, item, onClose }) => {
   const clearStoredRunnerExchanges = useClearStoredRunnerExchanges(collection.uid);
 
   const onSubmit = async (recursive) => {
+    if (!isCollectionRunInProgress && !(await confirmRunInSensitiveEnvironment(collection))) return; // [FORK H-04]
     dispatch(
       addTab({
         uid: uuid(),
