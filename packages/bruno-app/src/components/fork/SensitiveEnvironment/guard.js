@@ -1,5 +1,10 @@
 import { findEnvironmentInCollection } from 'utils/collections';
-import { isSensitiveEnvironment, isSensitiveEnvironmentSnoozed, snoozeSensitiveEnvironment } from './store';
+import {
+  isSensitiveEnvironment,
+  isSensitiveEnvironmentSnoozed,
+  loadSharedSensitiveEnvironments,
+  snoozeSensitiveEnvironment
+} from './store';
 
 const listeners = new Set();
 let pendingConfirmation = null;
@@ -30,25 +35,30 @@ const describeRequest = (item) => {
   };
 };
 
-const requestConfirmation = ({ kind, collection, item }) => {
+const requestConfirmation = async ({ kind, collection, item }) => {
   const environment = collection ? findEnvironmentInCollection(collection, collection.activeEnvironmentUid) : null;
+
+  // Re-read the shared file on every send so a mark pulled from git applies immediately.
+  if (environment) {
+    await loadSharedSensitiveEnvironments(collection);
+  }
 
   if (
     !environment
     || !isSensitiveEnvironment(collection, environment)
     || isSensitiveEnvironmentSnoozed(collection, environment)
   ) {
-    return Promise.resolve(true);
+    return true;
   }
 
   // Without a mounted host there is no themed modal to show, but a sensitive call must never go out unconfirmed.
   if (!mountedHosts) {
-    return Promise.resolve(window.confirm(`"${environment.name}" is a sensitive environment. Continue?`));
+    return window.confirm(`"${environment.name}" is a sensitive environment. Continue?`);
   }
 
   // A second trigger while the dialog is open (e.g. a repeated shortcut) is dropped, not queued.
   if (pendingConfirmation) {
-    return Promise.resolve(false);
+    return false;
   }
 
   return new Promise((resolve) => {

@@ -18,8 +18,10 @@ const SensitiveEnvironmentBadge = ({ collection }) => {
       title={`"${environment.name}" is a sensitive environment. Requests ask for confirmation before being sent.`}
       data-testid="sensitive-env-badge"
     >
-      <IconAlertTriangle size={14} strokeWidth={2} />
-      <span>Sensitive</span>
+      <span className="icon">
+        <IconAlertTriangle size={11} strokeWidth={2.5} />
+      </span>
+      <span className="text">Sensitive</span>
     </StyledWrapper>
   );
 };

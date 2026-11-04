@@ -4,6 +4,8 @@ import {
   clearSnoozes,
   isSensitiveEnvironment,
   isSensitiveEnvironmentSnoozed,
+  loadSharedSensitiveEnvironments,
+  resetSharedCache,
   setSensitiveEnvironment,
   snoozeSensitiveEnvironment
 } from './store';
@@ -12,44 +14,89 @@ const collection = { uid: 'c1', pathname: '/collections/orders' };
 const prod = { uid: 'e1', name: 'PROD' };
 const dev = { uid: 'e2', name: 'DEV' };
 
+// In-memory stand-in for the main process handlers that own .michi.json.
+const installSharedFile = ({ failWrites = false } = {}) => {
+  const files = new Map();
+  window.ipcRenderer = {
+    invoke: jest.fn(async (channel, collectionPath, environmentName, sensitive) => {
+      const names = new Set(files.get(collectionPath) || []);
+      if (channel === 'fork:sensitive-environments:read') {
+        return [...names];
+      }
+      if (failWrites) {
+        throw new Error('read-only');
+      }
+      if (sensitive) {
+        names.add(environmentName);
+      } else {
+        names.delete(environmentName);
+      }
+      files.set(collectionPath, [...names]);
+      return [...names];
+    })
+  };
+  return files;
+};
+
 describe('sensitive environment store', () => {
   beforeEach(() => {
     window.localStorage.clear();
     clearSnoozes();
+    resetSharedCache();
+    installSharedFile();
+  });
+
+  afterEach(() => {
+    delete window.ipcRenderer;
   });
 
   it('is not sensitive by default', () => {
     expect(isSensitiveEnvironment(collection, prod)).toBe(false);
   });
 
-  it('marks and unmarks an environment', () => {
-    setSensitiveEnvironment(collection, prod, true);
+  it('marks and unmarks an environment in the collection file', async () => {
+    await expect(setSensitiveEnvironment(collection, prod, true)).resolves.toBe(true);
     expect(isSensitiveEnvironment(collection, prod)).toBe(true);
     expect(isSensitiveEnvironment(collection, dev)).toBe(false);
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
 
-    setSensitiveEnvironment(collection, prod, false);
+    await setSensitiveEnvironment(collection, prod, false);
     expect(isSensitiveEnvironment(collection, prod)).toBe(false);
-    expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY))).toEqual({});
   });
 
-  it('keys by collection path and environment name, not by uid', () => {
-    setSensitiveEnvironment(collection, prod, true);
-    const remounted = { uid: 'another-uid', name: 'PROD' };
-    expect(isSensitiveEnvironment({ ...collection, uid: 'c2' }, remounted)).toBe(true);
+  it('picks up marks written by someone else after a reload of the file', async () => {
+    const files = installSharedFile();
+    files.set(collection.pathname, ['PROD']);
+    expect(isSensitiveEnvironment(collection, prod)).toBe(false);
+    await loadSharedSensitiveEnvironments(collection);
+    expect(isSensitiveEnvironment(collection, prod)).toBe(true);
+  });
+
+  it('keeps honoring marks made on this computer before the shared file existed', async () => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ [collection.pathname]: { PROD: true } }));
+    expect(isSensitiveEnvironment(collection, prod)).toBe(true);
+
+    await setSensitiveEnvironment(collection, prod, false);
+    expect(isSensitiveEnvironment(collection, prod)).toBe(false);
+  });
+
+  it('falls back to this computer when the collection file cannot be written', async () => {
+    installSharedFile({ failWrites: true });
+    await expect(setSensitiveEnvironment(collection, prod, true)).resolves.toBe(false);
+    expect(isSensitiveEnvironment(collection, prod)).toBe(true);
+  });
+
+  it('keys by collection path and environment name, not by uid', async () => {
+    await setSensitiveEnvironment(collection, prod, true);
+    expect(isSensitiveEnvironment({ ...collection, uid: 'c2' }, { uid: 'other', name: 'PROD' })).toBe(true);
     expect(isSensitiveEnvironment({ uid: 'c3', pathname: '/collections/other' }, prod)).toBe(false);
   });
 
-  it('ignores missing collection or environment', () => {
-    setSensitiveEnvironment(collection, null, true);
-    expect(isSensitiveEnvironment(collection, null)).toBe(false);
+  it('ignores missing collection or environment and corrupted local storage', async () => {
+    await expect(setSensitiveEnvironment(collection, null, true)).resolves.toBe(false);
     expect(isSensitiveEnvironment(null, prod)).toBe(false);
-  });
-
-  it('survives corrupted storage', () => {
     window.localStorage.setItem(STORAGE_KEY, '{not json');
     expect(isSensitiveEnvironment(collection, prod)).toBe(false);
-    setSensitiveEnvironment(collection, prod, true);
-    expect(isSensitiveEnvironment(collection, prod)).toBe(true);
   });
 
   it('snoozes only for the configured time', () => {

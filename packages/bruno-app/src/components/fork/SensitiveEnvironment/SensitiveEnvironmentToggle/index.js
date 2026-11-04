@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import ToggleSwitch from 'components/ToggleSwitch';
 import { useTheme } from 'providers/Theme';
 import { setSensitiveEnvironment, useIsSensitiveEnvironment } from '../store';
@@ -7,13 +8,24 @@ import StyledWrapper from './StyledWrapper';
 const SensitiveEnvironmentToggle = ({ collection, environment }) => {
   const { theme } = useTheme();
   const isSensitive = useIsSensitiveEnvironment(collection, environment);
+  const [saving, setSaving] = useState(false);
 
-  const handleToggle = () => setSensitiveEnvironment(collection, environment, !isSensitive);
+  const handleToggle = async () => {
+    if (saving) {
+      return;
+    }
+    setSaving(true);
+    const savedInCollection = await setSensitiveEnvironment(collection, environment, !isSensitive);
+    setSaving(false);
+    if (!savedInCollection && !isSensitive) {
+      toast.error('Could not write .michi.json in the collection folder. Marked as sensitive on this computer only.');
+    }
+  };
 
   return (
     <StyledWrapper
       className={isSensitive ? 'is-sensitive' : ''}
-      title="Ask for confirmation before sending requests with this environment. Saved only on this computer."
+      title="Ask for confirmation before sending requests with this environment. Saved in .michi.json in the collection folder, so it is shared through git; upstream Bruno ignores that file."
       data-testid="sensitive-env-toggle"
     >
       <ToggleSwitch

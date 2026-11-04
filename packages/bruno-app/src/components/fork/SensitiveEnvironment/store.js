@@ -1,14 +1,21 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 
-// Sensitive flags live only on this machine so collections stay byte-compatible with upstream Bruno.
-// Environment uids are regenerated on every mount, hence the collection path + environment name key.
+// An environment is sensitive when it is listed in the collection's shared settings file (.michi.json,
+// read and written by the main process) or, for marks made before that file existed, in this machine's
+// local storage. Nothing is stored inside the environment files, so collections stay compatible with
+// upstream Bruno. Environment uids change on every mount, hence the path + environment name keys.
 export const STORAGE_KEY = 'fork.sensitiveEnvironments';
 export const SNOOZE_MINUTES = 15;
+const READ_CHANNEL = 'fork:sensitive-environments:read';
+const WRITE_CHANNEL = 'fork:sensitive-environments:write';
 
 const listeners = new Set();
 const snoozedUntil = new Map();
+const sharedByCollection = new Map();
 
-const readAll = () => {
+const emit = () => listeners.forEach((listener) => listener());
+
+const readLocal = () => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
@@ -18,9 +25,8 @@ const readAll = () => {
   }
 };
 
-const writeAll = (value) => {
+const writeLocal = (value) => {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  listeners.forEach((listener) => listener());
 };
 
 const getKeyParts = (collection, environment) => {
@@ -30,36 +36,77 @@ const getKeyParts = (collection, environment) => {
   return { collectionPath: collection.pathname, environmentName: environment.name };
 };
 
+const setLocalMark = ({ collectionPath, environmentName }, sensitive) => {
+  const all = readLocal();
+  const environments = { ...all[collectionPath] };
+  if (sensitive) {
+    environments[environmentName] = true;
+  } else {
+    delete environments[environmentName];
+  }
+  if (Object.keys(environments).length) {
+    all[collectionPath] = environments;
+  } else {
+    delete all[collectionPath];
+  }
+  writeLocal(all);
+};
+
+const isLocallySensitive = ({ collectionPath, environmentName }) => readLocal()[collectionPath]?.[environmentName] === true;
+
+const isSharedSensitive = ({ collectionPath, environmentName }) => Boolean(sharedByCollection.get(collectionPath)?.has(environmentName));
+
+const storeShared = (collectionPath, names) => {
+  const next = new Set(Array.isArray(names) ? names : []);
+  const previous = sharedByCollection.get(collectionPath);
+  const changed = !previous || previous.size !== next.size || [...next].some((name) => !previous.has(name));
+  sharedByCollection.set(collectionPath, next);
+  if (changed) {
+    emit();
+  }
+};
+
 export const isSensitiveEnvironment = (collection, environment) => {
+  const parts = getKeyParts(collection, environment);
+  return Boolean(parts && (isSharedSensitive(parts) || isLocallySensitive(parts)));
+};
+
+export const loadSharedSensitiveEnvironments = async (collection) => {
+  if (!collection?.pathname || !window.ipcRenderer) {
+    return;
+  }
+  try {
+    storeShared(collection.pathname, await window.ipcRenderer.invoke(READ_CHANNEL, collection.pathname));
+  } catch {
+    // Unreadable settings file: keep the last known state rather than dropping marks.
+  }
+};
+
+// Resolves to true when the mark was saved in the collection file, false when it could only be kept locally.
+export const setSensitiveEnvironment = async (collection, environment, sensitive) => {
   const parts = getKeyParts(collection, environment);
   if (!parts) {
     return false;
   }
-  return readAll()[parts.collectionPath]?.[parts.environmentName] === true;
-};
 
-export const setSensitiveEnvironment = (collection, environment, sensitive) => {
-  const parts = getKeyParts(collection, environment);
-  if (!parts) {
-    return;
+  if (!sensitive) {
+    setLocalMark(parts, false);
   }
 
-  const all = readAll();
-  const environments = { ...all[parts.collectionPath] };
-
-  if (sensitive) {
-    environments[parts.environmentName] = true;
-  } else {
-    delete environments[parts.environmentName];
+  try {
+    if (!window.ipcRenderer) {
+      throw new Error('No main process available');
+    }
+    storeShared(parts.collectionPath, await window.ipcRenderer.invoke(WRITE_CHANNEL, parts.collectionPath, parts.environmentName, sensitive));
+    emit();
+    return true;
+  } catch {
+    if (sensitive) {
+      setLocalMark(parts, true);
+    }
+    emit();
+    return false;
   }
-
-  if (Object.keys(environments).length) {
-    all[parts.collectionPath] = environments;
-  } else {
-    delete all[parts.collectionPath];
-  }
-
-  writeAll(all);
 };
 
 const snoozeKey = ({ collectionPath, environmentName }) => `${collectionPath}::${environmentName}`;
@@ -82,6 +129,8 @@ export const isSensitiveEnvironmentSnoozed = (collection, environment, now = Dat
 
 export const clearSnoozes = () => snoozedUntil.clear();
 
+export const resetSharedCache = () => sharedByCollection.clear();
+
 const subscribe = (listener) => {
   listeners.add(listener);
   const onStorage = (event) => {
@@ -96,6 +145,18 @@ const subscribe = (listener) => {
   };
 };
 
+// Reloads the shared file on mount and whenever the window regains focus (e.g. after a git pull).
 export const useIsSensitiveEnvironment = (collection, environment) => {
+  const collectionPath = collection?.pathname;
+  useEffect(() => {
+    if (!collectionPath) {
+      return undefined;
+    }
+    const reload = () => loadSharedSensitiveEnvironments({ pathname: collectionPath });
+    reload();
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
+  }, [collectionPath]);
+
   return useSyncExternalStore(subscribe, () => isSensitiveEnvironment(collection, environment));
 };

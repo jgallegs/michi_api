@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.3.0-fork.5 (2026-11-04)
+
+Base: Bruno v4.3.0.
+
+- Entornos sensibles **compartidos por colección**: la marca se guarda en `.michi.json`, en la raíz de la colección, y viaja con git. Funciona en formato `.bru` y YAML, y el Bruno oficial ignora ese fichero. Las marcas locales anteriores se siguen respetando.
+- Aviso *Sensitive* rediseñado.
+
 ## v4.3.0-fork.4 (2026-11-04)
 
 Base: Bruno v4.3.0.
