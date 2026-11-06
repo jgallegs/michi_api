@@ -5,7 +5,7 @@ import { HotkeysProvider } from 'providers/Hotkeys';
 import { PromptVariablesProvider } from 'providers/PromptVariables';
 import ReduxStore from 'providers/ReduxStore';
 import ThemeProvider from 'providers/Theme/index';
-import { SensitiveEnvironmentConfirmHost } from 'components/fork/SensitiveEnvironment'; // [FORK H-05]
+import ForkRoot from 'components/fork/ForkRoot'; // [FORK H-05]
 import ErrorBoundary from './ErrorBoundary';
 
 import '../styles/globals.css';
@@ -48,7 +48,7 @@ function Main({ children }) {
               <AppProvider>
                 <HotkeysProvider>
                   {children}
-                  <SensitiveEnvironmentConfirmHost /> {/* [FORK H-05] */}
+                  <ForkRoot /> {/* [FORK H-05] */}
                 </HotkeysProvider>
               </AppProvider>
             </PromptVariablesProvider>

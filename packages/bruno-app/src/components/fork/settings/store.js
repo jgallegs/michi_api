@@ -56,6 +56,8 @@ const subscribe = (listener) => {
   return () => listeners.delete(listener);
 };
 
+export const subscribeToForkSettings = subscribe;
+
 export const useForkSetting = (id) => useSyncExternalStore(subscribe, () => getForkSetting(id));
 
 // Only for tests.
