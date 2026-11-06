@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import get from 'lodash/get';
 import { IconDownload, IconTag } from '@tabler/icons';
@@ -53,20 +53,42 @@ const PdfLabel = ({ base64 }) => {
   );
 };
 
+// Draws the ZPL offline; the code stays one click away.
+const ZplLabel = ({ text }) => {
+  const [state, setState] = useState({ images: null, error: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    import('./zpl')
+      .then(({ renderZpl }) => renderZpl(text))
+      .then((images) => !cancelled && setState({ images, error: null }))
+      .catch((err) => !cancelled && setState({ images: [], error: err?.message || 'Could not draw the label' }));
+    return () => {
+      cancelled = true;
+    };
+  }, [text]);
+
+  return (
+    <>
+      {state.images === null ? <div className="muted note">Drawing the label…</div> : null}
+      {state.error ? <div className="muted note">{`The label could not be drawn: ${state.error}`}</div> : null}
+      {(state.images || []).map((png, index) => (
+        <img key={index} className="zpl-image" alt="ZPL label" src={`data:image/png;base64,${png}`} data-testid="zpl-image" />
+      ))}
+      <details className="zpl-code">
+        <summary>ZPL code</summary>
+        <pre className="zpl">{text}</pre>
+      </details>
+    </>
+  );
+};
+
 const LabelBody = ({ label }) => {
   if (label.kind === 'pdf') {
     return <PdfLabel base64={label.base64} />;
   }
   if (label.kind === 'zpl') {
-    return (
-      <>
-        <div className="muted note">
-          ZPL is the Zebra printer language. It is shown as text: drawing it needs a renderer that is not bundled. Save it
-          as .zpl to send it to a printer.
-        </div>
-        <pre className="zpl">{label.text}</pre>
-      </>
-    );
+    return <ZplLabel text={label.text} />;
   }
   return <img alt="Label" src={`data:${LABEL_KINDS[label.kind].mime};base64,${label.base64}`} />;
 };

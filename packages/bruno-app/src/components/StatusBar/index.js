@@ -13,7 +13,7 @@ import { openConsole } from 'providers/ReduxStore/slices/logs';
 import { addTab } from 'providers/ReduxStore/slices/tabs';
 import { useApp } from 'providers/App';
 import StyledWrapper from './StyledWrapper';
-import RequestHistoryButton from 'components/fork/RequestHistory'; // [FORK H-26]
+import ForkStatusBarItems from 'components/fork/StatusBarItems'; // [FORK H-26]
 
 const StatusBar = () => {
   const dispatch = useDispatch();
@@ -119,7 +119,7 @@ const StatusBar = () => {
 
         <div className="status-bar-section">
           <div className="flex items-center gap-3">
-            <RequestHistoryButton /> {/* [FORK H-26] */}
+            <ForkStatusBarItems /> {/* [FORK H-26] */}
             <button
               className="status-bar-button"
               data-trigger="search"

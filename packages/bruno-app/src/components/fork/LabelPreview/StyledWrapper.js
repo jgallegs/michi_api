@@ -59,6 +59,22 @@ const StyledWrapper = styled.div`
     margin-bottom: 0.5rem;
   }
 
+  .zpl-image {
+    border: 1px solid ${(props) => props.theme.status.info.border};
+    background: #fff;
+    margin-bottom: 0.5rem;
+  }
+
+  .zpl-code {
+    align-self: stretch;
+    font-size: 0.75rem;
+  }
+
+  .zpl-code summary {
+    cursor: pointer;
+    margin-bottom: 0.25rem;
+  }
+
   .zpl {
     align-self: stretch;
     font-family: monospace;

@@ -5,6 +5,10 @@ import themes from 'themes/index';
 import { FORK_SETTINGS, resetForkSettingsCache, setForkSetting } from 'components/fork/settings/store';
 import LabelPreviewBar from './index';
 
+jest.mock('./zpl', () => ({
+  renderZpl: jest.fn(async () => ['QUJD'])
+}));
+
 jest.mock('react-pdf', () => ({
   Document: ({ children }) => <div data-testid="pdf-document">{children}</div>,
   Page: () => null
@@ -33,13 +37,14 @@ describe('LabelPreviewBar', () => {
     expect(screen.queryByTestId('label-preview-bar')).toBeNull();
   });
 
-  it('counts the labels and shows them on request', () => {
+  it('counts the labels, draws the ZPL and shows the rest on request', async () => {
     renderBar({ labels: [{ front: pdf }, { back: zpl }] });
     expect(screen.getByText('2 labels in this response (PDF, ZPL)')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('label-preview-open'));
     expect(screen.getByTestId('pdf-document')).toBeInTheDocument();
     expect(screen.getByText(/Sample shipping label/)).toBeInTheDocument();
+    expect(await screen.findByTestId('zpl-image')).toHaveAttribute('src', 'data:image/png;base64,QUJD');
     expect(screen.getByText('labels[1].back')).toBeInTheDocument();
   });
 

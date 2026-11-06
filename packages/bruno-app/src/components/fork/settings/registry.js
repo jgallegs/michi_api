@@ -12,7 +12,13 @@ export const FORK_SETTING_ENTRIES = [
     id: FORK_SETTINGS.LABEL_PREVIEW,
     label: 'Preview labels found in responses',
     description:
-      'When a response carries a PDF, PNG, JPEG or ZPL label (as base64 or as text, in any field), a bar above the body shows it and lets you save it. ZPL is shown as text.'
+      'When a response carries a PDF, PNG, JPEG or ZPL label (as base64 or as text, in any field), a bar above the body shows it and lets you save it. ZPL labels are drawn on this machine.'
+  },
+  {
+    id: FORK_SETTINGS.QR_TOOL,
+    label: 'QR code tool',
+    description:
+      'QR in the status bar: draws a QR code from a text or from a variable of the active collection, on this machine, and saves it as PNG.'
   },
   {
     id: FORK_SETTINGS.REQUEST_HISTORY,

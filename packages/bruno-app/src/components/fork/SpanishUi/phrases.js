@@ -203,8 +203,20 @@ export const PHRASES = {
   'Spanish interface': 'Interfaz en español',
   'Ask before POST, PUT, PATCH and DELETE (and GraphQL mutations, gRPC, WebSocket and runs). GET, HEAD and OPTIONS go out without asking. Turn it off to confirm every request.':
     'Pregunta antes de POST, PUT, PATCH y DELETE (y de mutaciones GraphQL, gRPC, WebSocket y ejecuciones). GET, HEAD y OPTIONS salen sin preguntar. Desactívalo para confirmar todas las peticiones.',
-  'When a response carries a PDF, PNG, JPEG or ZPL label (as base64 or as text, in any field), a bar above the body shows it and lets you save it. ZPL is shown as text.':
-    'Si una respuesta trae una etiqueta PDF, PNG, JPEG o ZPL (en base64 o en texto, en cualquier campo), una barra encima del cuerpo la enseña y permite guardarla. El ZPL se muestra como texto.',
+  'When a response carries a PDF, PNG, JPEG or ZPL label (as base64 or as text, in any field), a bar above the body shows it and lets you save it. ZPL labels are drawn on this machine.':
+    'Si una respuesta trae una etiqueta PDF, PNG, JPEG o ZPL (en base64 o en texto, en cualquier campo), una barra encima del cuerpo la enseña y permite guardarla. Las etiquetas ZPL se dibujan en este equipo.',
+  'QR code tool': 'Herramienta de QR',
+  'QR in the status bar: draws a QR code from a text or from a variable of the active collection, on this machine, and saves it as PNG.':
+    'QR en la barra de estado: dibuja un código QR a partir de un texto o de una variable de la colección activa, en este equipo, y lo guarda en PNG.',
+  'QR code': 'Código QR',
+  'Open the QR code tool': 'Abrir la herramienta de QR',
+  'Text to encode': 'Texto a codificar',
+  'Take the text from a variable…': 'Tomar el texto de una variable…',
+  'Drawn on this machine; nothing is sent anywhere.': 'Se dibuja en este equipo; no se envía nada.',
+  'Save PNG': 'Guardar PNG',
+  'QR code saved': 'Código QR guardado',
+  'ZPL code': 'Código ZPL',
+  'Drawing the label…': 'Dibujando la etiqueta…',
   'Every request sent from a tab is recorded on this machine: when, which environment, the resolved URL, status, time and a short excerpt of the response. Open it with History in the status bar. Request headers are not kept and credentials are masked.':
     'Cada petición enviada desde una pestaña se apunta en este equipo: cuándo, con qué entorno, la URL resuelta, el estado, el tiempo y un extracto de la respuesta. Se abre con Historial en la barra de estado. No se guardan las cabeceras y las credenciales van enmascaradas.',
   'In responses, dates with a time zone (2026-11-06T09:00:00Z) get the local time and how long ago it was next to them. Only on screen: copying the response gives the original text.':

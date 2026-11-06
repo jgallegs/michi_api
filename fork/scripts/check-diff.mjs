@@ -33,23 +33,32 @@ const readBaseTag = () => {
   return readFileSync(file, 'utf8').trim();
 };
 
+// Rows of type "dependencias" register package.json / package-lock.json changes approved under
+// R-33. JSON cannot carry a [FORK H-xx] marker, so their files are exempt from it.
+const DEPENDENCY_FILE = /^(?:[\w.-]+\/)*package(?:-lock)?\.json$/;
+
 const readRegisteredHookFiles = () => {
   const file = 'fork/HOOKS.md';
   if (!existsSync(file)) {
     throw new Error(`${file} not found`);
   }
   const files = new Set();
+  const markerless = new Set();
   for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
     if (!/^\|\s*H-\d+\s*\|/.test(line) || /RETIRADO|RETIRED/i.test(line)) {
       continue;
     }
+    const isDependencyRow = /^\|\s*H-\d+\s*\|\s*(?:dependencias|dependencies)\s*\|/i.test(line);
     for (const match of line.matchAll(/`([^`]+)`/g)) {
-      if (match[1].includes('/')) {
+      if (isDependencyRow && DEPENDENCY_FILE.test(match[1])) {
+        files.add(match[1]);
+        markerless.add(match[1]);
+      } else if (match[1].includes('/')) {
         files.add(match[1]);
       }
     }
   }
-  return files;
+  return { files, markerless };
 };
 
 const readForbiddenWords = () => {
@@ -108,7 +117,7 @@ const scanLines = (file, lines, forbiddenWords) => {
 
 const main = () => {
   const baseTag = readBaseTag();
-  const hookFiles = readRegisteredHookFiles();
+  const { files: hookFiles, markerless } = readRegisteredHookFiles();
   const forbiddenWords = readForbiddenWords();
   const { tracked, untracked } = changedFiles(baseTag);
 
@@ -121,6 +130,9 @@ const main = () => {
     }
     if (!hookFiles.has(file)) {
       fail(`${file}: upstream file changed but not registered in fork/HOOKS.md`);
+      continue;
+    }
+    if (markerless.has(file)) {
       continue;
     }
     hunks.forEach((hunk) => {

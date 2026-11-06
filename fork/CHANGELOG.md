@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.3.0-fork.10 (sin publicar)
+
+Base: Bruno v4.3.0.
+
+- **Etiquetas ZPL dibujadas**: la vista previa de etiquetas pinta el ZPL como imagen (tamaño según `^PW`/`^LL`, o 4×6" a 203 ppp) y deja el código en *ZPL code*. Usa `@zebrash/browser` sin red: el plugin de build sustituye su cargador de fuentes (que las bajaba de jsDelivr) por las fuentes del propio paquete, incrustadas, y falla si el bundle conserva la URL del CDN.
+- **Herramienta de QR**: botón *QR* en la barra de estado. Dibuja en el equipo un código QR a partir de un texto o de una variable de la colección activa (runtime o del entorno, salvo las secretas) y lo guarda en PNG. Se desactiva en Preferencias → Michi (*QR code tool*).
+- **Dependencia nueva** `@zebrash/browser` 1.0.4 (con `@zebrash/core` y `fflate`, MIT), DEC-22. Enganches H-27 y H-28 (`package.json` y `package-lock.json`); H-26 pasa a montar todos los botones del fork en la barra de estado. `check-diff` acepta filas de tipo `dependencias` sin marca `[FORK H-xx]`, porque JSON no admite comentarios.
+- El bundle que carga al arrancar crece 1,1 MB (de 16,0 a 17,1 MB): Bruno compila los `import()` en modo *eager*, así que el renderizador no se puede cargar aparte.
+
 ## v4.3.0-fork.9 (2026-11-06)
 
 Base: Bruno v4.3.0.
