@@ -25,3 +25,5 @@ Cada fichero de Bruno modificado tiene que aparecer aquí. Un ID no se reutiliza
 | H-19 | código | `packages/bruno-app/src/components/RequestTabPanel/index.js` | antes de `environment-settings` | Pinta la pestaña Git (`components/fork/SourceControl/GitTab`) | — | v4.3.0-fork.8 |
 | H-20 | código | `packages/bruno-app/src/components/RequestTabs/RequestTab/index.js` | lista `specialTabs` | Registra el tipo de pestaña `fork-git` como pestaña especial | — | v4.3.0-fork.8 |
 | H-21 | código | `packages/bruno-app/src/components/RequestTabs/RequestTab/SpecialTab.js` | inicio de `getTabInfo` | Icono y título "Git" de la pestaña | — | v4.3.0-fork.8 |
+| H-22 | código | `packages/bruno-app/src/components/Preferences/index.js` | `import` y lista de pestañas, antes de *Support* | Pestaña *Michi* de Preferencias (`components/fork/settings`), con los interruptores de las funciones del fork | — | v4.3.0-fork.9 |
+| H-23 | código | `packages/bruno-app/src/components/Preferences/index.js` | inicio de `getTabPanel` | Pinta el panel de la pestaña *Michi* | — | v4.3.0-fork.9 |

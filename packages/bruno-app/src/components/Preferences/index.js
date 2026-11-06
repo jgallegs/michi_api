@@ -28,6 +28,7 @@ import ClientCertSettings from './ClientCertSettings';
 
 import StyledWrapper from './StyledWrapper';
 import Cache from './Cache/index';
+import ForkSettings, { ForkSettingsTabButton, FORK_SETTINGS_TAB } from 'components/fork/settings/ForkSettings'; // [FORK H-22]
 
 const Preferences = () => {
   const dispatch = useDispatch();
@@ -44,6 +45,7 @@ const Preferences = () => {
   };
 
   const getTabPanel = (tab) => {
+    if (tab === FORK_SETTINGS_TAB) return <ForkSettings />; // [FORK H-23]
     switch (tab) {
       case 'general': {
         return <General />;
@@ -123,6 +125,7 @@ const Preferences = () => {
             <IconDatabase size={16} strokeWidth={1.5} />
             Cache
           </div>
+          <ForkSettingsTabButton className={getTabClassname(FORK_SETTINGS_TAB)} onClick={() => setTab(FORK_SETTINGS_TAB)} /> {/* [FORK H-22] */}
           <div className={getTabClassname('support')} role="tab" onClick={() => setTab('support')}>
             <IconZoomQuestion size={16} strokeWidth={1.5} />
             Support
