@@ -1,6 +1,6 @@
 # Changelog
 
-## v4.3.0-fork.10 (sin publicar)
+## v4.3.0-fork.10 (2026-11-06)
 
 Base: Bruno v4.3.0.
 
