@@ -18,12 +18,13 @@ import { draftDetectMiddleware } from './middlewares/draft/middleware';
 import { autosaveMiddleware } from './middlewares/autosave/middleware';
 import { snapshotMiddleware } from './middlewares/snapshot/middleware';
 import { benchmarkMiddleware } from './middlewares/benchmark/middleware';
+import { requestHistoryMiddleware } from 'components/fork/RequestHistory/middleware'; // [FORK H-25]
 
 const isDevEnv = () => {
   return import.meta.env.MODE === 'development';
 };
 
-let middleware = [tasksMiddleware.middleware, draftDetectMiddleware, autosaveMiddleware, snapshotMiddleware];
+let middleware = [tasksMiddleware.middleware, draftDetectMiddleware, autosaveMiddleware, snapshotMiddleware, requestHistoryMiddleware]; // [FORK H-25]
 if (isDevEnv()) {
   middleware = [...middleware, debugMiddleware.middleware];
 }

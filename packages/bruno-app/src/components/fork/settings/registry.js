@@ -15,6 +15,12 @@ export const FORK_SETTING_ENTRIES = [
       'When a response carries a PDF, PNG, JPEG or ZPL label (as base64 or as text, in any field), a bar above the body shows it and lets you save it. ZPL is shown as text.'
   },
   {
+    id: FORK_SETTINGS.REQUEST_HISTORY,
+    label: 'Keep a request history',
+    description:
+      'Every request sent from a tab is recorded on this machine: when, which environment, the resolved URL, status, time and a short excerpt of the response. Open it with History in the status bar. Request headers are not kept and credentials are masked.'
+  },
+  {
     id: FORK_SETTINGS.LOCAL_TIME,
     label: 'Show local time next to ISO dates',
     description:
