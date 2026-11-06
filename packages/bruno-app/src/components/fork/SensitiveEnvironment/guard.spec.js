@@ -2,10 +2,12 @@ import {
   confirmRunInSensitiveEnvironment,
   confirmSendInSensitiveEnvironment,
   getPendingConfirmation,
+  isReadOnlyRequest,
   registerConfirmationHost,
   resolvePendingConfirmation
 } from './guard';
 import { clearSnoozes, resetSharedCache } from './store';
+import { FORK_SETTINGS, resetForkSettingsCache, setForkSetting } from 'components/fork/settings/store';
 
 const prod = { uid: 'e1', name: 'PROD' };
 const dev = { uid: 'e2', name: 'DEV' };
@@ -26,6 +28,7 @@ describe('sensitive environment guard', () => {
 
   beforeEach(() => {
     window.localStorage.clear();
+    resetForkSettingsCache();
     clearSnoozes();
     resetSharedCache();
     sharedNames = ['PROD'];
@@ -119,6 +122,45 @@ describe('sensitive environment guard', () => {
     confirmRunInSensitiveEnvironment(buildCollection('e1'));
     await settle();
     expect(getPendingConfirmation()).toMatchObject({ kind: 'runner', request: null });
+  });
+
+  describe('write requests only', () => {
+    const get = { type: 'http-request', name: 'List orders', request: { method: 'GET', url: '{{host}}/orders' } };
+    const post = { type: 'http-request', name: 'Create order', request: { method: 'POST', url: '{{host}}/orders' } };
+    const graphql = (query) => ({ type: 'graphql-request', name: 'Orders', request: { method: 'POST', url: '{{host}}/graphql', body: { graphql: { query } } } });
+
+    it('lets reads through without asking by default', async () => {
+      await expect(confirmSendInSensitiveEnvironment(buildCollection('e1'), get)).resolves.toBe(true);
+      expect(getPendingConfirmation()).toBeNull();
+    });
+
+    it('still asks for writes', async () => {
+      confirmSendInSensitiveEnvironment(buildCollection('e1'), post);
+      await settle();
+      expect(getPendingConfirmation()).not.toBeNull();
+    });
+
+    it('asks for reads too when the switch is off', async () => {
+      setForkSetting(FORK_SETTINGS.SENSITIVE_WRITES_ONLY, false);
+      confirmSendInSensitiveEnvironment(buildCollection('e1'), get);
+      await settle();
+      expect(getPendingConfirmation()).not.toBeNull();
+    });
+
+    it('treats GraphQL queries as reads and mutations as writes', () => {
+      expect(isReadOnlyRequest(graphql('query { orders { id } }'))).toBe(true);
+      expect(isReadOnlyRequest(graphql('# mutation in a comment\n{ orders { id } }'))).toBe(true);
+      expect(isReadOnlyRequest(graphql('mutation { cancel(id: 1) { id } }'))).toBe(false);
+      expect(isReadOnlyRequest({ type: 'ws-request', request: { url: 'ws://example.test' } })).toBe(false);
+    });
+
+    it('shows the URL with the environment variables resolved', async () => {
+      const collection = buildCollection('e1');
+      collection.environments = [{ ...prod, variables: [{ name: 'host', value: 'https://api.example.com', enabled: true }] }, dev];
+      confirmSendInSensitiveEnvironment(collection, post);
+      await settle();
+      expect(getPendingConfirmation().request.url).toBe('https://api.example.com/orders');
+    });
   });
 
   it('falls back to a native confirm when no host is mounted', async () => {
