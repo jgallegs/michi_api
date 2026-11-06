@@ -32,8 +32,9 @@ const StyledWrapper = styled.div`
   }
 
   .result img {
-    max-width: 320px;
-    width: 100%;
+    width: 280px;
+    max-width: 100%;
+    image-rendering: pixelated;
     background: #fff;
   }
 
