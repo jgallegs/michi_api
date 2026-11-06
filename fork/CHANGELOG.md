@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.3.0-fork.9 (sin publicar)
+
+Base: Bruno v4.3.0.
+
+- **Preferencias → Michi**: interruptores de las funciones del fork, guardados en el equipo (R-14). Enganches H-22 y H-23.
+- **Sin telemetría**: las builds dejan vacía la clave de PostHog, así que la app no envía el aviso diario de uso, se compile donde se compile (plugin de build, H-11). Las promociones de pago de Bruno 4.3 ya no se muestran: el único componente ("Golden Edition") no está montado.
+
 ## v4.3.0-fork.8 (2026-11-04)
 
 Base: Bruno v4.3.0.
