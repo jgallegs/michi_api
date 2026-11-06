@@ -7,6 +7,7 @@ import LargeResponseWarning from '../LargeResponseWarning';
 import QueryResultFilter from './QueryResultFilter';
 import QueryResultPreview from './QueryResultPreview';
 import StyledWrapper from './StyledWrapper';
+import LabelPreviewBar from 'components/fork/LabelPreview'; // [FORK H-24]
 
 // Raw format options (for byte format types)
 const RAW_FORMAT_OPTIONS = [
@@ -202,6 +203,7 @@ const QueryResult = ({
         />
       ) : (
         <div className="h-full flex flex-col">
+          <LabelPreviewBar data={data} item={item} /> {/* [FORK H-24] */}
           <div className="flex-1 relative">
             <div className="absolute top-0 left-0 h-full w-full" data-testid="response-preview-container">
               <QueryResultPreview

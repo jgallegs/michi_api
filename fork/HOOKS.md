@@ -27,3 +27,4 @@ Cada fichero de Bruno modificado tiene que aparecer aquí. Un ID no se reutiliza
 | H-21 | código | `packages/bruno-app/src/components/RequestTabs/RequestTab/SpecialTab.js` | inicio de `getTabInfo` | Icono y título "Git" de la pestaña | — | v4.3.0-fork.8 |
 | H-22 | código | `packages/bruno-app/src/components/Preferences/index.js` | `import` y lista de pestañas, antes de *Support* | Pestaña *Michi* de Preferencias (`components/fork/settings`), con los interruptores de las funciones del fork | — | v4.3.0-fork.9 |
 | H-23 | código | `packages/bruno-app/src/components/Preferences/index.js` | inicio de `getTabPanel` | Pinta el panel de la pestaña *Michi* | — | v4.3.0-fork.9 |
+| H-24 | código | `packages/bruno-app/src/components/ResponsePane/QueryResult/index.js` | `import` y encima del cuerpo de la respuesta | Barra *labels in this response* (`components/fork/LabelPreview`): detecta etiquetas PDF/PNG/JPEG/ZPL en la respuesta y las enseña y guarda | — | v4.3.0-fork.9 |

@@ -9,6 +9,12 @@ export const FORK_SETTING_ENTRIES = [
       'Ask before POST, PUT, PATCH and DELETE (and GraphQL mutations, gRPC, WebSocket and runs). GET, HEAD and OPTIONS go out without asking. Turn it off to confirm every request.'
   },
   {
+    id: FORK_SETTINGS.LABEL_PREVIEW,
+    label: 'Preview labels found in responses',
+    description:
+      'When a response carries a PDF, PNG, JPEG or ZPL label (as base64 or as text, in any field), a bar above the body shows it and lets you save it. ZPL is shown as text.'
+  },
+  {
     id: FORK_SETTINGS.LOCAL_TIME,
     label: 'Show local time next to ISO dates',
     description:
