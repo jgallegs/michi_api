@@ -25,5 +25,11 @@ export const FORK_SETTING_ENTRIES = [
     label: 'Show local time next to ISO dates',
     description:
       'In responses, dates with a time zone (2026-11-06T09:00:00Z) get the local time and how long ago it was next to them. Only on screen: copying the response gives the original text.'
+  },
+  {
+    id: FORK_SETTINGS.SPANISH_UI,
+    label: 'Spanish interface',
+    description:
+      'Shows menus, tabs, buttons and dialogs in Spanish. Request, folder and collection names, editors and responses are never changed. Texts without a translation stay in English.'
   }
 ];

@@ -44,9 +44,9 @@ const HistoryEntry = ({ entry, onOpen }) => {
     <li className="entry">
       <button type="button" className="summary" onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
         <span className="time">{formatTime(entry.at)}</span>
-        <span className="env">{entry.environment || 'No environment'}</span>
+        <span className={entry.environment ? 'env fork-no-translate' : 'env'}>{entry.environment || 'No environment'}</span>
         <span className="method">{entry.method}</span>
-        <span className="name">{entry.request?.name || entry.url}</span>
+        <span className="name fork-no-translate">{entry.request?.name || entry.url}</span>
         <span className={statusClass(entry)}>{entry.isError ? 'Error' : entry.status}</span>
         <span className="duration">{typeof entry.duration === 'number' ? `${entry.duration} ms` : ''}</span>
       </button>
