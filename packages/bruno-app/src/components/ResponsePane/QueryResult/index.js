@@ -8,6 +8,7 @@ import QueryResultFilter from './QueryResultFilter';
 import QueryResultPreview from './QueryResultPreview';
 import StyledWrapper from './StyledWrapper';
 import LabelPreviewBar from 'components/fork/LabelPreview'; // [FORK H-24]
+import { VisualizationView } from 'components/fork/Visualizations'; // [FORK H-36]
 
 // Raw format options (for byte format types)
 const RAW_FORMAT_OPTIONS = [
@@ -221,6 +222,7 @@ const QueryResult = ({
                 docKey={docKey}
               />
             </div>
+            <VisualizationView itemUid={item.uid} /> {/* [FORK H-36] */}
             {queryFilterEnabled && (
               <QueryResultFilter
                 filter={filter}

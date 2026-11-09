@@ -186,8 +186,8 @@ const addBruShimToContext = (vm, bru) => {
   vm.setProp(bruRunnerObject, 'setNextRequest', runnerSetNextRequest);
   runnerSetNextRequest.dispose();
 
-  let visualize = vm.newFunction('visualize', function (htmlString) {
-    bru.visualize(vm.dump(htmlString));
+  let visualize = vm.newFunction('visualize', function (...args) { // [FORK H-32] pass every argument
+    bru.visualize(...args.map((arg) => vm.dump(arg)));
   });
   vm.setProp(bruObject, 'visualize', visualize);
   visualize.dispose();

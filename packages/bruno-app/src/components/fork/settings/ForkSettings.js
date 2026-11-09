@@ -31,8 +31,7 @@ export const ForkSettingsTabButton = ({ className, onClick }) => (
 const ForkSettings = () => (
   <div className="flex flex-col w-full" data-testid="fork-settings">
     <div className="text-sm opacity-70 mb-2">
-      Features added by {APP_NAME}. Each one can be turned off to get the standard behaviour back.
-      Settings are stored on this computer only.
+      {`Features added by ${APP_NAME}. Each one can be turned off to get the standard behaviour back. Settings are stored on this computer only.`}
     </div>
     <div className="divide-y divide-gray-500/20">
       {FORK_SETTING_ENTRIES.map((entry) => (

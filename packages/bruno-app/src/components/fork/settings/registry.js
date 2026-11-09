@@ -21,6 +21,12 @@ export const FORK_SETTING_ENTRIES = [
       'QR in the status bar: draws a QR code from a text or from a variable of the active collection, on this machine, and saves it as PNG.'
   },
   {
+    id: FORK_SETTINGS.VISUALIZE,
+    label: 'Show script panels (bru.visualize)',
+    description:
+      'Panels that post-response scripts draw with bru.visualize appear as tabs next to the response format. They run in an isolated frame and cannot reach the app.'
+  },
+  {
     id: FORK_SETTINGS.REQUEST_HISTORY,
     label: 'Keep a request history',
     description:

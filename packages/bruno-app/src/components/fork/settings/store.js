@@ -10,7 +10,8 @@ export const FORK_SETTINGS = {
   LOCAL_TIME: 'localTime',
   REQUEST_HISTORY: 'requestHistory',
   SPANISH_UI: 'spanishUi',
-  QR_TOOL: 'qrTool'
+  QR_TOOL: 'qrTool',
+  VISUALIZE: 'visualize'
 };
 
 const DEFAULTS = {
@@ -19,7 +20,8 @@ const DEFAULTS = {
   [FORK_SETTINGS.LOCAL_TIME]: true,
   [FORK_SETTINGS.REQUEST_HISTORY]: true,
   [FORK_SETTINGS.SPANISH_UI]: false,
-  [FORK_SETTINGS.QR_TOOL]: true
+  [FORK_SETTINGS.QR_TOOL]: true,
+  [FORK_SETTINGS.VISUALIZE]: true
 };
 
 const listeners = new Set();

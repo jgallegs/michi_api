@@ -2,6 +2,8 @@
 
 ## Sin publicar
 
+- **Paneles de los scripts (`bru.visualize`)**: Bruno 4.3 dejó de pintarlos (la llamada existe pero no hace nada), así que los paneles de las colecciones no se veían. Michi vuelve a implementarlo: `bru.visualize('html', { name, content })` en los scripts de respuesta, en modo seguro y de desarrollador, y cada panel sale como pestaña junto al formato de la respuesta (*Response* vuelve al cuerpo). El panel se pinta en un iframe aislado. Se apaga en Preferencias → Michi. Enganches H-31 a H-36.
+- La cabecera de Preferencias → Michi ya se traduce con la interfaz en español.
 - **Sin PRs de Dependabot**: `.github/dependabot.yml` con `open-pull-requests-limit: 0` (enganche H-30). Las dependencias solo se actualizan al pasar a una versión nueva de Bruno (R-33).
 - **Repositorio en GitHub**: portada para usuarios en `.github/README.md` (enganche H-29) con capturas en `fork/docs/img/`. `fork/README.md` queda como guía de mantenimiento, con la tabla de funciones al día.
 

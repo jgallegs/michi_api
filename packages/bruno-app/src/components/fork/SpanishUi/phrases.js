@@ -206,6 +206,11 @@ export const PHRASES = {
   'When a response carries a PDF, PNG, JPEG or ZPL label (as base64 or as text, in any field), a bar above the body shows it and lets you save it. ZPL labels are drawn on this machine.':
     'Si una respuesta trae una etiqueta PDF, PNG, JPEG o ZPL (en base64 o en texto, en cualquier campo), una barra encima del cuerpo la enseña y permite guardarla. Las etiquetas ZPL se dibujan en este equipo.',
   'QR code tool': 'Herramienta de QR',
+  'Show script panels (bru.visualize)': 'Mostrar los paneles de los scripts (bru.visualize)',
+  'Panels that post-response scripts draw with bru.visualize appear as tabs next to the response format. They run in an isolated frame and cannot reach the app.':
+    'Los paneles que dibujan los scripts de respuesta con bru.visualize salen como pestañas junto al formato de la respuesta. Se ejecutan aislados y no pueden acceder a la app.',
+  'Features added by Michi. Each one can be turned off to get the standard behaviour back. Settings are stored on this computer only.':
+    'Funciones añadidas por Michi. Cada una se puede apagar para volver al comportamiento normal. Los ajustes se guardan solo en este equipo.',
   'QR in the status bar: draws a QR code from a text or from a variable of the active collection, on this machine, and saves it as PNG.':
     'QR en la barra de estado: dibuja un código QR a partir de un texto o de una variable de la colección activa, en este equipo, y lo guarda en PNG.',
   'QR code': 'Código QR',

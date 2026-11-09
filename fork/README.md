@@ -46,3 +46,4 @@ Si electron-builder falla al extraer `winCodeSign` con un error de enlaces simb�
 | Interfaz en español | v4.3.0-fork.9 | `components/fork/SpanishUi`: diccionario aplicado en pantalla con un `MutationObserver`. Apagada por defecto. Las frases están en `phrases.js` |
 | Sin telemetría | v4.3.0-fork.9 | El plugin de build deja vacía la clave de analítica de Bruno |
 | QR | v4.3.0-fork.10 | Botón *QR* en la barra de estado (`components/fork/QrCode`): QR de un texto o de una variable de la colección, dibujado con el comando `^BQ` de ZPL |
+| Paneles de scripts | v4.3.0-fork.11 | `bru.visualize` (`bruno-js/src/fork/visualize.js`, H-31 a H-33) llega a la ventana por `main:fork-visualizations` (H-34) y se pinta como pestañas junto al formato de la respuesta (`components/fork/Visualizations`, H-35 y H-36) |

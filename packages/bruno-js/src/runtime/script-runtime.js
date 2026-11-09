@@ -252,7 +252,8 @@ class ScriptRuntime {
       nextRequestName: bru.nextRequest,
       skipRequest: bru.skipRequest,
       stopExecution: bru.stopExecution,
-      scriptedRequestEntries: cleanJson(bru.scriptedRequestEntries || [])
+      scriptedRequestEntries: cleanJson(bru.scriptedRequestEntries || []),
+      visualizations: cleanJson(bru.visualizations || []) // [FORK H-33]
     });
 
     // Track script errors to attach partial results before re-throwing

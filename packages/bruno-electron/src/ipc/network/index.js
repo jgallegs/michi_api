@@ -28,6 +28,7 @@ const { applyCollectionVarsToCollectionRoot } = require('./apply-collection-vars
 const { makeAxiosInstance, completeOpenHop } = require('./axios-instance');
 const { refreshExplicitHeaderNames } = require('@usebruno/common');
 const { resolveInheritedSettings } = require('../../utils/collection');
+const { sendVisualizations } = require('../../fork/visualizations'); // [FORK H-34]
 const { cancelTokens, saveCancelToken, deleteCancelToken } = require('../../utils/cancel-token');
 const { uuid, safeStringifyJSON, safeParseJSON, parseDataFromResponse, parseDataFromRequest, isBinaryRequestBody } = require('../../utils/common');
 const { chooseFileToSave, writeFile, getCollectionFormat, hasRequestExtension } = require('../../utils/filesystem');
@@ -1186,6 +1187,7 @@ const registerNetworkIpc = (mainWindow) => {
             collectionUid
           });
         }
+        sendVisualizations(mainWindow, postResponseScriptResult, { itemUid: item.uid, requestUid, collectionUid }); // [FORK H-34]
 
         !runInBackground && notifyScriptExecution({
           channel: 'main:run-request-event',

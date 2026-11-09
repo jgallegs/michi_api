@@ -16,6 +16,7 @@ import ScriptError from './ScriptError';
 import ScriptErrorIcon from './ScriptErrorIcon';
 import UnresolvedVariablesInfo from './UnresolvedVariablesInfo';
 import StyledWrapper from './StyledWrapper';
+import { VisualizationTabs } from 'components/fork/Visualizations'; // [FORK H-35]
 import ResponsePaneActions from './ResponsePaneActions';
 import QueryResultTypeSelector from './QueryResult/QueryResultTypeSelector/index';
 import { useInitialResponseFormat, useResponsePreviewFormatOptions } from './QueryResult/index';
@@ -244,6 +245,7 @@ const ResponsePane = ({ item, collection }) => {
         <>
           {/* Result View Tabs (Visualizations + Response Format) */}
           <div className="result-view-tabs">
+            <VisualizationTabs itemUid={item.uid} /> {/* [FORK H-35] */}
 
             {/* Response Format */}
             <QueryResultTypeSelector

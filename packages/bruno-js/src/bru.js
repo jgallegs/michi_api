@@ -4,6 +4,7 @@ const { interpolate: _interpolate } = require('@usebruno/common');
 const { createSendRequest } = require('@usebruno/requests').scripting;
 const { jar: createCookieJar, getCookiesForUrl } = require('@usebruno/requests').cookies;
 const CookieList = require('./cookie-list');
+const { visualize: forkVisualize } = require('./fork/visualize'); // [FORK H-31]
 
 const variableNameRegex = /^[\w-.]*$/;
 
@@ -433,6 +434,10 @@ class Bru {
   isSafeMode() {
     return this.runtime === 'quickjs';
   }
+
+  visualize(type, options) { // [FORK H-31]
+    return forkVisualize(this, type, options); // [FORK H-31]
+  } // [FORK H-31]
 }
 
 module.exports = Bru;
