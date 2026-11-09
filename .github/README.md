@@ -29,7 +29,7 @@ Las dos guardan los datos en `%APPDATA%\Michi`, así que puedes pasar de una a o
 Los ejecutables no están firmados, así que Windows SmartScreen puede avisar la primera vez: *Más información → Ejecutar de todas formas*. Si quieres comprobar el fichero, cada descarga lleva al lado su `.sha256`:
 
 ```powershell
-Get-FileHash .\Michi-Setup-4.3.0-fork.10.exe -Algorithm SHA256
+Get-FileHash .\Michi-Setup-4.3.0-fork.11.exe -Algorithm SHA256
 ```
 
 ## Qué añade a Bruno
@@ -76,6 +76,16 @@ El botón **QR** de la barra de estado dibuja un código QR a partir de un texto
 
 ![Herramienta de QR](../fork/docs/img/qr.png)
 
+### Paneles de los scripts
+
+Los scripts de respuesta pueden dibujar un panel HTML con `bru.visualize`. Bruno 4.3 dejó de mostrarlos; Michi los enseña como pestañas junto al formato de la respuesta, y **Response** vuelve al cuerpo normal.
+
+```js
+bru.visualize('html', { name: 'Resumen', content: '<h1>' + res.getBody().id + '</h1>' });
+```
+
+El panel se pinta en un marco aislado: puede llevar sus propios estilos y scripts, pero no tiene acceso a la aplicación.
+
 ### Historial de peticiones
 
 El botón **History** de la barra de estado muestra las últimas 300 peticiones que has enviado: cuándo, con qué entorno, la URL resuelta, el estado, el tiempo y un trozo de la respuesta. Se puede filtrar y volver a abrir la petición.
@@ -106,7 +116,7 @@ Sí, las colecciones son las mismas. Lo que añade Michi (confirmaciones, histor
 No. Es un fork independiente y no está relacionado con el equipo de Bruno. Si algo falla en Michi, abre un issue aquí, no en el repositorio de Bruno.
 
 **¿Cada cuánto se actualiza con Bruno?**
-Michi va sobre una versión concreta de Bruno (ahora la 4.3.0). Cuando sale una nueva, se actualiza la base y se publica una versión nueva de Michi. El número de versión lo indica: `4.3.0-fork.10` es la décima versión de Michi sobre Bruno 4.3.0.
+Michi va sobre una versión concreta de Bruno (ahora la 4.3.0). Cuando sale una nueva, se actualiza la base y se publica una versión nueva de Michi. El número de versión lo indica: `4.3.0-fork.11` es la undécima versión de Michi sobre Bruno 4.3.0.
 
 ## Compilar desde el código
 
