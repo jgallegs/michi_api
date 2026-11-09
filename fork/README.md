@@ -1,6 +1,6 @@
 # Fork
 
-Notas para quien mantiene **Michi**, el fork de [Bruno](https://github.com/usebruno/bruno) (MIT) con funciones añadidas a la aplicación de escritorio. La presentación para usuarios está en [.github/README.md](../.github/README.md), que es lo que enseña GitHub.
+Notas para quien mantiene **Michi**, el fork de [Bruno](https://github.com/usebruno/bruno) (MIT) con funciones añadidas a la aplicación de escritorio. La presentación para usuarios está en [.github/README.md](../.github/README.md), que es lo que enseña GitHub. La documentación completa del fork (reglas, flujo de trabajo, actualización, publicación y funciones) está en [fork/docs/README.md](docs/README.md).
 Las colecciones no cambian: todo lo que se abre o se guarda con el fork sigue siendo compatible con el Bruno oficial.
 
 ## Cómo está organizado

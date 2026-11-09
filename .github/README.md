@@ -129,7 +129,7 @@ node fork/scripts/build-win.mjs
 
 El instalador, el portable y el `.zip` del lanzador quedan en `packages/bruno-electron/out/`.
 
-Si vas a tocar el código, lee antes [fork/README.md](../fork/README.md): explica cómo está separado el código de Michi del de Bruno para que actualizar sea sencillo. Los cambios de cada versión están en [fork/CHANGELOG.md](../fork/CHANGELOG.md).
+Si vas a tocar el código, lee antes [fork/README.md](../fork/README.md) y la documentación de [fork/docs/](../fork/docs/README.md): explican cómo está separado el código de Michi del de Bruno para que actualizar sea sencillo. Los cambios de cada versión están en [fork/CHANGELOG.md](../fork/CHANGELOG.md).
 
 ## Licencia
 
