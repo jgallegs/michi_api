@@ -42,7 +42,7 @@
     "@zebrash/browser": "1.0.4",
     "classnames": "^2.3.1",
     "codemirror": "5.65.2",
-    "codemirror-graphql": "2.1.1",
+    "codemirror-graphql": "2.2.9",
     "cookie": "0.7.1",
     "diff": "^5.2.0",
     "diff2html": "^3.4.47",
