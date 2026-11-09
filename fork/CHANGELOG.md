@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.3.0-fork.12 (2026-11-09)
+
+Base: Bruno v4.3.0.
+
+- **Fuente libre en las etiquetas ZPL**: la fuente condensada en negrita (fuente 0) pasa a ser Fira Sans Condensed Bold (SIL OFL 1.1). La `HelveticaBoldCondensedCustom.ttf` que trae `@zebrash/core` tiene un aviso de copyright de Adobe sin licencia de redistribución: ya no se incluye y la compilación falla si vuelve a aparecer en el bundle (DEC-25).
+- **Avisos de terceros**: `fork/THIRD-PARTY-NOTICES.md` con la licencia completa de `@zebrash`, `fflate`, DejaVu Sans Mono y Fira Sans Condensed. Va dentro de la aplicación (`resources/THIRD-PARTY-NOTICES.md`) junto a la licencia de Bruno (`resources/LICENSE-Bruno.md`).
+- **Documentación** del fork en `fork/docs/`, que pasa a ser la referencia.
+- Las versiones 4.3.0-fork.10 y 4.3.0-fork.11 se retiran porque incluían esa fuente.
+
 ## v4.3.0-fork.11 (2026-11-09)
 
 Base: Bruno v4.3.0.

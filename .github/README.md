@@ -133,4 +133,6 @@ Si vas a tocar el código, lee antes [fork/README.md](../fork/README.md) y la do
 
 ## Licencia
 
-MIT, igual que Bruno. El código original es de Anoop M D, Anusree P S y los colaboradores de Bruno (ver [LICENSE.md](../LICENSE.md)). Bruno es una marca de sus autores; Michi solo usa su código bajo esa licencia.
+MIT, igual que Bruno. El código original es de Anoop M D, Anusree P S y los colaboradores de Bruno (ver [license.md](../license.md)). Bruno es una marca de sus autores; Michi solo usa su código bajo esa licencia.
+
+Lo que añade Michi de terceros (la librería de dibujo de etiquetas y sus fuentes) está en [fork/THIRD-PARTY-NOTICES.md](../fork/THIRD-PARTY-NOTICES.md), con la licencia de cada componente. Los dos ficheros, la licencia de Bruno y los avisos de terceros, van también dentro de la aplicación, en la carpeta `resources` de la instalación.

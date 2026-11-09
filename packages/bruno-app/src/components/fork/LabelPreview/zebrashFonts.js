@@ -1,14 +1,18 @@
 // Replaces @zebrash/core's font loader at build time (plugins/fork/zebrash-fonts.mjs). The original
-// downloads its fonts from a CDN; this one serves the same TTFs, shipped inside the package and
-// inlined in the bundle, so drawing a label never touches the network.
-import HelveticaBold from 'michi-zebrash-fonts/HelveticaBoldCondensedCustom.ttf?inline';
+// downloads its fonts from a CDN; this one serves them from the app, inlined in the bundle, so
+// drawing a label never touches the network.
+//
+// The bold condensed face (ZPL font 0) is Fira Sans Condensed Bold, under the SIL Open Font License
+// (fonts/OFL.txt). The package's own HelveticaBoldCondensedCustom.ttf carries an all-rights-reserved
+// notice and is never bundled: the build fails if it shows up.
+import HelveticaBold from './fonts/FiraSansCondensed-Bold.ttf?inline';
 import DejavuSansMono from 'michi-zebrash-fonts/DejaVuSansMono.ttf?inline';
 import DejavuSansMonoBold from 'michi-zebrash-fonts/DejaVuSansMonoBold.ttf?inline';
 import ZplGS from 'michi-zebrash-fonts/ZplGSCustom.ttf?inline';
 
 const sources = { HelveticaBold, DejavuSansMono, DejavuSansMonoBold, ZplGS };
 const filenames = {
-  HelveticaBold: 'HelveticaBoldCondensedCustom.ttf',
+  HelveticaBold: 'FiraSansCondensed-Bold.ttf',
   DejavuSansMono: 'DejaVuSansMono.ttf',
   DejavuSansMonoBold: 'DejaVuSansMonoBold.ttf',
   ZplGS: 'ZplGSCustom.ttf'

@@ -52,5 +52,11 @@ module.exports = {
   },
   portable: {
     artifactName: '${productName}-${version}-portable.${ext}'
-  }
+  },
+  // Licences travel with the app: Bruno's own and the notices for what the fork adds.
+  extraResources: [
+    ...(upstream.extraResources || []),
+    { from: path.join(repoRoot, 'license.md'), to: 'LICENSE-Bruno.md' },
+    { from: path.join(repoRoot, 'fork/THIRD-PARTY-NOTICES.md'), to: 'THIRD-PARTY-NOTICES.md' }
+  ]
 };

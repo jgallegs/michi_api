@@ -96,6 +96,8 @@ bru.visualize('html', { name: 'Resumen', content: '<h1>' + res.getBody().id + '<
 
 Usa `@zebrash/browser` 1.0.4 (MIT, [decisiones.md](../decisiones.md), DEC-22). Esa librería descarga sus fuentes de jsDelivr; el plugin de compilación `plugins/fork/zebrash-fonts.mjs` cambia ese cargador por las fuentes que ya trae el paquete, incrustadas, y la compilación falla si el bundle conserva la URL del CDN. Comprobado en la app empaquetada: ninguna petición a internet al dibujar.
 
+Desde la fork.12, la fuente condensada en negrita (fuente 0 de ZPL) es **Fira Sans Condensed Bold** (SIL Open Font License 1.1, junto a su licencia en `components/fork/LabelPreview/fonts/`). La que trae el paquete, `HelveticaBoldCondensedCustom.ttf`, tiene un aviso de copyright de Adobe con todos los derechos reservados: no se distribuye, y la compilación falla si llega al bundle (DEC-25). Licencias de todo lo que añade el fork: [fork/THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md).
+
 ## Enganches
 
 | ID | Fichero de Bruno | Qué hace |
