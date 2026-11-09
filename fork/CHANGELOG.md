@@ -2,6 +2,7 @@
 
 ## Sin publicar
 
+- **Sin PRs de Dependabot**: `.github/dependabot.yml` con `open-pull-requests-limit: 0` (enganche H-30). Las dependencias solo se actualizan al pasar a una versión nueva de Bruno (R-33).
 - **Repositorio en GitHub**: portada para usuarios en `.github/README.md` (enganche H-29) con capturas en `fork/docs/img/`. `fork/README.md` queda como guía de mantenimiento, con la tabla de funciones al día.
 
 ## v4.3.0-fork.10 (2026-11-06)

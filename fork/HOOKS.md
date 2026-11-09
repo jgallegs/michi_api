@@ -33,3 +33,4 @@ Cada fichero de Bruno modificado tiene que aparecer aquí. Un ID no se reutiliza
 | H-27 | dependencias | `packages/bruno-app/package.json` | `dependencies` | Añade `@zebrash/browser` 1.0.4 (dibujo de ZPL y QR), aprobada en DEC-22 | — | v4.3.0-fork.10 |
 | H-28 | dependencias | `package-lock.json` | entradas de `@zebrash/browser`, `@zebrash/core` y `fflate` | Las tres entradas del lock de H-27, añadidas a mano sin resolver nada más | — | v4.3.0-fork.10 |
 | H-29 | documentación | `.github/README.md` | fichero nuevo | Portada del repositorio en GitHub para usuarios (GitHub la muestra antes que el `README.md` de Bruno). Las capturas están en `fork/docs/img/` | — | v4.3.0-fork.10 |
+| H-30 | build | `.github/dependabot.yml` | `open-pull-requests-limit` de cada entrada | Apaga las PRs de Dependabot en el repositorio del fork: las dependencias se actualizan con Bruno (R-33) | — | v4.3.0-fork.10 |

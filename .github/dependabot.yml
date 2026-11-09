@@ -5,11 +5,13 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0 # [FORK H-30] las dependencias se actualizan junto con Bruno (R-33)
   
   - package-ecosystem: npm
     directory: "/"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0 # [FORK H-30] las dependencias se actualizan junto con Bruno (R-33)
     groups:
       bruno-dependencies:
         patterns:
