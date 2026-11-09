@@ -146,7 +146,8 @@ const main = () => {
     const buffer = existsSync(file) ? readFileSync(file) : Buffer.alloc(0);
     const isBinary = buffer.includes(0);
     scanLines(file, isBinary ? [] : buffer.toString('utf8').split(/\r?\n/), forbiddenWords);
-    if (!isForkPath(file)) {
+    // A new upstream-side file is only allowed when it is a registered hook carrying its marker.
+    if (!isForkPath(file) && !(hookFiles.has(file) && buffer.toString('utf8').includes(HOOK_MARKER))) {
       fail(`${file}: new file outside a fork/ folder`);
     }
   }

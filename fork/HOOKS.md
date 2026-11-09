@@ -32,3 +32,4 @@ Cada fichero de Bruno modificado tiene que aparecer aquí. Un ID no se reutiliza
 | H-26 | código | `packages/bruno-app/src/components/StatusBar/index.js` | `import` y grupo derecho, antes de *Search* | Botón *History* de la barra de estado, que abre el historial de requests | — | v4.3.0-fork.9 |
 | H-27 | dependencias | `packages/bruno-app/package.json` | `dependencies` | Añade `@zebrash/browser` 1.0.4 (dibujo de ZPL y QR), aprobada en DEC-22 | — | v4.3.0-fork.10 |
 | H-28 | dependencias | `package-lock.json` | entradas de `@zebrash/browser`, `@zebrash/core` y `fflate` | Las tres entradas del lock de H-27, añadidas a mano sin resolver nada más | — | v4.3.0-fork.10 |
+| H-29 | documentación | `.github/README.md` | fichero nuevo | Portada del repositorio en GitHub para usuarios (GitHub la muestra antes que el `README.md` de Bruno). Las capturas están en `fork/docs/img/` | — | v4.3.0-fork.10 |

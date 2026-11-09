@@ -1,6 +1,6 @@
 # Fork
 
-Este repositorio es un fork de [Bruno](https://github.com/usebruno/bruno) (MIT) con funciones añadidas a la aplicación de escritorio.
+Notas para quien mantiene **Michi**, el fork de [Bruno](https://github.com/usebruno/bruno) (MIT) con funciones añadidas a la aplicación de escritorio. La presentación para usuarios está en [.github/README.md](../.github/README.md), que es lo que enseña GitHub.
 Las colecciones no cambian: todo lo que se abre o se guarda con el fork sigue siendo compatible con el Bruno oficial.
 
 ## Cómo está organizado
@@ -9,7 +9,7 @@ Las colecciones no cambian: todo lo que se abre o se guarda con el fork sigue si
 - En ficheros de Bruno solo hay **enganches** de pocas líneas, marcados con `[FORK H-xx]` y registrados en [HOOKS.md](HOOKS.md).
 - `UPSTREAM_VERSION` indica el tag de Bruno sobre el que está la rama.
 
-## Antes de abrir una MR
+## Antes de abrir una PR
 
 ```bash
 node fork/scripts/check-diff.mjs
@@ -23,7 +23,7 @@ Comprueba que fuera de `fork/` solo cambian enganches registrados, y que no hay 
 node fork/scripts/build-win.mjs
 ```
 
-Genera en `packages/bruno-electron/out/` el instalador (`Michi-Setup-<versión>.exe`) y el ejecutable portable (`Michi-<versión>-portable.exe`). La identidad de la app (nombre, `appId`, icono, versión `<upstream>-fork.<n>`) está en `fork/packaging/` y extiende la configuración de Bruno sin modificarla. La app se instala y guarda sus datos (`%APPDATA%\Brunillo`) aparte de una instalación del Bruno oficial. El número de versión del fork está en `fork/packaging/RELEASE`.
+Genera en `packages/bruno-electron/out/` el instalador (`Michi-Setup-<versión>.exe`) y el ejecutable portable (`Michi-<versión>-portable.exe`). La identidad de la app (nombre, `appId`, icono, versión `<upstream>-fork.<n>`) está en `fork/packaging/` y extiende la configuración de Bruno sin modificarla. La app se instala y guarda sus datos (`%APPDATA%\Michi`) aparte de una instalación del Bruno oficial. El número de versión del fork está en `fork/packaging/RELEASE`.
 
 También genera `out/fast-portable/`: un lanzador (`Michi.vbs` y la carpeta `Michi/` con `launcher.ps1` y el `.zip` de la app) para usar la app sin instalarla. Descomprime solo la primera vez de cada versión, en `%LOCALAPPDATA%\Michi-portable\<versión>`, y comparte los datos con la versión instalada (`%APPDATA%\Michi`).
 
@@ -38,3 +38,11 @@ Si electron-builder falla al extraer `winCodeSign` con un error de enlaces simb�
 | Nombre propio | v4.3.0-fork.3 | La app se presenta como **Michi**. Nombre en `src/components/fork/branding.js` (renderer), `src/fork/branding.js` (Electron) y `plugins/fork/branding-phrases.js` (frases sustituidas al compilar). `branding-phrases.spec.js` falla si Bruno cambia una de las frases, para actualizar la lista |
 | Panel Git | v4.3.0-fork.7 | Sección *Git* de la barra lateral (`components/fork/SourceControl`) sobre `src/fork/git/git-service.js` (Electron). Nunca borra trabajo: descartar y sincronizar guardan los cambios en stashes `michi:` ("Saved changes"), y salir de un detached HEAD crea una rama de rescate si hay commits sueltos. Tests con repos reales en `git-service.spec.js` |
 | Vista Git | v4.3.0-fork.8 | Pestaña `fork-git` (`components/fork/SourceControl/GitTab.js`): panel a la izquierda y diff a dos columnas a la derecha (`diffRows.js`, `SideBySideDiff.js`), también para comparar las dos versiones de un conflicto (`conflictDiff` en el servicio) |
+| Preferencias de Michi | v4.3.0-fork.9 | Pestaña *Michi* en *Preferences* (`components/fork/settings`): un interruptor por función, guardado en `localStorage` (`michi.settings`). Cada función nueva añade su entrada en `registry.js` (R-14) |
+| Barrera solo en escrituras | v4.3.0-fork.9 | La confirmación de entornos sensibles enseña la URL resuelta y, con el interruptor activo, solo pregunta en escrituras (`SensitiveEnvironment/guard.js`) |
+| Hora local | v4.3.0-fork.9 | Complemento global de CodeMirror (`components/fork/LocalTime`, `defineInitHook`): marca con un widget la hora local junto a cada fecha ISO con zona en los editores de solo lectura. No cambia el texto |
+| Etiquetas | v4.3.0-fork.9 | Barra sobre el cuerpo de la respuesta (`components/fork/LabelPreview`, H-24) que detecta PDF, PNG, JPEG y ZPL en cualquier campo. Desde la fork.10 el ZPL se dibuja con `@zebrash/browser` (DEC-22); el plugin `plugins/fork/zebrash-fonts.mjs` sustituye su cargador de fuentes por las del paquete y falla si el bundle conserva la URL del CDN |
+| Historial | v4.3.0-fork.9 | Middleware de Redux (H-25) que apunta cada `responseReceived` en `localStorage` (`michi.history`, 300 entradas, sin cabeceras y con credenciales enmascaradas). Botón *History* en la barra de estado (H-26) |
+| Interfaz en español | v4.3.0-fork.9 | `components/fork/SpanishUi`: diccionario aplicado en pantalla con un `MutationObserver`. Apagada por defecto. Las frases están en `phrases.js` |
+| Sin telemetría | v4.3.0-fork.9 | El plugin de build deja vacía la clave de analítica de Bruno |
+| QR | v4.3.0-fork.10 | Botón *QR* en la barra de estado (`components/fork/QrCode`): QR de un texto o de una variable de la colección, dibujado con el comando `^BQ` de ZPL |

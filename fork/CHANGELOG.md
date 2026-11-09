@@ -1,5 +1,9 @@
 # Changelog
 
+## Sin publicar
+
+- **Repositorio en GitHub**: portada para usuarios en `.github/README.md` (enganche H-29) con capturas en `fork/docs/img/`. `fork/README.md` queda como guía de mantenimiento, con la tabla de funciones al día.
+
 ## v4.3.0-fork.10 (2026-11-06)
 
 Base: Bruno v4.3.0.
