@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## v4.3.0-fork.11 (2026-11-09)
+
+Base: Bruno v4.3.0.
 
 - **Paneles de los scripts (`bru.visualize`)**: Bruno 4.3 dejó de pintarlos (la llamada existe pero no hace nada), así que los paneles de las colecciones no se veían. Michi vuelve a implementarlo: `bru.visualize('html', { name, content })` en los scripts de respuesta, en modo seguro y de desarrollador, y cada panel sale como pestaña junto al formato de la respuesta (*Response* vuelve al cuerpo). El panel se pinta en un iframe aislado. Se apaga en Preferencias → Michi. Enganches H-31 a H-36.
 - La cabecera de Preferencias → Michi ya se traduce con la interfaz en español.
