@@ -22,7 +22,7 @@ Por ahora solo hay versión para **Windows**.
 Descarga la última versión desde [Releases](../../releases). Hay dos formas de usarla:
 
 - **Instalador** (`Michi-Setup-<versión>.exe`). Crea el acceso directo y la entrada en el menú Inicio. Es la opción para el día a día.
-- **Sin instalar** (`Michi-<versión>-win.zip` con el lanzador `Michi.vbs`). La primera vez de cada versión tarda un poco porque descomprime la app en tu equipo; después arranca directamente.
+- **Sin instalar** (`Michi-<versión>-sin-instalar.zip`). Descomprímelo donde quieras y abre `Michi.vbs`; la carpeta `Michi` que hay al lado tiene que seguir ahí. La primera vez de cada versión tarda un poco porque prepara la app en tu equipo; después arranca directamente.
 
 Las dos guardan los datos en `%APPDATA%\Michi`, así que puedes pasar de una a otra sin perder nada (pero no las abras a la vez). Michi convive con el Bruno oficial: tiene su propio nombre, su acceso directo y su carpeta de datos.
 
