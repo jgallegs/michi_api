@@ -21,6 +21,7 @@ import {
   IconX
 } from '@tabler/icons';
 import { LOOPBACK_PORT } from '../../engine/nodes';
+import { say } from '../../language';
 import { PIECE_WIDTH, PORT_KIND } from '../pieces';
 
 export const STEP_ICONS = {
@@ -81,7 +82,11 @@ const Port = ({ node, port, state, onMouseDown }) => (
 
 const Chip = ({ source, onRemove }) => (
   <span className="flow-chip" title={`${source.title} · ${source.label}`}>
-    <span className="flow-chip-text fork-no-translate">{source.title} · {source.label}</span>
+    <span className="flow-chip-text">
+      <span className={source.ownTitle ? 'fork-no-translate' : ''}>{source.title}</span>
+      <span className="fork-no-translate"> · </span>
+      <span className={source.ownLabel ? 'fork-no-translate' : ''}>{source.label}</span>
+    </span>
     <button type="button" className="flow-icon-button" aria-label="Disconnect" title="Disconnect" onClick={onRemove}>
       <IconX size={12} strokeWidth={2} />
     </button>
@@ -166,7 +171,7 @@ const Row = ({ node, row, request, sources, onConfig, onAction }) => {
       <div className="flow-row">
         <select className="flow-select" value={getIn(node.config, control.path) ?? control.fallback} onChange={(event) => onConfig(control.path, event.target.value)}>
           {control.options.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
+            <option key={option.value} value={option.value}>{say(option.label)}</option>
           ))}
         </select>
       </div>
@@ -217,7 +222,8 @@ const RunMark = ({ run }) => (
 
 const Piece = ({ node, description, request, title, position, selected, dimmed, issues, run, portState, sources, onMouseDown, onPortMouseDown, onConfig, onAction }) => {
   const Icon = STEP_ICONS[node.type] || IconAlertCircle;
-  const hasCustomTitle = title !== description.title;
+  // Only a request step is titled with a name someone chose; "List · orders" is still an interface text.
+  const hasOwnTitle = node.type === 'request' && title !== description.title;
   return (
     <div
       className={`flow-piece type-${node.type} ${selected ? 'selected' : ''} ${dimmed ? 'dimmed' : ''} ${issues.length ? 'has-issue' : ''} ${run.state ? `run-${run.state}` : ''}`}
@@ -229,7 +235,7 @@ const Piece = ({ node, description, request, title, position, selected, dimmed, 
     >
       <div className="flow-piece-header">
         <Icon size={15} strokeWidth={1.75} className="flow-piece-icon" />
-        <span className={`flow-piece-title ${hasCustomTitle ? 'fork-no-translate' : ''}`}>{title}</span>
+        <span className={`flow-piece-title ${hasOwnTitle ? 'fork-no-translate' : ''}`}>{title}</span>
         <RunMark run={run} />
         {issues.length ? (
           <span className="flow-issue" title={issues.map((item) => item.message).join('\n')} data-testid={`flow-issue-${node.id}`}>

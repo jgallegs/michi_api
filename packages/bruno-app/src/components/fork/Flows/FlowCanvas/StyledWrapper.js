@@ -11,7 +11,10 @@ const StyledWrapper = styled.div`
   width: 100%;
   height: 100%;
   min-height: 0;
+  /* Nothing here ever scrolls: focusing a box near the edge must not drag the canvas along. */
   overflow: hidden;
+  overflow: clip;
+  container-type: inline-size;
   outline: none;
   user-select: none;
   font-size: ${(props) => props.theme.font.size.sm};
@@ -332,13 +335,16 @@ const StyledWrapper = styled.div`
     border: 1px solid ${(props) => props.theme.border.border1};
     border-radius: ${(props) => props.theme.border.radius.md};
     box-shadow: ${(props) => props.theme.shadow.sm};
+    overflow: hidden;
   }
   .flow-tool {
     display: inline-flex;
     align-items: center;
+    flex-shrink: 0;
     gap: 5px;
     height: 26px;
     padding: 0 8px;
+    white-space: nowrap;
     border: none;
     border-radius: ${(props) => props.theme.border.radius.sm};
     background: none;
@@ -356,6 +362,7 @@ const StyledWrapper = styled.div`
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    flex-shrink: 0;
     max-width: 160px;
     height: 22px;
     margin: 0 4px;
@@ -370,10 +377,25 @@ const StyledWrapper = styled.div`
 
     &.sensitive { color: ${(props) => props.theme.status.danger.text}; background: ${(props) => props.theme.status.danger.background}; }
   }
-  .flow-tool-separator { width: 1px; height: 16px; background: ${(props) => props.theme.border.border1}; }
+  .flow-tool-separator { flex-shrink: 0; width: 1px; height: 16px; background: ${(props) => props.theme.border.border1}; }
   .flow-tool-spacer { flex: 1; }
+  .flow-tool-message,
+  .flow-tool-unsaved {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .flow-tool-message { color: ${(props) => props.theme.status.warning.text}; }
   .flow-tool-unsaved { color: ${(props) => props.theme.colors.text.muted}; padding: 0 4px; }
+  /* With little room the buttons keep their icon and lose their words, the least needed first. */
+  @container (max-width: 1150px) {
+    .flow-tool.secondary > span { display: none; }
+  }
+  @container (max-width: 820px) {
+    .flow-tool:not(.run):not(.stop) > span,
+    .flow-tool-unsaved { display: none; }
+  }
 
   .flow-picker {
     position: absolute;

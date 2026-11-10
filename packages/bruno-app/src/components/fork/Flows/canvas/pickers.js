@@ -45,6 +45,9 @@ export const listRequestOptions = (collection) =>
 export const listFieldOptions = (node, request) =>
   (request?.fields || []).filter((path) => !(node.config?.fields || []).includes(path)).map((path) => ({ id: path, label: path, path }));
 
+// A request step is called like its request, a name someone chose; every other title is an interface text.
+export const isNamedByUser = (node, request) => node.type === 'request' && Boolean(request?.name);
+
 export const titleOf = (node, request) => {
   if (node.type === 'request') {
     return request?.name || PIECES.request.title;
@@ -60,7 +63,8 @@ export const listTypedFieldOptions = (flow, target, describe, path) =>
     .filter((node) => node.id !== target.nodeId && ['request', 'foreach'].includes(node.type))
     .map((node) => {
       const port = node.type === 'foreach' ? itemFieldPort(path) : fieldPort(path);
-      return { id: `${node.id}:${port}`, group: titleOf(node, describe(node).request), label: path, nodeId: node.id, port, addField: path };
+      const { request } = describe(node);
+      return { id: `${node.id}:${port}`, group: titleOf(node, request), translateGroup: !isNamedByUser(node, request), label: path, nodeId: node.id, port, addField: path };
     })
     .filter((option) => canConnect(flow, { nodeId: option.nodeId, port: option.port }, target));
 
@@ -72,12 +76,12 @@ export const listValueOptions = (flow, target, describe) =>
     .flatMap((node) => {
       const { description, request } = describe(node);
       const fits = (port) => canConnect(flow, { nodeId: node.id, port }, target);
-      const group = titleOf(node, request);
+      const group = { group: titleOf(node, request), translateGroup: !isNamedByUser(node, request) };
       const shown = description.rows
         .filter((row) => row.right && row.right.kind !== PORT_KIND.ORDER && fits(row.right.port))
-        .map((row) => ({ id: `${node.id}:${row.right.port}`, group, label: row.label, translate: !row.removableField, nodeId: node.id, port: row.right.port }));
+        .map((row) => ({ id: `${node.id}:${row.right.port}`, ...group, label: row.label, translate: !row.removableField, nodeId: node.id, port: row.right.port }));
       const hidden = listFieldOptions(node, request)
         .filter(({ path }) => fits(fieldPort(path)))
-        .map(({ path }) => ({ id: `${node.id}:${fieldPort(path)}`, group, label: path, nodeId: node.id, port: fieldPort(path), addField: path }));
+        .map(({ path }) => ({ id: `${node.id}:${fieldPort(path)}`, ...group, label: path, nodeId: node.id, port: fieldPort(path), addField: path }));
       return [...shown, ...hidden];
     });

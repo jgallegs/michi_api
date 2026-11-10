@@ -3,11 +3,10 @@ import { useDrop } from 'react-dnd';
 import { useStore } from 'react-redux';
 import { findEnvironmentInCollection } from 'utils/collections';
 import { useIsSensitiveEnvironment } from 'components/fork/SensitiveEnvironment/store';
-import { translatePhrase } from 'components/fork/SpanishUi';
-import { FORK_SETTINGS, getForkSetting } from 'components/fork/settings/store';
 import toast from 'react-hot-toast';
 import { findLoopBody, findReachedNodeIds, findStartNode, validateFlow } from '../engine/graph';
 import { NODE_DEFINITIONS, OUT_PORT, isLoopNode } from '../engine/nodes';
+import { say } from '../language';
 import { COLUMN, buildOwnBlock, buildReadyBlock, canFollow, insertBlock, makeOwnBlock } from '../blocks/building';
 import { closeGuide, noteGuideRun, readGuide, startGuide, tickGuidePoint, useGuide } from '../blocks/guide';
 import { deleteOwnBlock, saveOwnBlock, useOwnBlocks } from '../blocks/store';
@@ -43,7 +42,7 @@ import {
 } from '../canvas/editing';
 import { canRedo, canUndo, editFlow, forgetHistory, redo, undo } from '../canvas/history';
 import { settle, tidy } from '../canvas/layout';
-import { listFieldOptions, listPieceOptions, listRequestOptions, listTypedFieldOptions, listValueOptions, titleOf } from '../canvas/pickers';
+import { isNamedByUser, listFieldOptions, listPieceOptions, listRequestOptions, listTypedFieldOptions, listValueOptions, titleOf } from '../canvas/pickers';
 import { HEADER_HEIGHT, PIECE_WIDTH, PORT_KIND, describePiece, findPort } from '../canvas/pieces';
 import { describeRequest, relativeRequestPath } from '../canvas/requests';
 import { defaultBends, dragBend, grabSegment, nearestSegment, routePoints, simplifyBends } from '../canvas/routing';
@@ -53,6 +52,8 @@ import StyledWrapper from './StyledWrapper';
 
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.5;
+// The smallest zoom at which a step can still be read comfortably.
+const READABLE_ZOOM = 0.8;
 const SNAP_DISTANCE = 28;
 const CLICK_DISTANCE = 4;
 const ZONE_PADDING = 16;
@@ -77,9 +78,6 @@ export const resetCanvasMemory = () => {
   copied = null;
 };
 
-// Messages that end up typed inside a step follow the language of the interface.
-const say = (text) => (getForkSetting(FORK_SETTINGS.SPANISH_UI) && translatePhrase(text)) || text;
-
 const portKey = (nodeId, side, port) => `${nodeId}|${side}|${port}`;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -99,6 +97,24 @@ const makeRoom = (collection, flow, looseIds) => setNodePositions(flow, settle(b
 
 const makeRoomAround = (collection, flow, nodeId) =>
   makeRoom(collection, flow, flow.nodes.filter((node) => node.id !== nodeId).map((node) => node.id));
+
+// The view that shows all these boxes. When they do not fit at the smallest zoom allowed, the beginning
+// stays in sight, moved just enough to show "focus", the box that matters now.
+const frameBoxes = (boxes, root, minZoom, focus) => {
+  const left = Math.min(...boxes.map((box) => box.x));
+  const top = Math.min(...boxes.map((box) => box.y));
+  const width = Math.max(...boxes.map((box) => box.x + box.width)) - left;
+  const height = Math.max(...boxes.map((box) => box.y + box.height)) - top;
+  const zoom = clamp(Math.min((root.clientWidth - 120) / width, (root.clientHeight - 160) / height), minZoom, 1);
+  const anchor = focus || { x: left, y: top };
+  const fitsAcross = width * zoom <= root.clientWidth - 2 * VIEW_MARGIN;
+  const fitsDown = height * zoom <= root.clientHeight - TOOLBAR_SPACE - VIEW_MARGIN;
+  return {
+    zoom,
+    x: fitsAcross ? (root.clientWidth - width * zoom) / 2 - left * zoom : Math.min(VIEW_MARGIN - left * zoom, root.clientWidth * 0.3 - anchor.x * zoom),
+    y: fitsDown ? (root.clientHeight - height * zoom) / 2 - top * zoom : Math.min(TOOLBAR_SPACE + 20 - top * zoom, root.clientHeight * 0.3 - anchor.y * zoom)
+  };
+};
 
 const track = (onMove, onEnd) => {
   const finish = (event) => {
@@ -225,13 +241,7 @@ const FlowCanvas = ({ collection, flow }) => {
       setView({ zoom: 1, x: 80 - flow.nodes[0].x, y: root.clientHeight / 2 - flow.nodes[0].y - HEADER_HEIGHT });
       return;
     }
-    const boxes = boxesOf(collection, flow);
-    const left = Math.min(...boxes.map((box) => box.x));
-    const top = Math.min(...boxes.map((box) => box.y));
-    const width = Math.max(...boxes.map((box) => box.x + box.width)) - left;
-    const height = Math.max(...boxes.map((box) => box.y + box.height)) - top;
-    const zoom = clamp(Math.min((root.clientWidth - 120) / width, (root.clientHeight - 160) / height), MIN_ZOOM, 1);
-    setView({ zoom, x: (root.clientWidth - width * zoom) / 2 - left * zoom, y: (root.clientHeight - height * zoom) / 2 - top * zoom });
+    setView(frameBoxes(boxesOf(collection, flow), root, MIN_ZOOM));
   }, [collection, flow]);
 
   useLayoutEffect(() => {
@@ -340,13 +350,19 @@ const FlowCanvas = ({ collection, flow }) => {
     const free = gallery?.world || centerOfView();
     const origin = loose ? { x: free.x, y: free.y - HEADER_HEIGHT / 2 } : startIsFree ? { x: start.x + COLUMN, y: start.y } : free;
     const newIds = built.nodes.map((item) => item.id);
-    edit((current) => makeRoom(collection, insertBlock(current, built, origin, from), newIds));
+    // The block is shown at a size that can be read, starting at the first step there is something to do on.
+    const firstId = built.guide.find((point) => point.nodeId)?.nodeId || built.entryId || newIds[0];
+    edit((current) => {
+      const settled = makeRoom(collection, insertBlock(current, built, origin, from), newIds);
+      const boxes = boxesOf(collection, settled);
+      setView(frameBoxes(boxes, rootRef.current, READABLE_ZOOM, boxes.find((item) => item.id === firstId)));
+      return settled;
+    });
     setSelection({ nodeIds: newIds, edgeId: null });
     if (built.guide.length) {
       startGuide(flow.id, { title: built.title, translate: built.translate, points: built.guide });
     }
     closeGallery();
-    setView(null);
   };
 
   const saveBlock = (name) => {
@@ -709,7 +725,13 @@ const FlowCanvas = ({ collection, flow }) => {
       .forEach((edge) => {
         const source = pieces.get(edge.source);
         const row = source.description.rows.find((candidate) => candidate.right?.port === edge.sourcePort);
-        sources.set(edge.targetPort, { title: source.title, label: row?.label || edge.sourcePort.replace(/^field:/, '') || 'value' });
+        // Names people chose (a request, a field) are shown as they are; the rest follows the interface.
+        sources.set(edge.targetPort, {
+          title: source.title,
+          label: row?.label || edge.sourcePort.replace(/^field:/, '') || 'value',
+          ownTitle: isNamedByUser(source.node, source.request),
+          ownLabel: !row || Boolean(row.removableField)
+        });
       });
     return sources;
   };

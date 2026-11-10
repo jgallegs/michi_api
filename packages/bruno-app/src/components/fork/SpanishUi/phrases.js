@@ -518,5 +518,6 @@ export const PATTERNS = [
   [/^(\d+) labels? in this response \((.+)\)$/, (count, kinds) => `${count} ${count === '1' ? 'etiqueta' : 'etiquetas'} en esta respuesta (${kinds})`],
   [/^Changes \((\d+)\)$/, (count) => `Cambios (${count})`],
   [/^Unknown kind of step: (.+)$/, (type) => `Tipo de paso desconocido: ${type}`],
-  [/^No value arrived for "(.+)"$/, (name) => `No ha llegado ningún valor para "${name}"`]
+  [/^No value arrived for "(.+)"$/, (name) => `No ha llegado ningún valor para "${name}"`],
+  [/^(List|Set variable) · (.+)$/, (kind, name) => `${PHRASES[kind]} · ${name}`]
 ];

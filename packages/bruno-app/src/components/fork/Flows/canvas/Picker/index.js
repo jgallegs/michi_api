@@ -30,7 +30,11 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
     const found = options.filter((option) => matches(option, words));
     const typed = custom && query.trim() ? [].concat(custom(query.trim()) || []) : [];
-    return [...found, ...typed.filter((option) => !found.some((known) => known.id === option.id))];
+    const all = [...found, ...typed.filter((option) => !found.some((known) => known.id === option.id))];
+    // What is called exactly like what was typed goes first, so Enter takes it.
+    const wanted = query.trim().toLowerCase();
+    const isExact = (option) => option.label.toLowerCase() === wanted || inSpanish(option.label, option.translate).toLowerCase() === wanted;
+    return [...all.filter(isExact), ...all.filter((option) => !isExact(option))];
   }, [options, query, custom]);
 
   useEffect(() => {

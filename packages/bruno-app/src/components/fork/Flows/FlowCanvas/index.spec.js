@@ -25,6 +25,7 @@ import { startRun, stopRun } from '../run/controller';
 import { RUN_PHASE, patchRunSession, resetRunSessions } from '../run/session';
 import { resetGuides } from '../blocks/guide';
 import { resetOwnBlocks } from '../blocks/store';
+import { FORK_SETTINGS, resetForkSettingsCache, setForkSetting } from 'components/fork/settings/store';
 import FlowCanvas, { resetCanvasMemory } from './index';
 
 const COLLECTION = '/collections/shop';
@@ -77,6 +78,8 @@ const open = async (flow, shown) => {
 const current = () => getFlow(COLLECTION, 'f1');
 const port = (nodeId, side, name) => screen.getByTestId(`flow-port-${nodeId}-${side}-${name}`);
 const pick = (text) => fireEvent.click(screen.getByText(text, { selector: '.flow-picker-label' }));
+// The chip of an input that takes its value from another step: "step · value".
+const chip = (text) => screen.getByText((content, element) => element.classList.contains('flow-chip-text') && element.textContent === text);
 
 describe('FlowCanvas', () => {
   beforeEach(() => {
@@ -128,7 +131,7 @@ describe('FlowCanvas', () => {
 
     expect(current().edges).toHaveLength(3);
     expect(current().edges[2]).toMatchObject({ source: 'a', sourcePort: 'field:token', target: 'b', targetPort: 'var:orderId' });
-    expect(screen.getByText('login · token')).toBeInTheDocument();
+    expect(chip('login · token')).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('Disconnect'));
     expect(current().edges).toHaveLength(2);
@@ -197,7 +200,7 @@ describe('FlowCanvas', () => {
     pick('orders');
 
     expect(current().edges[3]).toMatchObject({ source: 'a', sourcePort: 'field:orders', target: 'each', targetPort: 'value:list' });
-    expect(screen.getByText('login · orders')).toBeInTheDocument();
+    expect(chip('login · orders')).toBeInTheDocument();
     expect(screen.queryByTestId('flow-issue-each')).not.toBeInTheDocument();
   });
 
@@ -403,6 +406,45 @@ describe('FlowCanvas', () => {
 
       fireEvent.keyDown(screen.getByTestId('flow-canvas'), { key: 'Escape' });
       expect(screen.queryByTestId('flow-gallery')).not.toBeInTheDocument();
+    });
+
+    it('puts first what is called exactly like what was typed', async () => {
+      const flow = makeFlow(
+        [node('a', 'request', 400, 120, { pathname: 'get order.bru', fields: ['order'] }), node('w', 'wait', 720, 120)],
+        [edge('e1', 'start', 'out', 'a'), edge('e2', 'a', 'out', 'w')]
+      );
+      await open(flow);
+      fireEvent.mouseDown(port('w', 'left', 'value:seconds'), { button: 0 });
+      fireEvent.mouseUp(window);
+      fireEvent.change(screen.getByPlaceholderText('Search or type a field, like order.id'), { target: { value: 'order' } });
+      // "Status code" and "Whole response" also match, through the name of their request.
+      expect(screen.getAllByText(/./, { selector: '.flow-picker-label' }).map((item) => item.textContent)).toEqual(['order', 'Status code', 'Whole response']);
+      fireEvent.keyDown(screen.getByPlaceholderText('Search or type a field, like order.id'), { key: 'Enter' });
+      expect(current().edges[2]).toMatchObject({ source: 'a', sourcePort: 'field:order', target: 'w', targetPort: 'value:seconds' });
+    });
+
+    it('marks what is an interface text, so the Spanish interface can translate it, and what is a name', async () => {
+      const flow = makeFlow(
+        [node('r', 'repeat', 400, 120, { times: '2' }), node('l', 'list', 400, 400, { name: 'ids' }), node('a', 'request', 720, 120, { pathname: 'get order.bru' })],
+        [edge('e1', 'start', 'out', 'r'), edge('e2', 'r', 'body', 'a'), edge('e3', 'r', 'field:index', 'a', 'var:orderId')]
+      );
+      await open(flow);
+      const [title, , label] = chip('Repeat · Round number').children;
+      expect(title).not.toHaveClass('fork-no-translate');
+      expect(label).not.toHaveClass('fork-no-translate');
+      expect(screen.getByText('List · ids')).not.toHaveClass('fork-no-translate');
+      expect(screen.getByText('get order', { selector: '.flow-piece-title' })).toHaveClass('fork-no-translate');
+    });
+
+    it('writes the choices of a step in Spanish when the interface is in Spanish', async () => {
+      setForkSetting(FORK_SETTINGS.SPANISH_UI, true);
+      try {
+        await open(makeFlow([node('i', 'if', 400, 120, { check: 'success' })], [edge('e1', 'start', 'out', 'i')]));
+        expect(screen.getByRole('option', { name: 'La respuesta es correcta' })).toBeInTheDocument();
+      } finally {
+        localStorage.clear();
+        resetForkSettingsCache();
+      }
     });
 
     it('finds a step by its name in Spanish', async () => {

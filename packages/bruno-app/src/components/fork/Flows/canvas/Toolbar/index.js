@@ -74,21 +74,21 @@ const StaleWarning = ({ onDiscard }) => (
 const Toolbar = ({ run, dirty, stale, canUndo, canRedo, message, onAdd, onBlocks, onSaveBlock, onHelp, onUndo, onRedo, onTidy, onFit, onSave, onDiscard }) => (
   <div className="flow-toolbar" onMouseDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
     <RunTools run={run} />
-    <ToolButton icon={IconPlus} label="Add a step" onClick={onAdd} testId="flow-add-step">
+    <ToolButton icon={IconPlus} label="Add a step" onClick={onAdd} testId="flow-add-step" className="secondary">
       <span>Add step</span>
     </ToolButton>
-    <ToolButton icon={IconStack} label="Add steps that are already built" onClick={onBlocks} testId="flow-blocks">
+    <ToolButton icon={IconStack} label="Add steps that are already built" onClick={onBlocks} testId="flow-blocks" className="secondary">
       <span>Blocks</span>
     </ToolButton>
     <span className="flow-tool-separator" />
     <ToolButton icon={IconArrowBackUp} label="Undo" onClick={onUndo} disabled={!canUndo} testId="flow-undo" />
     <ToolButton icon={IconArrowForwardUp} label="Redo" onClick={onRedo} disabled={!canRedo} testId="flow-redo" />
-    <ToolButton icon={IconLayoutDistributeHorizontal} label="Tidy up" onClick={onTidy} testId="flow-tidy">
+    <ToolButton icon={IconLayoutDistributeHorizontal} label="Tidy up" onClick={onTidy} testId="flow-tidy" className="secondary">
       <span>Tidy up</span>
     </ToolButton>
     <ToolButton icon={IconMaximize} label="Show the whole flow" onClick={onFit} testId="flow-fit" />
     {onSaveBlock ? (
-      <ToolButton icon={IconPuzzle} label="Keep the selected steps as a block to use again" onClick={onSaveBlock} testId="flow-save-block">
+      <ToolButton icon={IconPuzzle} label="Keep the selected steps as a block to use again" onClick={onSaveBlock} testId="flow-save-block" className="secondary">
         <span>Save as block</span>
       </ToolButton>
     ) : null}
