@@ -29,7 +29,7 @@ Las dos guardan los datos en `%APPDATA%\Michi`, así que puedes pasar de una a o
 Los ejecutables no están firmados, así que Windows SmartScreen puede avisar la primera vez: *Más información → Ejecutar de todas formas*. Si quieres comprobar el fichero, cada descarga lleva al lado su `.sha256`:
 
 ```powershell
-Get-FileHash .\Michi-Setup-4.3.0-fork.11.exe -Algorithm SHA256
+Get-FileHash .\Michi-Setup-4.3.0-fork.13.exe -Algorithm SHA256
 ```
 
 ## Qué añade a Bruno
@@ -46,7 +46,7 @@ Por defecto solo pregunta en las peticiones que escriben (POST, PUT, PATCH, DELE
 
 ![Aviso de entorno sensible junto al selector](../fork/docs/img/entorno-sensible.png)
 
-La marca se guarda en un fichero `.michi.json` en la raíz de la colección. Si lo subes a git, todo el equipo tiene los mismos entornos protegidos. El Bruno oficial ignora ese fichero.
+La marca se guarda en un fichero `.michi.json` en la raíz de la colección. Si lo subes a git, todo el equipo tiene los mismos entornos protegidos. El Bruno oficial ignora ese fichero. Si un `git pull` lo deja con un conflicto sin resolver, Michi trata todos los entornos de la colección como sensibles hasta que lo arregles y no escribe en él.
 
 ### Panel Git
 
@@ -116,7 +116,7 @@ Sí, las colecciones son las mismas. Lo que añade Michi (confirmaciones, histor
 No. Es un fork independiente y no está relacionado con el equipo de Bruno. Si algo falla en Michi, abre un issue aquí, no en el repositorio de Bruno.
 
 **¿Cada cuánto se actualiza con Bruno?**
-Michi va sobre una versión concreta de Bruno (ahora la 4.3.0). Cuando sale una nueva, se actualiza la base y se publica una versión nueva de Michi. El número de versión lo indica: `4.3.0-fork.11` es la undécima versión de Michi sobre Bruno 4.3.0.
+Michi va sobre una versión concreta de Bruno (ahora la 4.3.0). Cuando sale una nueva, se actualiza la base y se publica una versión nueva de Michi. El número de versión lo indica: `4.3.0-fork.13` es la decimotercera versión de Michi sobre Bruno 4.3.0.
 
 ## Compilar desde el código
 

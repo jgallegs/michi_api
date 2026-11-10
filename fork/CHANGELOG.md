@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.3.0-fork.13 (2026-11-10)
+
+Base: Bruno v4.3.0.
+
+- **`.michi.json` dañado ya no se pisa**: si el fichero existe pero no se puede leer (por ejemplo, con un conflicto de git sin resolver), la app no escribe en él y todos los entornos de la colección cuentan como sensibles hasta que se arregla. El aviso del selector lo explica y no deja cambiar las marcas. Antes se trataba como vacío: se perdía la protección sin aviso y la siguiente escritura borraba su contenido.
+- **Sección Flujos** (DEC-26), **apagada por defecto** en Preferencias → Michi porque todavía no hay lienzo. En la barra lateral se crean, renombran, mueven de carpeta y borran los flows de la colección, y cada uno se abre en su pestaña, que por ahora solo enseña el nombre. Se guardan en la clave `flows` de `.michi.json`, con validación (id, versión, nombre de hasta 120 caracteres, 2 MB por flow). Enganche nuevo H-37 (canales `fork:flows:*`).
+- **Registro de secciones y pestañas del fork** (`components/fork/registry`): H-18 a H-21 dejan de nombrar Git y cuelgan de esa lista, así que una sección o pestaña nueva ya no necesita enganches. El selector de colección es común para Git y Flujos.
+- La lectura y escritura de `.michi.json` pasa a un módulo común (`collection-settings-file.js`) para entornos sensibles y flows.
+
 ## v4.3.0-fork.12 (2026-11-09)
 
 Base: Bruno v4.3.0.

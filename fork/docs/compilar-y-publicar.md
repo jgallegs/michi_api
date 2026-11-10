@@ -4,9 +4,9 @@ Publica el mantenedor principal (R-30). Se compila desde el tag, en una carpeta 
 
 ## Estado
 
-- Versión vigente: **Michi 4.3.0-fork.12**, sobre Bruno v4.3.0 (fuente libre en las etiquetas ZPL y avisos de terceros, DEC-25).
+- Versión vigente: **Michi 4.3.0-fork.13**, sobre Bruno v4.3.0 (un `.michi.json` dañado ya no se pisa y sección Flujos, apagada por defecto, DEC-26).
 - La 4.3.0-fork.10 y la 4.3.0-fork.11 están **retiradas**: incluían una fuente sin licencia de redistribución (DEC-25).
-- Versiones anteriores: fork.1 se publicó como Brunillo con un icono provisional, fork.2 no se publicó, y de fork.3 a fork.11 ya como Michi. Los cambios de cada una están en [fork/CHANGELOG.md](../CHANGELOG.md).
+- Versiones anteriores: fork.1 se publicó como Brunillo con un icono provisional, fork.2 no se publicó, y de fork.3 a fork.12 ya como Michi. Los cambios de cada una están en [fork/CHANGELOG.md](../CHANGELOG.md).
 - Bruno de código abierto no tiene actualización automática, así que R-39 se cumple sin hacer nada.
 - Nombre y logo propios en toda la app: enganches H-06 a H-15, más el plugin de textos (H-11, desde la fork.4). El protocolo `bruno://` también lo registra Michi al arrancar.
 
@@ -34,7 +34,7 @@ Problema conocido en Windows sin permisos de administrador: electron-builder fal
 
 - Nombre de producto propio (no "Bruno", que es marca registrada) e icono propio, genéricos y sin ninguna empresa (R-50).
 - Actualización automática desactivada (R-39). Si no, la app se actualizaría sola al Bruno oficial y se perderían las funciones del fork.
-- Versión visible en "Acerca de": `v4.3.0-fork.12` (R-32).
+- Versión visible en "Acerca de": `v4.3.0-fork.13` (R-32).
 - Configuración por defecto vacía: sin entornos marcados ni datos de ningún proyecto (R-52).
 - Licencias dentro de la aplicación (carpeta `resources`): `LICENSE-Bruno.md` (la de Bruno, sin cambios: MIT obliga a conservar el aviso de copyright) y `THIRD-PARTY-NOTICES.md` (lo que añade el fork). Las copia la configuración de empaquetado (`fork/packaging/electron-builder-config.js`).
 - Avisos de terceros al día: cualquier dependencia, fuente o recurso de terceros que añada el fork se apunta en [fork/THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) con su licencia completa antes de publicar. Nada sin licencia que permita redistribuirlo.

@@ -47,6 +47,7 @@ Las dos formas comparten los mismos ajustes: son la misma app y guardan sus dato
 | Migrar a YAML | La migración de Bruno conserva `.michi.json`. Los nombres de entorno no cambian, así que la marca sigue valiendo |
 | Marcas antiguas | Las que se hicieron antes de la fork.5 se guardaron en el equipo y se siguen respetando. Al desmarcar un entorno, se quitan de los dos sitios |
 | Sin permisos de escritura | Si no se puede escribir `.michi.json`, la marca se guarda solo en el equipo y la app lo avisa |
+| Fichero dañado | Si `.michi.json` existe pero no se puede leer (por ejemplo, tras un `git pull` con un conflicto sin resolver), **todos los entornos de la colección cuentan como sensibles** y el aviso del selector lo explica. Mientras tanto no se pueden cambiar las marcas y la app no escribe en el fichero, para no perder lo que hay dentro. Se arregla resolviendo el conflicto a mano (desde la fork.13) |
 | Renombrar el entorno | La marca va por nombre: hay que volver a activarla con el nombre nuevo |
 | Entornos globales | No incluidos: solo entornos de colección |
 | CLI `bru` | No aplica: la marca vive en la app de escritorio ([reglas.md](../reglas.md), R-15) |
@@ -57,7 +58,7 @@ Las dos formas comparten los mismos ajustes: son la misma app y guardan sus dato
 ## Cómo está hecho
 
 - Interfaz y lógica: `packages/bruno-app/src/components/fork/SensitiveEnvironment/` (`store.js`, `guard.js`).
-- Lectura y escritura de `.michi.json`: `packages/bruno-electron/src/fork/sensitive-environments-file.js`, por los canales `fork:sensitive-environments:*` (H-16).
+- Lectura y escritura de `.michi.json`: `packages/bruno-electron/src/fork/collection-settings-file.js` (común a todo lo que se guarda en ese fichero) y `sensitive-environments-file.js`, por los canales `fork:sensitive-environments:*` (H-16).
 - Enganches H-01 a H-05: interruptor, aviso del selector, `sendRequest`, runner y montaje de la ventana de confirmación (DEC-09).
 
 ## Verificación (2026-11-04, Bruno v4.3.0)
