@@ -1,10 +1,21 @@
-import { compareValues, getByPath, resolveValue } from './values';
+import { compareValues, getByPath, interpolate } from './values';
 
+export const IN_PORT = 'in';
 export const OUT_PORT = 'out';
 export const LOOPBACK_PORT = 'loopback';
 export const LIST_PORT = 'list';
+export const STATUS_PORT = 'status';
 export const FIELD_PORT_PREFIX = 'field:';
 export const VARIABLE_PORT_PREFIX = 'var:';
+export const VALUE_PORT_PREFIX = 'value:';
+
+export const fieldPort = (path = '') => `${FIELD_PORT_PREFIX}${path}`;
+export const variablePort = (name) => `${VARIABLE_PORT_PREFIX}${name}`;
+export const valuePort = (key) => `${VALUE_PORT_PREFIX}${key}`;
+
+// The inputs a value arrives through: a variable of a request or a setting of any other step.
+export const isValueTargetPort = (port) =>
+  String(port).startsWith(VARIABLE_PORT_PREFIX) || String(port).startsWith(VALUE_PORT_PREFIX);
 
 const MAX_REPEAT_TIMES = 10000;
 
@@ -12,8 +23,19 @@ export class FlowCancelled extends Error {}
 
 const isSuccessStatus = (status) => status >= 200 && status < 300;
 
-export const readSourcePort = (edge, state) =>
-  getByPath(state.outputs[edge.source], edge.sourcePort.startsWith(FIELD_PORT_PREFIX) ? edge.sourcePort.slice(FIELD_PORT_PREFIX.length) : '');
+export const readSourcePort = (edge, state) => {
+  if (edge.sourcePort === STATUS_PORT) {
+    return state.responses[edge.source]?.status;
+  }
+  const path = String(edge.sourcePort).startsWith(FIELD_PORT_PREFIX) ? edge.sourcePort.slice(FIELD_PORT_PREFIX.length) : '';
+  return getByPath(state.outputs[edge.source], path);
+};
+
+// A setting takes its value from the cable connected to it; without a cable, from the text typed in the step.
+export const createInputReader = ({ node, flow, state, environment }) => (key, typed) => {
+  const edge = flow.edges.find((candidate) => candidate.target === node.id && candidate.targetPort === valuePort(key));
+  return edge ? readSourcePort(edge, state) : interpolate(typed, { ...environment, ...state.variables });
+};
 
 const collectWiredVariables = ({ node, flow, state, warn }) => {
   const wired = {};
@@ -31,6 +53,8 @@ const collectWiredVariables = ({ node, flow, state, warn }) => {
   return wired;
 };
 
+const executeStart = () => ({ port: OUT_PORT, detail: { kind: 'start' } });
+
 const executeRequest = async (context) => {
   const { node, state, host } = context;
   const response = await host.sendRequest(node, { ...state.variables, ...collectWiredVariables(context) });
@@ -46,48 +70,41 @@ const executeRequest = async (context) => {
   return { port: OUT_PORT, detail: { kind: 'response', response } };
 };
 
-const executeSetValue = ({ node, state, resolve }) => {
-  const { name, value: spec } = node.config;
+const executeSetValue = ({ node, state, input }) => {
+  const { name } = node.config;
   if (!name) {
     throw new Error('Choose a name for the value');
   }
-  const value = resolve(spec);
+  const value = input('value', node.config.value);
   state.variables[name] = value;
   state.outputs[node.id] = { value };
   return { port: OUT_PORT, detail: { kind: 'value', name, value } };
 };
 
-const executeCompare = ({ node, resolve }) => {
-  const { left: leftSpec, operator, right: rightSpec } = node.config;
-  const left = resolve(leftSpec);
-  const right = resolve(rightSpec);
-  const result = compareValues(left, operator, right);
-  return { port: result ? 'yes' : 'no', detail: { kind: 'comparison', left, operator, right, result } };
-};
-
-const evaluateResponseCheck = (config, requestId, state) => {
-  const { status } = state.responses[requestId];
-  switch (config.mode) {
-    case 'status':
-      return status === Number(config.status);
-    case 'field':
-      return compareValues(getByPath(state.outputs[requestId], config.path), config.operator, config.value);
-    default:
-      return isSuccessStatus(status);
-  }
-};
-
-const executeCheckResponse = ({ node, state }) => {
-  const requestId = node.config.sourceNodeId || state.lastRequestId;
-  if (!requestId || !state.responses[requestId]) {
+const checkLastResponse = ({ node, state, input }) => {
+  if (!state.lastRequestId) {
     throw new Error('There is no response to check yet');
   }
-  const result = evaluateResponseCheck(node.config, requestId, state);
-  return { port: result ? 'ok' : 'failed', detail: { kind: 'check', status: state.responses[requestId].status, result } };
+  const { status } = state.responses[state.lastRequestId];
+  const result = node.config.check === 'status' ? status === Number(input('status', node.config.status)) : isSuccessStatus(status);
+  return { result, detail: { kind: 'check', status, result } };
 };
 
-const executeRepeat = ({ node, state, resolve }) => {
-  const times = Number(resolve(node.config.times));
+const compareInputs = ({ node, input }) => {
+  const operator = node.config.operator || 'equals';
+  const left = input('left', node.config.left);
+  const right = input('right', node.config.right);
+  const result = compareValues(left, operator, right);
+  return { result, detail: { kind: 'comparison', left, operator, right, result } };
+};
+
+const executeIf = (context) => {
+  const { result, detail } = context.node.config.check === 'compare' ? compareInputs(context) : checkLastResponse(context);
+  return { port: result ? 'yes' : 'no', detail };
+};
+
+const executeRepeat = ({ node, state, input }) => {
+  const times = Number(input('times', node.config.times));
   if (!Number.isInteger(times) || times < 0 || times > MAX_REPEAT_TIMES) {
     throw new Error(`The number of repetitions must be a whole number from 0 to ${MAX_REPEAT_TIMES}`);
   }
@@ -99,28 +116,18 @@ const executeRepeat = ({ node, state, resolve }) => {
   return { port: 'body', detail: { kind: 'repeat', times } };
 };
 
-const executeWait = async ({ node, resolve, sleep, signal }) => {
-  const milliseconds = Number(resolve(node.config.milliseconds));
-  if (!Number.isFinite(milliseconds) || milliseconds < 0) {
-    throw new Error('The waiting time must be a positive number');
+const executeWait = async ({ node, input, sleep, signal }) => {
+  const seconds = Number(input('seconds', node.config.seconds));
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    throw new Error('The waiting time must be a positive number of seconds');
   }
-  await sleep(milliseconds, signal);
-  return { port: OUT_PORT, detail: { kind: 'wait', milliseconds } };
+  await sleep(seconds * 1000, signal);
+  return { port: OUT_PORT, detail: { kind: 'wait', seconds } };
 };
 
-const executeExtract = ({ node, state, resolve }) => {
-  const { from, path, saveAs } = node.config;
-  const value = getByPath(resolve(from), path);
-  state.outputs[node.id] = { value };
-  if (saveAs) {
-    state.variables[saveAs] = value;
-  }
-  return { port: OUT_PORT, detail: { kind: 'value', name: saveAs, value } };
-};
-
-const buildAppendedValue = ({ node, resolve, warn }) => {
-  const resolveOrNull = (spec, label) => {
-    const value = resolve(spec);
+const buildAppendedValue = ({ node, input, warn }) => {
+  const readOrNull = (key, typed, label) => {
+    const value = input(key, typed);
     if (value === undefined) {
       warn(`No value arrived for "${label}"`);
       return null;
@@ -128,9 +135,9 @@ const buildAppendedValue = ({ node, resolve, warn }) => {
     return value;
   };
   if (node.config.mode === 'object') {
-    return Object.fromEntries((node.config.fields || []).map(({ key, value }) => [key, resolveOrNull(value, key)]));
+    return Object.fromEntries((node.config.fields || []).map((field) => [field.key, readOrNull(field.id, field.value, field.key)]));
   }
-  return resolveOrNull(node.config.value, 'value');
+  return readOrNull('value', node.config.value, 'value');
 };
 
 const executeListAppend = (context) => {
@@ -145,21 +152,17 @@ const executeListAppend = (context) => {
   return { port: OUT_PORT, detail: { kind: 'list', listNodeId: listNode.id, items } };
 };
 
-const executeStop = ({ node }) => ({ stop: true, detail: { kind: 'stop', message: node.config.message } });
+const executeStop = ({ node, input }) => ({ stop: true, detail: { kind: 'stop', message: input('message', node.config.message) } });
 
 // outputs: the ports that continue the flow. A data-only node never runs; other nodes read from it.
 export const NODE_DEFINITIONS = {
+  start: { outputs: [OUT_PORT], execute: executeStart },
   request: { outputs: [OUT_PORT], execute: executeRequest },
   setvalue: { outputs: [OUT_PORT], execute: executeSetValue },
-  compare: { outputs: ['yes', 'no'], execute: executeCompare },
-  checkresponse: { outputs: ['ok', 'failed'], execute: executeCheckResponse },
+  if: { outputs: ['yes', 'no'], execute: executeIf },
   repeat: { outputs: ['body', 'exit'], execute: executeRepeat },
   wait: { outputs: [OUT_PORT], execute: executeWait },
-  extract: { outputs: [OUT_PORT], execute: executeExtract },
   list: { outputs: [], dataOnly: true },
   listappend: { outputs: [OUT_PORT], execute: executeListAppend },
   stop: { outputs: [], execute: executeStop }
 };
-
-export const buildResolver = (state, environment) => (spec) =>
-  resolveValue(spec, { variables: { ...environment, ...state.variables }, outputs: state.outputs });

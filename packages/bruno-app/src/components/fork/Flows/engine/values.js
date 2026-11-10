@@ -36,20 +36,6 @@ export const interpolate = (text, variables) => {
   return text.replace(PLACEHOLDER, (placeholder, name) => (isNil(variables[name]) ? placeholder : toText(variables[name])));
 };
 
-// A value in a node's settings: a text or number typed by the user, or a reference picked from a list.
-export const resolveValue = (spec, { variables, outputs }) => {
-  if (spec === null || typeof spec !== 'object') {
-    return interpolate(spec, variables);
-  }
-  if (spec.kind === 'variable') {
-    return variables[spec.name];
-  }
-  if (spec.kind === 'output') {
-    return getByPath(outputs[spec.nodeId], spec.path);
-  }
-  throw new Error(`Unknown kind of value: ${spec.kind}`);
-};
-
 const isEmpty = (value) => isNil(value) || value === '' || (Array.isArray(value) && value.length === 0);
 
 const OPERATORS = {

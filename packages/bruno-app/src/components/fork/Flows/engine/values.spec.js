@@ -1,4 +1,4 @@
-import { compareValues, getByPath, interpolate, resolveValue } from './values';
+import { compareValues, getByPath, interpolate } from './values';
 
 describe('flow values', () => {
   describe('getByPath', () => {
@@ -35,21 +35,6 @@ describe('flow values', () => {
 
     it('never evaluates what it receives', () => {
       expect(interpolate('{{1 + 1}}', {})).toBe('{{1 + 1}}');
-    });
-  });
-
-  describe('resolveValue', () => {
-    const context = { variables: { city: 'Lugo' }, outputs: { n1: { order: { id: 'A1' } } } };
-
-    it('resolves typed text, variables and outputs of other steps', () => {
-      expect(resolveValue('in {{city}}', context)).toBe('in Lugo');
-      expect(resolveValue(3, context)).toBe(3);
-      expect(resolveValue({ kind: 'variable', name: 'city' }, context)).toBe('Lugo');
-      expect(resolveValue({ kind: 'output', nodeId: 'n1', path: 'order.id' }, context)).toBe('A1');
-    });
-
-    it('rejects an unknown reference', () => {
-      expect(() => resolveValue({ kind: 'script' }, context)).toThrow('Unknown kind of value');
     });
   });
 

@@ -1,11 +1,12 @@
 import { findNextEdge, findStartNode, validateFlow } from './graph';
-import { FlowCancelled, LOOPBACK_PORT, NODE_DEFINITIONS, buildResolver } from './nodes';
+import { FlowCancelled, LOOPBACK_PORT, NODE_DEFINITIONS, createInputReader } from './nodes';
 
 export const RUN_STATUS = {
   COMPLETED: 'completed',
   STOPPED: 'stopped',
   FAILED: 'failed',
   CANCELLED: 'cancelled',
+  PAUSED: 'paused',
   INVALID: 'invalid'
 };
 
@@ -70,16 +71,16 @@ const createStepResolver = (flow, state, onEvent) => (node, port) => {
   }
 };
 
-// Runs a flow step by step. It knows nothing about the app: requests go through host.sendRequest. Failed
-// and cancelled runs return a snapshot that can be passed back as options.resume to retry the same step.
-export const runFlow = async (flow, host, { onEvent = () => {}, signal, environment = {}, startNodeId, resume } = {}) => {
+// Runs a flow step by step. It knows nothing about the app: requests go through host.sendRequest. Runs
+// that fail, are cancelled or pause return a snapshot that can be passed back as options.resume to go on
+// from that step. With options.step the run pauses after each step.
+export const runFlow = async (flow, host, { onEvent = () => {}, signal, environment = {}, startNodeId, resume, step = false } = {}) => {
   const issues = validateFlow(flow, { startNodeId: resume?.nodeId || startNodeId });
   if (issues.length) {
     return { status: RUN_STATUS.INVALID, issues };
   }
 
   const state = resume ? clone(resume.state) : createState(flow);
-  const resolve = buildResolver(state, environment);
   const nextStep = createStepResolver(flow, state, onEvent);
   const sleep = host.sleep || sleepUntilDone;
   let nodeId = resume?.nodeId || startNodeId || findStartNode(flow).id;
@@ -98,14 +99,18 @@ export const runFlow = async (flow, host, { onEvent = () => {}, signal, environm
     const node = flow.nodes.find((candidate) => candidate.id === currentId);
     onEvent({ type: 'node-started', nodeId, nodeType: node.type, name: node.name });
 
+    const runnable = { ...node, config: node.config || {} };
     const warn = (message) => onEvent({ type: 'warning', nodeId: currentId, message });
     try {
-      const outcome = await NODE_DEFINITIONS[node.type].execute({ node: { ...node, config: node.config || {} }, flow, state, host, signal, sleep, resolve, warn });
+      const outcome = await NODE_DEFINITIONS[node.type].execute({ node: runnable, flow, state, host, signal, sleep, warn, input: createInputReader({ node: runnable, flow, state, environment }) });
       onEvent({ type: 'node-finished', nodeId, port: outcome.port, detail: outcome.detail });
       if (outcome.stop) {
         return { status: RUN_STATUS.STOPPED, nodeId };
       }
       nodeId = nextStep(node, outcome.port);
+      if (step && nodeId && node.type !== 'start') {
+        return interrupted(RUN_STATUS.PAUSED);
+      }
     } catch (err) {
       if (err instanceof FlowCancelled) {
         return interrupted(RUN_STATUS.CANCELLED);
