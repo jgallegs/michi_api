@@ -26,6 +26,7 @@ La presentación para usuarios está en [.github/README.md](../../.github/README
 | [funciones/entornos-sensibles.md](funciones/entornos-sensibles.md) | Marcar entornos como sensibles y confirmar antes de enviar |
 | [funciones/panel-git.md](funciones/panel-git.md) | Panel Git: sincronizar sin perder trabajo, resolver conflictos y salir de un detached HEAD |
 | [funciones/flows.md](funciones/flows.md) | Flows: encadenar peticiones en un lienzo, sin código, y ejecutarlas viendo cada paso |
+| [funciones/flows-guia.md](funciones/flows-guia.md) | Guía rápida de Flows para quien nunca ha montado uno: el primer flow, qué bloque elegir y qué hacer si algo no sale |
 | [funciones/fork-9-a-11.md](funciones/fork-9-a-11.md) | Preferencias de Michi, etiquetas PDF/ZPL, QR, historial, hora local, interfaz en español, barrera solo en escrituras, sin telemetría y paneles de `bru.visualize` |
 
 ## Versión vigente

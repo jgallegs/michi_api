@@ -4,6 +4,8 @@ En la barra lateral de Michi hay una sección **Flows** para encadenar las petic
 
 Está apagada por defecto mientras es nueva. Se enciende en *Preferences → Michi → Flows*.
 
+Para empezar a usarla sin leer todo esto está la [guía rápida](flows-guia.md), con capturas.
+
 ## Cómo se usa
 
 1. En la sección **Flows**, el botón **+** pide un nombre y, si se quiere, una carpeta. El flow se abre en una pestaña con su pieza **Start** y pregunta **What do you want to do?**: una galería de bloques ya montados (ver [Los bloques](#los-bloques)). **Start from scratch** la cierra y deja el lienzo vacío.
