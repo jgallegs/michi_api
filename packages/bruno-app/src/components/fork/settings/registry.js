@@ -27,6 +27,12 @@ export const FORK_SETTING_ENTRIES = [
       'Panels that post-response scripts draw with bru.visualize appear as tabs next to the response format. They run in an isolated frame and cannot reach the app.'
   },
   {
+    id: FORK_SETTINGS.FLOWS,
+    label: 'Flows',
+    description:
+      'A Flows section in the sidebar to chain the requests of a collection on a visual canvas, without code. Flows are saved in the collection, in the same shared settings file as the sensitive environments.'
+  },
+  {
     id: FORK_SETTINGS.REQUEST_HISTORY,
     label: 'Keep a request history',
     description:

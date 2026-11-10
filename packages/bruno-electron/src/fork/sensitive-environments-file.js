@@ -1,29 +1,7 @@
-const fs = require('fs');
-const path = require('path');
 const { ipcMain } = require('electron');
+const { SETTINGS_FILE, isCollectionRoot, assertCollectionRoot, readSettings, writeSettings } = require('./collection-settings-file');
 
-// Shared per-collection settings of the fork. It lives in the collection root so it travels with the
-// collection through git. Upstream Bruno only reads .bru/.yml requests and its own config files, so an
-// extra JSON file is ignored there in both the bru and the yml formats.
-const SETTINGS_FILE = '.michi.json';
-const COLLECTION_MARKERS = ['bruno.json', 'opencollection.yml'];
-
-const isCollectionRoot = (collectionPath) =>
-  typeof collectionPath === 'string'
-  && path.isAbsolute(collectionPath)
-  && COLLECTION_MARKERS.some((marker) => fs.existsSync(path.join(collectionPath, marker)));
-
-const settingsPath = (collectionPath) => path.join(collectionPath, SETTINGS_FILE);
-
-const readSettings = (collectionPath) => {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(settingsPath(collectionPath), 'utf8'));
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
+// Environments marked as sensitive, shared with the team through .michi.json.
 const readSensitiveEnvironments = (collectionPath) => {
   if (!isCollectionRoot(collectionPath)) {
     return [];
@@ -33,9 +11,7 @@ const readSensitiveEnvironments = (collectionPath) => {
 };
 
 const writeSensitiveEnvironment = (collectionPath, environmentName, sensitive) => {
-  if (!isCollectionRoot(collectionPath)) {
-    throw new Error('Not a collection folder');
-  }
+  assertCollectionRoot(collectionPath);
   if (typeof environmentName !== 'string' || !environmentName) {
     throw new Error('Invalid environment name');
   }
@@ -53,12 +29,7 @@ const writeSensitiveEnvironment = (collectionPath, environmentName, sensitive) =
     delete next.sensitiveEnvironments;
   }
 
-  const file = settingsPath(collectionPath);
-  if (!Object.keys(next).length) {
-    fs.rmSync(file, { force: true });
-  } else {
-    fs.writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
-  }
+  writeSettings(collectionPath, next);
   return next.sensitiveEnvironments || [];
 };
 
