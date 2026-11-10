@@ -9,7 +9,7 @@ import { setLocalStorageValue, SIDEBAR_WIDTH_KEY } from 'utils/common/localStora
 import CollectionsSection from './Sections/CollectionsSection/index';
 import ApiSpecsSection from './Sections/ApiSpecsSection/index';
 import MockServersSection from './Sections/MockServersSection/index';
-import GitSection from 'components/fork/SourceControl'; // [FORK H-18]
+import { FORK_SIDEBAR_SECTIONS } from 'components/fork/registry'; // [FORK H-18]
 import useKeybinding from 'hooks/useKeybinding';
 import useClearSidebarSelectionOnEscape from 'hooks/useClearSidebarSelectionOnEscape';
 import { useBetaFeature, BETA_FEATURES } from 'utils/beta-features';
@@ -30,7 +30,7 @@ const Sidebar = () => {
         component: ApiSpecsSection
       }
     ];
-    sections.push({ id: 'git', component: GitSection }); // [FORK H-18]
+    sections.push(...FORK_SIDEBAR_SECTIONS); // [FORK H-18]
 
     if (isMockServerEnabled) {
       sections.push({

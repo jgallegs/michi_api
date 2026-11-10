@@ -539,6 +539,7 @@ app.on('ready', async () => {
   registerFilesystemIpc(mainWindow);
   require('./fork/sensitive-environments-file').register(); // [FORK H-16]
   require('./fork/git/git-ipc').register(); // [FORK H-17]
+  require('./fork/flows-file').register(); // [FORK H-37]
   registerSystemMonitorIpc(mainWindow, systemMonitor);
   registerGitIpc(mainWindow);
   registerOpenAPISyncIpc(mainWindow);

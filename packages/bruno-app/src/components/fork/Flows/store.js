@@ -63,6 +63,19 @@ export const getFlow = (collectionPath, flowId) => {
 
 export const useFlow = (collectionPath, flowId) => useSyncExternalStore(subscribe, () => getFlow(collectionPath, flowId));
 
+const findFlowName = (flowId) => {
+  for (const { saved, drafts } of entries.values()) {
+    const flow = drafts[flowId] || saved[flowId];
+    if (flow) {
+      return flow.name;
+    }
+  }
+  return null;
+};
+
+// Tab titles only know the flow id; ids are unique across collections.
+export const useFlowName = (flowId) => useSyncExternalStore(subscribe, () => findFlowName(flowId));
+
 export const isFlowDirty = (collectionPath, flowId) => {
   const { saved, drafts } = getEntry(collectionPath);
   return Boolean(drafts[flowId]) && (!saved[flowId] || flowSignature(drafts[flowId]) !== flowSignature(saved[flowId]));

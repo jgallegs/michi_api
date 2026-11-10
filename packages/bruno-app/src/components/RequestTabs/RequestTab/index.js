@@ -34,7 +34,7 @@ import ConfirmApiSpecClose from './ConfirmApiSpecClose';
 import { findApiSpecByPathname, hasUnsavedApiSpecChanges } from 'utils/api-specs';
 import { clearApiSpecDraft, saveApiSpecTabDraft } from 'providers/ReduxStore/slices/apiSpec';
 import toast from 'react-hot-toast';
-import { GIT_TAB_TYPE } from 'components/fork/SourceControl'; // [FORK H-20]
+import { forkSpecialTabTypes } from 'components/fork/registry'; // [FORK H-20]
 
 const RequestTab = ({ tab, collection, tabIndex, collectionRequestTabs, folderUid, hasOverflow, setHasOverflow, dropdownContainerRef }) => {
   const dispatch = useDispatch();
@@ -214,7 +214,7 @@ const RequestTab = ({ tab, collection, tabIndex, collectionRequestTabs, folderUi
     'changelog',
     'api-spec'
   ];
-  specialTabs.push(GIT_TAB_TYPE); // [FORK H-20]
+  specialTabs.push(...forkSpecialTabTypes(tab.type)); // [FORK H-20]
 
   const hasDraft = tab.type === 'collection-settings' && collection?.draft;
   const hasFolderDraft = tab.type === 'folder-settings' && folder?.draft;

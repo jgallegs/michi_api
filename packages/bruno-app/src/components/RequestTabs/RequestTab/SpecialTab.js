@@ -3,11 +3,11 @@ import GradientCloseButton from './GradientCloseButton';
 import StatusBadge from 'ui/StatusBadge';
 import { IconVariable, IconSettings, IconRun, IconFolder, IconDatabase, IconWorld, IconHome, IconFileCode, IconConfetti, IconServer2 } from '@tabler/icons';
 import OpenAPISyncIcon from 'components/Icons/OpenAPISync';
-import { GitTabTitle, GIT_TAB_TYPE } from 'components/fork/SourceControl'; // [FORK H-21]
+import { ForkTabTitle, isForkTab } from 'components/fork/registry'; // [FORK H-21]
 
 const SpecialTab = ({ handleCloseClick, type, tabName, handleDoubleClick, hasDraft }) => {
   const getTabInfo = (type, tabName) => {
-    if (type === GIT_TAB_TYPE) return <GitTabTitle />; // [FORK H-21]
+    if (isForkTab(type)) return <ForkTabTitle type={type} />; // [FORK H-21]
     switch (type) {
       case 'collection-settings': {
         return (

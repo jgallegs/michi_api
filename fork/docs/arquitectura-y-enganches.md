@@ -57,7 +57,7 @@ Tipos de enganche que se usan en el registro:
 
 ## 3. Registro de enganches: `fork/HOOKS.md`
 
-El registro completo, con fichero, zona, qué hace y desde qué versión, está en [fork/HOOKS.md](../HOOKS.md). Hoy llega hasta **H-36**.
+El registro completo, con fichero, zona, qué hace y desde qué versión, está en [fork/HOOKS.md](../HOOKS.md). Hoy llega hasta **H-37**.
 
 - Un ID no se reutiliza nunca. Si un enganche se quita, su fila se marca `RETIRADO`.
 - **Pocos enganches:** cada uno es un posible conflicto al actualizar. Si una función necesita más de 3, se replantea y, si se mantiene, se justifica en [decisiones.md](decisiones.md) (como DEC-09).
