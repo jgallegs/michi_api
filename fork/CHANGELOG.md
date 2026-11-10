@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.3.0-fork.13 (2026-11-10)
+
+Base: Bruno v4.3.0.
+
+- **`.michi.json` dañado ya no se pisa**: si el fichero existe pero no se puede leer (por ejemplo, con un conflicto de git sin resolver), la app no escribe en él y todos los entornos de la colección cuentan como sensibles hasta que se arregla. El aviso del selector lo explica y no deja cambiar las marcas. Antes se trataba como vacío: se perdía la protección sin aviso y la siguiente escritura borraba su contenido.
+- **Base de los flows** (DEC-26): almacenamiento en la clave `flows` de `.michi.json`, con validación (id, versión, nombre de hasta 120 caracteres, 2 MB por flow). Todavía sin editor ni interruptor en Preferencias: llegan con el lienzo.
+- La lectura y escritura de `.michi.json` pasa a un módulo común (`collection-settings-file.js`) para entornos sensibles y flows.
+
 ## v4.3.0-fork.12 (2026-11-09)
 
 Base: Bruno v4.3.0.

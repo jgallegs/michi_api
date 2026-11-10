@@ -31,7 +31,7 @@ Resumen: una sola rama `main` y carpetas por tema, no por persona ni por equipo.
 ├── .gitattributes
 ├── CODEOWNERS
 ├── README.md                versión mínima de Bruno, formato, dueños, cómo empezar
-├── .michi.json              solo si se usa Michi: entornos sensibles compartidos (se sube a git)
+├── .michi.json              solo si se usa Michi: entornos sensibles compartidos y, cuando lleguen, los flows (se sube a git; si da conflicto, resolverlo antes de abrir la colección)
 ├── environments/            entornos compartidos, sin secretos
 ├── <tema-1>/
 │   ├── folder.bru           contrato de la carpeta

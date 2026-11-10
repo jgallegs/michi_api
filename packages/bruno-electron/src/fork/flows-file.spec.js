@@ -63,6 +63,7 @@ describe('flows file', () => {
     expect(() => saveFlow(dir, null)).toThrow('Invalid flow');
     expect(() => saveFlow(dir, makeFlow('bad id', 'Name'))).toThrow('Invalid flow id');
     expect(() => saveFlow(dir, makeFlow('f1', '  '))).toThrow('Invalid flow name');
+    expect(() => saveFlow(dir, makeFlow('f1', 'x'.repeat(121)))).toThrow('Invalid flow name');
     expect(() => saveFlow(dir, makeFlow('f1', 'Name', { version: 99 }))).toThrow('Unsupported flow version');
     expect(() => saveFlow(dir, makeFlow('f1', 'Name', { nodes: 'x' }))).toThrow('Invalid flow graph');
     expect(() => deleteFlow(dir, '../x')).toThrow('Invalid flow id');
@@ -93,6 +94,12 @@ describe('flows file', () => {
 
     expect(() => saveFlow(dir, makeFlow('f1', 'One'))).toThrow('not valid');
     expect(fs.readFileSync(path.join(dir, SETTINGS_FILE), 'utf8')).toBe(content);
+  });
+
+  it('measures the size limit in bytes, not characters', () => {
+    const dir = makeCollection();
+    const nodes = [{ id: 'n1', note: 'ñ'.repeat(1024 * 1024 + 1) }];
+    expect(() => saveFlow(dir, makeFlow('f1', 'One', { nodes }))).toThrow('Flow is too large');
   });
 
   it('refuses folders that are not collections', () => {
