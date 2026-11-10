@@ -14,7 +14,6 @@ const StyledWrapper = styled.div`
   /* Nothing here ever scrolls: focusing a box near the edge must not drag the canvas along. */
   overflow: hidden;
   overflow: clip;
-  container-type: inline-size;
   outline: none;
   user-select: none;
   font-size: ${(props) => props.theme.font.size.sm};
@@ -389,13 +388,9 @@ const StyledWrapper = styled.div`
   .flow-tool-message { color: ${(props) => props.theme.status.warning.text}; }
   .flow-tool-unsaved { color: ${(props) => props.theme.colors.text.muted}; padding: 0 4px; }
   /* With little room the buttons keep their icon and lose their words, the least needed first. */
-  @container (max-width: 1150px) {
-    .flow-tool.secondary > span { display: none; }
-  }
-  @container (max-width: 820px) {
-    .flow-tool:not(.run):not(.stop) > span,
-    .flow-tool-unsaved { display: none; }
-  }
+  &.compact .flow-tool.secondary > span { display: none; }
+  &.tight .flow-tool:not(.run):not(.stop) > span,
+  &.tight .flow-tool-unsaved { display: none; }
 
   .flow-picker {
     position: absolute;
@@ -549,10 +544,10 @@ const StyledWrapper = styled.div`
 
   .flow-guide {
     z-index: 4;
-    left: 12px;
-    bottom: 12px;
+    right: 12px;
+    top: 52px;
     width: 300px;
-    max-height: calc(100% - 80px);
+    max-height: calc(100% - 68px);
     padding: 8px 10px 10px;
     overflow-y: auto;
   }

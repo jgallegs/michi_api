@@ -60,6 +60,11 @@ const ZONE_PADDING = 16;
 const ZONE_LABEL = 22;
 const VIEW_MARGIN = 40;
 const TOOLBAR_SPACE = 70;
+// Room the guide of a block takes on the right of the canvas.
+const GUIDE_SPACE = 330;
+// Below these widths the toolbar drops the words of its buttons: the least needed first, then all but Run.
+const COMPACT_WIDTH = 1180;
+const TIGHT_WIDTH = 900;
 const REQUEST_ITEM_TYPES = ['http-request', 'graphql-request'];
 const FIELD_PATH = /^\S+$/;
 
@@ -140,6 +145,7 @@ const FlowCanvas = ({ collection, flow }) => {
   const [startsByHand, setStartsByHand] = useState(() => startedByHand.has(flow.id));
   const [help, setHelp] = useState(false);
   const [namingBlock, setNamingBlock] = useState(false);
+  const [width, setWidth] = useState(Infinity);
   const ownBlocks = useOwnBlocks(collectionPath);
   const guide = useGuide(flow.id);
   const dirty = useFlowDirty(collectionPath, flow.id);
@@ -257,6 +263,15 @@ const FlowCanvas = ({ collection, flow }) => {
   }, [flow.id, view]);
 
   useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(rootRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const root = rootRef.current;
     const onWheel = (event) => {
       // Lists and panels on top of the canvas scroll on their own.
@@ -307,7 +322,8 @@ const FlowCanvas = ({ collection, flow }) => {
     const [left, top] = [box.x * zoom + x, box.y * zoom + y];
     const [right, bottom] = [left + box.width * zoom, top + box.height * zoom];
     const shift = (near, far, min, max) => (near < min ? min - near : far > max ? Math.max(max - far, min - near) : 0);
-    const [dx, dy] = [shift(left, right, VIEW_MARGIN, root.clientWidth - VIEW_MARGIN), shift(top, bottom, TOOLBAR_SPACE, root.clientHeight - VIEW_MARGIN)];
+    const rightEdge = root.clientWidth - (guide ? GUIDE_SPACE : VIEW_MARGIN);
+    const [dx, dy] = [shift(left, right, VIEW_MARGIN, rightEdge), shift(top, bottom, TOOLBAR_SPACE, root.clientHeight - VIEW_MARGIN)];
     if (dx || dy) {
       setView({ zoom, x: x + dx, y: y + dy });
     }
@@ -764,11 +780,22 @@ const FlowCanvas = ({ collection, flow }) => {
   );
   const canSaveBlock = selection.nodeIds.some((id) => pieces.has(id) && pieces.get(id).node.type !== 'start');
 
+  // The canvas goes by itself to the step the guide asks for next.
+  const nextPoint = guideNow?.points.find((point) => point.current && pieces.has(point.nodeId)) || null;
+  const nextPointId = nextPoint ? nextPoint.id : null;
+  const showNextRef = useRef(null);
+  showNextRef.current = nextPoint ? () => reveal(boxOf(pieces.get(nextPoint.nodeId).node)) : null;
+  useEffect(() => {
+    if (nextPointId && showNextRef.current) {
+      showNextRef.current();
+    }
+  }, [nextPointId]);
+
   const canvas = (
     <StyledWrapper
       ref={setRoot}
       tabIndex={0}
-      className={`flow-canvas ${cableGesture ? 'connecting' : ''}`}
+      className={`flow-canvas ${cableGesture ? 'connecting' : ''} ${width < COMPACT_WIDTH ? 'compact' : ''} ${width < TIGHT_WIDTH ? 'tight' : ''}`}
       style={{ backgroundPosition: `${current.x}px ${current.y}px`, backgroundSize: `${20 * current.zoom}px ${20 * current.zoom}px` }}
       onMouseDown={onCanvasMouseDown}
       onDoubleClick={onCanvasDoubleClick}
