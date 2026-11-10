@@ -8,6 +8,7 @@ import {
   discardFlowDraft,
   getFlow,
   isFlowDirty,
+  isFlowStale,
   loadFlows,
   renameFlow,
   resetFlowsStore,
@@ -85,6 +86,42 @@ describe('flows store', () => {
     updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, name: 'Edited' }));
     discardFlowDraft(COLLECTION, 'f1');
     expect(getFlow(COLLECTION, 'f1').name).toBe('One');
+  });
+
+  it('tells when a flow with unsaved edits changed in the collection, until it is saved or discarded', async () => {
+    files[COLLECTION] = { f1: makeFlow('f1', 'One') };
+    await loadFlows(COLLECTION);
+    updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, nodes: [...flow.nodes, { id: 'mine', type: 'wait' }] }));
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(false);
+
+    await loadFlows(COLLECTION);
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(false);
+
+    files[COLLECTION] = { f1: makeFlow('f1', 'One', { nodes: [START, { id: 'theirs', type: 'stop' }] }) };
+    await loadFlows(COLLECTION);
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(true);
+    expect(getFlow(COLLECTION, 'f1').nodes.map((node) => node.id)).toEqual(['start', 'mine']);
+
+    discardFlowDraft(COLLECTION, 'f1');
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(false);
+    expect(getFlow(COLLECTION, 'f1').nodes.map((node) => node.id)).toEqual(['start', 'theirs']);
+
+    updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, nodes: [START] }));
+    files[COLLECTION] = { f1: makeFlow('f1', 'One', { nodes: [START, { id: 'again', type: 'stop' }] }) };
+    await loadFlows(COLLECTION);
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(true);
+    await saveFlow(COLLECTION, 'f1');
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(false);
+    expect(files[COLLECTION].f1.nodes).toEqual([START]);
+  });
+
+  it('does not take its own rename for a change made elsewhere', async () => {
+    files[COLLECTION] = { f1: makeFlow('f1', 'One') };
+    await loadFlows(COLLECTION);
+    updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, nodes: [...flow.nodes, { id: 'mine', type: 'wait' }] }));
+    await renameFlow(COLLECTION, 'f1', { name: 'Renamed', folder: '' });
+    await loadFlows(COLLECTION);
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(false);
   });
 
   it('renames without saving the pending graph edits', async () => {

@@ -248,6 +248,13 @@ describe('runFlow', () => {
     expect(host.sent.map((item) => item.id)).toEqual(['b']);
   });
 
+  it('waits before each step when asked to, so the run can be followed', async () => {
+    const flow = flowOf([request('a'), request('b')], [edge('a', 'out', 'b')]);
+    const host = makeHost();
+    await run(flow, host, { stepDelay: 150 });
+    expect(host.sleep.mock.calls).toEqual([[150, undefined], [150, undefined]]);
+  });
+
   it('ends at a Stop step', async () => {
     const flow = flowOf([{ id: 's', type: 'stop', config: { message: 'done {{who}}' } }], []);
     const { result, events } = await run(flow, makeHost(), { environment: { who: 'here' } });

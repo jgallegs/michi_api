@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useDrop } from 'react-dnd';
+import { useStore } from 'react-redux';
+import { findEnvironmentInCollection } from 'utils/collections';
+import { useIsSensitiveEnvironment } from 'components/fork/SensitiveEnvironment/store';
 import toast from 'react-hot-toast';
 import { findLoopBody, findReachedNodeIds, validateFlow } from '../engine/graph';
 import { NODE_DEFINITIONS } from '../engine/nodes';
-import { saveFlow, useFlowDirty } from '../store';
+import { discardFlowDraft, saveFlow, useFlowDirty, useFlowStale } from '../store';
 import Cables from '../canvas/Cables';
 import Picker from '../canvas/Picker';
 import Piece from '../canvas/Piece';
@@ -29,12 +32,14 @@ import {
   toggleSection,
   updateNodeConfig
 } from '../canvas/editing';
-import { canRedo, canUndo, editFlow, redo, undo } from '../canvas/history';
+import { canRedo, canUndo, editFlow, forgetHistory, redo, undo } from '../canvas/history';
 import { settle, tidy } from '../canvas/layout';
 import { listFieldOptions, listPieceOptions, listRequestOptions, listValueOptions, titleOf } from '../canvas/pickers';
 import { HEADER_HEIGHT, PIECE_WIDTH, PORT_KIND, describePiece, findPort } from '../canvas/pieces';
 import { describeRequest, relativeRequestPath } from '../canvas/requests';
 import { defaultBends, dragBend, grabSegment, nearestSegment, routePoints, simplifyBends } from '../canvas/routing';
+import { RUN_MODE, startRun, stopRun } from '../run/controller';
+import { RUN_PHASE, useRunSession } from '../run/session';
 import StyledWrapper from './StyledWrapper';
 
 const MIN_ZOOM = 0.3;
@@ -92,6 +97,13 @@ const FlowCanvas = ({ collection, flow }) => {
   const [gesture, setGestureState] = useState(null);
   const [picker, setPicker] = useState(null);
   const dirty = useFlowDirty(collectionPath, flow.id);
+  const stale = useFlowStale(collectionPath, flow.id);
+  const store = useStore();
+  const session = useRunSession(flow.id);
+  const environment = findEnvironmentInCollection(collection, collection.activeEnvironmentUid) || null;
+  const isSensitive = useIsSensitiveEnvironment(collection, environment);
+  const isRunning = session.phase === RUN_PHASE.RUNNING;
+  const canContinue = session.phase === RUN_PHASE.PAUSED && Boolean(session.resume);
   viewRef.current = view || { x: 0, y: 0, zoom: 1 };
 
   const setGesture = (next) => {
@@ -217,6 +229,21 @@ const FlowCanvas = ({ collection, flow }) => {
     root.addEventListener('wheel', onWheel, { passive: false });
     return () => root.removeEventListener('wheel', onWheel);
   }, []);
+
+  const run = useCallback(
+    (mode) => startRun({ store, collectionUid: collection.uid, collectionPath, flowId: flow.id, mode }).catch((err) => toast.error(err.message)),
+    [store, collection.uid, collectionPath, flow.id]
+  );
+
+  // The mark each step carries from the last run: its result, the round a Repeat is on, what a List holds.
+  const runMarkOf = (node) => {
+    const step = session.steps[node.id] || {};
+    const loop = session.loops[node.id];
+    const count = session.lists[node.id];
+    const tag = loop ? { text: `${loop.index} / ${loop.times}` } : count !== undefined ? { text: `${count}` } : step.tag;
+    const isNext = canContinue && session.resume.nodeId === node.id;
+    return { state: isNext ? 'waiting' : step.state, tag, onContinue: isNext ? () => run(RUN_MODE.CONTINUE) : null };
+  };
 
   const save = useCallback(() => {
     saveFlow(collectionPath, flow.id)
@@ -489,6 +516,7 @@ const FlowCanvas = ({ collection, flow }) => {
       z: command && (() => (event.shiftKey ? redo(collectionPath, flow.id) : undo(collectionPath, flow.id))),
       y: command && (() => redo(collectionPath, flow.id)),
       s: command && save,
+      enter: command && (() => run(RUN_MODE.RUN)),
       a: command && (() => setSelection({ nodeIds: flow.nodes.map((node) => node.id), edgeId: null })),
       c: command && (() => {
         copied = copyNodes(flow, selection.nodeIds);
@@ -639,7 +667,7 @@ const FlowCanvas = ({ collection, flow }) => {
             </span>
           </div>
         ))}
-        <Cables cables={cables} draft={draftCable} onMouseDown={onCableMouseDown} onDoubleClick={onCableDoubleClick} />
+        <Cables cables={cables} draft={draftCable} hop={isRunning ? session.hop : null} onMouseDown={onCableMouseDown} onDoubleClick={onCableDoubleClick} />
         {flow.nodes.map((node) => {
           const piece = pieces.get(node.id);
           return (
@@ -653,6 +681,7 @@ const FlowCanvas = ({ collection, flow }) => {
               selected={selection.nodeIds.includes(node.id)}
               dimmed={Boolean(reached) && !reached.has(node.id) && node.type !== 'list'}
               issues={flow.nodes.length === 1 ? [] : issues.filter((item) => item.nodeId === node.id)}
+              run={runMarkOf(node)}
               portState={portStateOf(node.id)}
               sources={sourcesOf(node.id)}
               onMouseDown={onPieceMouseDown}
@@ -680,7 +709,22 @@ const FlowCanvas = ({ collection, flow }) => {
         ) : null}
       </div>
       <Toolbar
+        run={{
+          isRunning,
+          canContinue,
+          environment: { name: environment?.name, sensitive: isSensitive },
+          onRun: () => run(RUN_MODE.RUN),
+          onStep: () => run(RUN_MODE.STEP),
+          onContinue: () => run(RUN_MODE.CONTINUE),
+          onStop: () => stopRun(flow.id)
+        }}
         dirty={dirty}
+        stale={stale}
+        onDiscard={() => {
+          discardFlowDraft(collectionPath, flow.id);
+          forgetHistory(flow.id);
+          setSelection({ nodeIds: [], edgeId: null });
+        }}
         canUndo={canUndo(flow.id)}
         canRedo={canRedo(flow.id)}
         message={generalIssue?.message}

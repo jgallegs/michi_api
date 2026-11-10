@@ -59,5 +59,8 @@ export const canUndo = (flowId) => stackOf(flowId).past.length > 0;
 
 export const canRedo = (flowId) => stackOf(flowId).future.length > 0;
 
+// After the unsaved edits of a flow are thrown away there is nothing left to undo.
+export const forgetHistory = (flowId) => stacks.delete(flowId);
+
 // Only for tests.
 export const resetHistory = () => stacks.clear();
