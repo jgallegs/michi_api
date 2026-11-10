@@ -55,6 +55,10 @@ const describeOutcome = (detail, port) => {
       };
     case 'repeat':
       return { parts: port === 'exit' ? [word('Nothing to repeat')] : [word('Round'), '1', word('of'), `${detail.times}`] };
+    case 'leave':
+      return { parts: [word('Leaves the loop on round'), `${detail.index}`, word('of'), `${detail.times}`] };
+    case 'note':
+      return { parts: [short(detail.message)], detail: typeof detail.message === 'object' ? detailOf(detail.message) : undefined };
     case 'wait':
       return { tag: { text: `${detail.seconds} s` }, parts: [`${detail.seconds} s`] };
     case 'value':

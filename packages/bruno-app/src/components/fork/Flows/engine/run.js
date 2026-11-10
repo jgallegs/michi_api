@@ -41,34 +41,47 @@ const createState = (flow) => {
   return state;
 };
 
-// Finds the step after a node's port. Reaching the end of a branch inside a Repeat, or its end of
+// What a loop hands out on the round it is on: its number and, when it goes through a list, the item.
+const roundOutput = (frame) => (frame.items ? { index: frame.index, item: frame.items[frame.index - 1] } : { index: frame.index });
+
+// Finds the step after a node's port. Reaching the end of a branch inside a loop, or its end of
 // iteration input, starts the next iteration; when the iterations run out the flow leaves through "exit".
-const createStepResolver = (flow, state, onEvent) => (node, port) => {
-  let edge = findNextEdge(flow, node, port);
-  for (;;) {
-    if (edge && edge.targetPort !== LOOPBACK_PORT) {
-      return edge.target;
-    }
-    const frameIndex = edge ? state.loops.map((loop) => loop.nodeId).lastIndexOf(edge.target) : state.loops.length - 1;
-    if (frameIndex < 0) {
-      if (edge) {
-        throw new Error('This end of iteration belongs to a Repeat that is not running');
+const createStepResolver = (flow, state, onEvent) => {
+  const follow = (first) => {
+    let edge = first;
+    for (;;) {
+      if (edge && edge.targetPort !== LOOPBACK_PORT) {
+        return edge.target;
       }
-      return null;
+      const frameIndex = edge ? state.loops.map((loop) => loop.nodeId).lastIndexOf(edge.target) : state.loops.length - 1;
+      if (frameIndex < 0) {
+        if (edge) {
+          throw new Error('This end of round belongs to a loop that is not running');
+        }
+        return null;
+      }
+      state.loops.length = frameIndex + 1;
+      const frame = state.loops[frameIndex];
+      const loopNode = flow.nodes.find((candidate) => candidate.id === frame.nodeId);
+      if (frame.index < frame.times) {
+        frame.index += 1;
+        state.outputs[frame.nodeId] = roundOutput(frame);
+        onEvent({ type: 'iteration', nodeId: frame.nodeId, index: frame.index, times: frame.times });
+        edge = findNextEdge(flow, loopNode, 'body');
+      } else {
+        state.loops.pop();
+        edge = findNextEdge(flow, loopNode, 'exit');
+      }
     }
-    state.loops.length = frameIndex + 1;
-    const frame = state.loops[frameIndex];
-    const repeatNode = flow.nodes.find((candidate) => candidate.id === frame.nodeId);
-    if (frame.index < frame.times) {
-      frame.index += 1;
-      state.outputs[frame.nodeId] = { index: frame.index };
-      onEvent({ type: 'iteration', nodeId: frame.nodeId, index: frame.index, times: frame.times });
-      edge = findNextEdge(flow, repeatNode, 'body');
-    } else {
-      state.loops.pop();
-      edge = findNextEdge(flow, repeatNode, 'exit');
+  };
+  return {
+    after: (node, port) => follow(findNextEdge(flow, node, port)),
+    // The innermost loop ends here, whatever rounds it had left.
+    afterLeaving: () => {
+      const frame = state.loops.pop();
+      return follow(findNextEdge(flow, flow.nodes.find((candidate) => candidate.id === frame.nodeId), 'exit'));
     }
-  }
+  };
 };
 
 // Runs a flow step by step. It knows nothing about the app: requests go through host.sendRequest. Runs
@@ -82,7 +95,7 @@ export const runFlow = async (flow, host, { onEvent = () => {}, signal, environm
   }
 
   const state = resume ? clone(resume.state) : createState(flow);
-  const nextStep = createStepResolver(flow, state, onEvent);
+  const next = createStepResolver(flow, state, onEvent);
   const sleep = host.sleep || sleepUntilDone;
   let nodeId = resume?.nodeId || startNodeId || findStartNode(flow).id;
 
@@ -111,7 +124,7 @@ export const runFlow = async (flow, host, { onEvent = () => {}, signal, environm
       if (outcome.stop) {
         return { status: RUN_STATUS.STOPPED, nodeId };
       }
-      nodeId = nextStep(node, outcome.port);
+      nodeId = outcome.leaveLoop ? next.afterLeaving() : next.after(node, outcome.port);
       if (step && nodeId && node.type !== 'start') {
         return interrupted(RUN_STATUS.PAUSED);
       }

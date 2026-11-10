@@ -154,6 +154,23 @@ describe('FlowCanvas', () => {
     expect(screen.getByTestId('flow-zone-r')).toHaveTextContent('Repeats × 5');
   });
 
+  it('chooses the list a step goes through and frames what it repeats', async () => {
+    const flow = makeFlow(
+      [node('a', 'request', 400, 120, { pathname: 'login.bru', fields: ['orders'] }), node('each', 'foreach', 720, 120), node('w', 'wait', 1040, 120)],
+      [edge('e1', 'start', 'out', 'a'), edge('e2', 'a', 'out', 'each'), edge('e3', 'each', 'body', 'w')]
+    );
+    await open(flow);
+    expect(screen.getByTestId('flow-issue-each')).toHaveAttribute('title', 'Choose the list this step goes through');
+    expect(screen.getByTestId('flow-zone-each')).toHaveTextContent('Repeats');
+
+    fireEvent.click(screen.getByText('Choose the list'));
+    pick('orders');
+
+    expect(current().edges[3]).toMatchObject({ source: 'a', sourcePort: 'field:orders', target: 'each', targetPort: 'value:list' });
+    expect(screen.getByText('login · orders')).toBeInTheDocument();
+    expect(screen.queryByTestId('flow-issue-each')).not.toBeInTheDocument();
+  });
+
   it('deletes the selected step with the keyboard, but never Start', async () => {
     await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
     const canvas = screen.getByTestId('flow-canvas');

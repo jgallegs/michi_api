@@ -23,9 +23,12 @@ Está apagada por defecto mientras es nueva. Se enciende en *Preferences → Mic
 | Request | Envía una petición de la colección, igual que desde su pestaña: mismo entorno, mismos scripts y la respuesta queda también en la pestaña de la petición |
 | If | Elige un camino. Comprueba si la última respuesta fue correcta (2xx), si su código es uno concreto, o compara dos valores |
 | Repeat | Repite lo que cuelga de *On each round* las veces indicadas. Lo que repite queda dentro de un marco. La vuelta termina cuando el camino se acaba o cuando llega a *End of round* |
+| For each item | Como Repeat, pero da una vuelta por cada elemento de una lista: una lista del flow o un campo de una respuesta que sea una lista. En cada vuelta entrega el elemento (*Item*), los campos suyos que se añadan con *Add a field* y el número de vuelta |
+| Leave loop | Termina el bucle en el que está, aunque le queden vueltas, y el flow sigue por su *When finished*. Sirve para reintentar hasta que algo funcione o esperar a que un proceso termine. Fuera de un bucle lleva un aviso y el flow no se ejecuta |
 | List y Add to list | Una lista que se va llenando, con un valor o con varios campos por vuelta. Se puede usar después del bucle |
 | Set variable | Guarda un valor con un nombre para usarlo en pasos posteriores como `{{nombre}}` |
 | Wait | Espera unos segundos |
+| Note | Escribe un mensaje en la salida y sigue |
 | Stop | Termina el flow con un mensaje |
 
 ### Los puertos y los cables

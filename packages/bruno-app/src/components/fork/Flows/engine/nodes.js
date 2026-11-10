@@ -12,6 +12,8 @@ export const VALUE_PORT_PREFIX = 'value:';
 export const fieldPort = (path = '') => `${FIELD_PORT_PREFIX}${path}`;
 export const variablePort = (name) => `${VARIABLE_PORT_PREFIX}${name}`;
 export const valuePort = (key) => `${VALUE_PORT_PREFIX}${key}`;
+// A field of the item a "For each item" step is on.
+export const itemFieldPort = (path) => fieldPort(`item.${path}`);
 
 // The inputs a value arrives through: a variable of a request or a setting of any other step.
 export const isValueTargetPort = (port) =>
@@ -129,6 +131,34 @@ const executeRepeat = ({ node, state, input }) => {
   return { port: 'body', detail: { kind: 'repeat', times } };
 };
 
+// Goes once through every item of a list; each round hands out the item it is on.
+const executeForEach = ({ node, state, input }) => {
+  const items = input('list');
+  if (!Array.isArray(items)) {
+    throw new Error('This step needs a list, and what arrived is not one');
+  }
+  if (items.length > MAX_REPEAT_TIMES) {
+    throw new Error(`A list to go through can have ${MAX_REPEAT_TIMES} items at most`);
+  }
+  if (items.length === 0) {
+    return { port: 'exit', detail: { kind: 'repeat', times: 0 } };
+  }
+  state.loops.push({ nodeId: node.id, index: 1, times: items.length, items });
+  state.outputs[node.id] = { index: 1, item: items[0] };
+  return { port: 'body', detail: { kind: 'repeat', times: items.length } };
+};
+
+// Ends the innermost loop that is running: the flow goes on from its "When finished" output.
+const executeLeave = ({ state }) => {
+  const loop = state.loops[state.loops.length - 1];
+  if (!loop) {
+    throw new Error('Leave loop only works inside a loop');
+  }
+  return { leaveLoop: true, detail: { kind: 'leave', index: loop.index, times: loop.times } };
+};
+
+const executeNote = ({ node, input }) => ({ port: OUT_PORT, detail: { kind: 'note', message: input('message', node.config.message) } });
+
 const executeWait = async ({ node, input, sleep, signal }) => {
   const seconds = Number(input('seconds', node.config.seconds));
   if (!Number.isFinite(seconds) || seconds < 0) {
@@ -168,14 +198,20 @@ const executeListAppend = (context) => {
 const executeStop = ({ node, input }) => ({ stop: true, detail: { kind: 'stop', message: input('message', node.config.message) } });
 
 // outputs: the ports that continue the flow. A data-only node never runs; other nodes read from it.
+// loop: the step repeats what hangs from "body" and has an end of round input.
 export const NODE_DEFINITIONS = {
   start: { outputs: [OUT_PORT], execute: executeStart },
   request: { outputs: [OUT_PORT], execute: executeRequest },
   setvalue: { outputs: [OUT_PORT], execute: executeSetValue },
   if: { outputs: ['yes', 'no'], execute: executeIf },
-  repeat: { outputs: ['body', 'exit'], execute: executeRepeat },
+  repeat: { outputs: ['body', 'exit'], loop: true, execute: executeRepeat },
+  foreach: { outputs: ['body', 'exit'], loop: true, execute: executeForEach },
+  leave: { outputs: [], execute: executeLeave },
+  note: { outputs: [OUT_PORT], execute: executeNote },
   wait: { outputs: [OUT_PORT], execute: executeWait },
   list: { outputs: [], dataOnly: true },
   listappend: { outputs: [OUT_PORT], execute: executeListAppend },
   stop: { outputs: [], execute: executeStop }
 };
+
+export const isLoopNode = (node) => Boolean(NODE_DEFINITIONS[node?.type]?.loop);

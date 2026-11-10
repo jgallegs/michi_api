@@ -93,6 +93,22 @@ describe('flow graph', () => {
     expect(codes(flow)).toEqual(['invalid-loopback']);
   });
 
+  it('lets a step that goes through a list close its rounds like a Repeat, and asks for its list', () => {
+    const each = { id: 'each', type: 'foreach', config: {} };
+    const wired = [edge('start', 'out', 'a'), edge('a', 'out', 'each'), edge('each', 'body', 'b'), edge('b', 'out', 'each', 'loopback')];
+    expect(codes(flowOf([request('a'), each, request('b')], wired))).toEqual(['list-not-chosen']);
+    expect(codes(flowOf([request('a'), each, request('b')], [...wired, edge('a', 'field:orders', 'each', 'value:list')]))).toEqual([]);
+    expect([...findLoopBody(flowOf([request('a'), each, request('b')], wired), each)]).toEqual(['b']);
+  });
+
+  it('only accepts Leave loop inside what a loop repeats', () => {
+    const leave = { id: 'leave', type: 'leave', config: {} };
+    const inside = flowOf([repeat('r'), request('a'), leave], [edge('start', 'out', 'r'), edge('r', 'body', 'a'), edge('a', 'out', 'leave')]);
+    const after = flowOf([repeat('r'), request('a'), leave], [edge('start', 'out', 'r'), edge('r', 'body', 'a'), edge('r', 'exit', 'leave')]);
+    expect(codes(inside)).toEqual([]);
+    expect(codes(after)).toEqual(['leave-outside-loop']);
+  });
+
   it('requires Add to list to be connected to a List', () => {
     const list = { id: 'l', type: 'list', config: {} };
     const append = { id: 'p', type: 'listappend', config: { value: 'x' } };

@@ -6,6 +6,9 @@ import {
   IconChevronRight,
   IconClock,
   IconList,
+  IconListDetails,
+  IconLogout,
+  IconNote,
   IconPlayerPlay,
   IconPlayerStop,
   IconPlayerTrackNext,
@@ -24,6 +27,9 @@ const ICONS = {
   request: IconSend,
   if: IconArrowsSplit2,
   repeat: IconRepeat,
+  foreach: IconListDetails,
+  leave: IconLogout,
+  note: IconNote,
   wait: IconClock,
   setvalue: IconVariable,
   list: IconList,
@@ -125,6 +131,20 @@ const Row = ({ node, row, request, sources, onConfig, onAction }) => {
     return (
       <div className="flow-row">
         <RequestChoice request={request} onAction={onAction} />
+      </div>
+    );
+  }
+  if (control?.type === 'wired') {
+    return (
+      <div className="flow-row">
+        <span className="flow-label" title={row.label}>{row.label}</span>
+        {source ? (
+          <Chip source={source} onRemove={() => onAction('disconnect', row.left.port)} />
+        ) : (
+          <button type="button" className="flow-request-choice unset" onClick={(event) => onAction('pick-value', row.left.port, event)}>
+            <span className="flow-request-name">{control.placeholder}</span>
+          </button>
+        )}
       </div>
     );
   }

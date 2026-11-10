@@ -59,6 +59,13 @@ describe('flow pieces', () => {
     expect(description.height).toBeGreaterThan(HEADER_HEIGHT + 5 * ROW_HEIGHT);
   });
 
+  it('gives a step that goes through a list the item, its chosen fields and the round number', () => {
+    const description = describePiece(node('e', 'foreach', { fields: ['id'] }), { nodes: [], edges: [] }, null);
+    expect(portsOf(description, 'left')).toEqual(['in', 'value:list', 'loopback']);
+    expect(portsOf(description, 'right')).toEqual(['body', 'exit', 'field:item', 'field:item.id', 'field:index']);
+    expect(description.rows.find((row) => row.id === 'value:list').control).toMatchObject({ type: 'wired' });
+  });
+
   it('shows on an If only what its kind of check needs', () => {
     const flow = { nodes: [], edges: [] };
     const inputs = (config) => portsOf(describePiece(node('i', 'if', config), flow, null), 'left');
@@ -135,7 +142,7 @@ describe('flow pieces', () => {
 
     it('offers every step and every HTTP request when adding freely', () => {
       const options = listPieceOptions(flow, collection, null);
-      expect(options.filter((option) => option.group === 'Steps').map((option) => option.type)).toEqual(['request', 'if', 'repeat', 'list', 'listappend', 'setvalue', 'wait', 'stop']);
+      expect(options.filter((option) => option.group === 'Steps').map((option) => option.type)).toEqual(['request', 'if', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop']);
       expect(options.filter((option) => option.config).map((option) => option.config.pathname)).toEqual(['login.bru', 'orders/get order.bru']);
     });
 
@@ -145,7 +152,7 @@ describe('flow pieces', () => {
       expect(afterStart).toEqual(expect.arrayContaining(['Repeat', 'login', 'get order']));
 
       const forValue = listPieceOptions(flow, collection, { nodeId: 'a', port: 'field:session.token', side: 'right' }).map((option) => option.label);
-      expect(forValue).toEqual(['Repeat', 'Add to list', 'Set variable', 'Wait', 'Stop', 'login', 'get order']);
+      expect(forValue).toEqual(['Repeat', 'For each item', 'Add to list', 'Set variable', 'Wait', 'Note', 'Stop', 'login', 'get order']);
     });
 
     it('offers the fields of a response that are not on the step yet', () => {

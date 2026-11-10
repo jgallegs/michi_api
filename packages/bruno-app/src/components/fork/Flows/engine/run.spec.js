@@ -268,6 +268,112 @@ describe('runFlow', () => {
     expect(result).toMatchObject({ status: RUN_STATUS.FAILED, nodeId: 'r', error: expect.stringContaining('whole number') });
   });
 
+  describe('leaving a loop', () => {
+    const leave = { id: 'leave', type: 'leave', config: {} };
+    const check = { id: 'if', type: 'if', config: { check: 'success' } };
+    const retry = flowOf(
+      [repeat('r', 5), request('a'), check, leave, { id: 'w', type: 'wait', config: { seconds: 1 } }, request('after')],
+      [edge('r', 'body', 'a'), edge('a', 'out', 'if'), edge('if', 'yes', 'leave'), edge('if', 'no', 'w'), edge('r', 'exit', 'after')]
+    );
+
+    it('ends the loop early and goes on from its exit', async () => {
+      const host = makeHost({ a: (call) => ({ status: call < 3 ? 503 : 200, data: {} }) });
+      const { result, events } = await run(retry, host);
+      expect(result.status).toBe(RUN_STATUS.COMPLETED);
+      expect(host.sent.map((item) => item.id)).toEqual(['a', 'a', 'a', 'after']);
+      expect(host.sleep).toHaveBeenCalledTimes(2);
+      expect(events.find((event) => event.detail?.kind === 'leave').detail).toEqual({ kind: 'leave', index: 3, times: 5 });
+    });
+
+    it('ends only the innermost loop', async () => {
+      const flow = flowOf([repeat('outer', 2), repeat('inner', 5), request('a'), leave], [edge('outer', 'body', 'inner'), edge('inner', 'body', 'a'), edge('a', 'out', 'leave')]);
+      const host = makeHost();
+      const { result } = await run(flow, host);
+      expect(result.status).toBe(RUN_STATUS.COMPLETED);
+      expect(host.sent).toHaveLength(2);
+    });
+
+    it('is refused outside a loop', async () => {
+      const { result } = await run(flowOf([request('a'), leave], [edge('a', 'out', 'leave')]), makeHost());
+      expect(result).toMatchObject({ status: RUN_STATUS.INVALID, issues: [{ code: 'leave-outside-loop', nodeId: 'leave' }] });
+    });
+  });
+
+  describe('going through a list', () => {
+    const each = { id: 'each', type: 'foreach', config: {} };
+
+    it('runs the body once per item, handing out the item, its fields and the round number', async () => {
+      const flow = flowOf(
+        [request('all'), each, request('one'), request('after')],
+        [
+          edge('all', 'out', 'each'),
+          edge('all', 'field:orders', 'each', 'value:list'),
+          edge('each', 'body', 'one'),
+          edge('each', 'field:item.id', 'one', 'var:id'),
+          edge('each', 'field:item', 'one', 'var:whole'),
+          edge('each', 'field:index', 'one', 'var:turn'),
+          edge('each', 'exit', 'after')
+        ]
+      );
+      const host = makeHost({ all: { status: 200, data: { orders: [{ id: 'A' }, { id: 'B' }] } } });
+      const { result, events } = await run(flow, host);
+      expect(result.status).toBe(RUN_STATUS.COMPLETED);
+      expect(host.sent.map((item) => item.id)).toEqual(['all', 'one', 'one', 'after']);
+      expect(host.sent[1].variables).toEqual({ id: 'A', whole: { id: 'A' }, turn: 1 });
+      expect(host.sent[2].variables).toEqual({ id: 'B', whole: { id: 'B' }, turn: 2 });
+      expect(events.filter((event) => event.type === 'iteration')).toMatchObject([{ nodeId: 'each', index: 2, times: 2 }]);
+    });
+
+    it('goes through a list filled earlier in the flow', async () => {
+      const list = { id: 'list', type: 'list', config: {} };
+      const add = { id: 'add', type: 'listappend', config: { value: 'x' } };
+      const flow = flowOf(
+        [list, repeat('r', 3), add, each, request('one')],
+        [edge('r', 'body', 'add'), edge('list', 'field:items', 'add', 'list'), edge('r', 'exit', 'each'), edge('list', 'field:items', 'each', 'value:list'), edge('each', 'body', 'one')]
+      );
+      const host = makeHost();
+      await run(flow, host);
+      expect(host.sent).toHaveLength(3);
+    });
+
+    it('skips the body for an empty list', async () => {
+      const flow = flowOf([request('all'), each, request('one'), request('after')], [
+        edge('all', 'out', 'each'),
+        edge('all', 'field:orders', 'each', 'value:list'),
+        edge('each', 'body', 'one'),
+        edge('each', 'exit', 'after')
+      ]);
+      const host = makeHost({ all: { status: 200, data: { orders: [] } } });
+      await run(flow, host);
+      expect(host.sent.map((item) => item.id)).toEqual(['all', 'after']);
+    });
+
+    it('fails when what arrives is not a list', async () => {
+      const flow = flowOf([request('all'), each], [edge('all', 'out', 'each'), edge('all', 'field:total', 'each', 'value:list')]);
+      const { result } = await run(flow, makeHost({ all: { status: 200, data: { total: 3 } } }));
+      expect(result).toMatchObject({ status: RUN_STATUS.FAILED, nodeId: 'each', error: expect.stringContaining('needs a list') });
+    });
+
+    it('continues on the same item after a failed request', async () => {
+      const flow = flowOf([request('all'), each, request('one')], [edge('all', 'out', 'each'), edge('all', 'field:ids', 'each', 'value:list'), edge('each', 'body', 'one'), edge('each', 'field:item', 'one', 'var:id')]);
+      const host = makeHost({ all: { status: 200, data: { ids: [7, 8, 9] } }, one: (call) => (call === 2 ? { error: 'connection refused' } : { status: 200, data: {} }) });
+      const first = await run(flow, host);
+      expect(first.result.status).toBe(RUN_STATUS.FAILED);
+      const second = await run(flow, host, { resume: JSON.parse(JSON.stringify(first.result.resume)) });
+      expect(second.result.status).toBe(RUN_STATUS.COMPLETED);
+      expect(host.sent.filter((item) => item.id === 'one').map((item) => item.variables.id)).toEqual([7, 8, 8, 9]);
+    });
+  });
+
+  it('writes a note and goes on', async () => {
+    const flow = flowOf([{ id: 'n', type: 'note', config: { message: 'checking {{who}}' } }, request('a')], [edge('n', 'out', 'a')]);
+    const host = makeHost();
+    const { result, events } = await run(flow, host, { environment: { who: 'orders' } });
+    expect(result.status).toBe(RUN_STATUS.COMPLETED);
+    expect(events.find((event) => event.detail?.kind === 'note').detail.message).toBe('checking orders');
+    expect(host.sent).toHaveLength(1);
+  });
+
   describe('interruptions', () => {
     const loopFlow = flowOf(
       [{ id: 'list', type: 'list', config: {} }, repeat('r', 3), request('a'), { id: 'add', type: 'listappend', config: {} }],

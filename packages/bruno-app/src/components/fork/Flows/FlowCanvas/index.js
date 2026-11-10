@@ -5,7 +5,7 @@ import { findEnvironmentInCollection } from 'utils/collections';
 import { useIsSensitiveEnvironment } from 'components/fork/SensitiveEnvironment/store';
 import toast from 'react-hot-toast';
 import { findLoopBody, findReachedNodeIds, validateFlow } from '../engine/graph';
-import { NODE_DEFINITIONS } from '../engine/nodes';
+import { NODE_DEFINITIONS, isLoopNode } from '../engine/nodes';
 import { discardFlowDraft, saveFlow, useFlowDirty, useFlowStale } from '../store';
 import Cables from '../canvas/Cables';
 import Picker from '../canvas/Picker';
@@ -590,7 +590,7 @@ const FlowCanvas = ({ collection, flow }) => {
   const zones = !isSound
     ? []
     : flow.nodes
-        .filter((node) => node.type === 'repeat')
+        .filter(isLoopNode)
         .map((repeat) => {
           const boxes = [...findLoopBody(flow, repeat)].map((id) => boxOf(pieces.get(id).node));
           if (!boxes.length) {

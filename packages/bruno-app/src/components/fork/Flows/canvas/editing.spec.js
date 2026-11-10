@@ -139,6 +139,19 @@ describe('flow editing', () => {
     expect(removed.edges).toEqual([]);
   });
 
+  it('takes the cables of a field of the item away with it', () => {
+    const flow = {
+      nodes: [{ id: 'each', type: 'foreach', config: { fields: ['id', 'name'] } }, { id: 'b', type: 'request', config: {} }],
+      edges: [
+        { id: 'e1', source: 'each', sourcePort: 'field:item.id', target: 'b', targetPort: 'var:id' },
+        { id: 'e2', source: 'each', sourcePort: 'field:item.name', target: 'b', targetPort: 'var:name' }
+      ]
+    };
+    const next = removeRequestField(flow, 'each', 'id');
+    expect(next.nodes[0].config.fields).toEqual(['name']);
+    expect(next.edges.map((item) => item.id)).toEqual(['e2']);
+  });
+
   it('adds fields to "Add to list" and takes their cables away with them', () => {
     const flow = addListField(flowOf([node('a', 'request'), node('p', 'listappend', { mode: 'object' })]), 'p');
     const [field] = flow.nodes[2].config.fields;
