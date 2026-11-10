@@ -4,13 +4,16 @@ import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconDeviceFloppy,
+  IconHelp,
   IconLayoutDistributeHorizontal,
   IconMaximize,
   IconPlayerPlay,
   IconPlayerSkipForward,
   IconPlayerStop,
   IconPlayerTrackNext,
-  IconPlus
+  IconPlus,
+  IconPuzzle,
+  IconStack
 } from '@tabler/icons';
 
 const ToolButton = ({ icon: Icon, label, onClick, disabled, children, testId, className = '' }) => (
@@ -68,11 +71,14 @@ const StaleWarning = ({ onDiscard }) => (
   </>
 );
 
-const Toolbar = ({ run, dirty, stale, canUndo, canRedo, message, onAdd, onUndo, onRedo, onTidy, onFit, onSave, onDiscard }) => (
+const Toolbar = ({ run, dirty, stale, canUndo, canRedo, message, onAdd, onBlocks, onSaveBlock, onHelp, onUndo, onRedo, onTidy, onFit, onSave, onDiscard }) => (
   <div className="flow-toolbar" onMouseDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
     <RunTools run={run} />
     <ToolButton icon={IconPlus} label="Add a step" onClick={onAdd} testId="flow-add-step">
       <span>Add step</span>
+    </ToolButton>
+    <ToolButton icon={IconStack} label="Add steps that are already built" onClick={onBlocks} testId="flow-blocks">
+      <span>Blocks</span>
     </ToolButton>
     <span className="flow-tool-separator" />
     <ToolButton icon={IconArrowBackUp} label="Undo" onClick={onUndo} disabled={!canUndo} testId="flow-undo" />
@@ -81,10 +87,16 @@ const Toolbar = ({ run, dirty, stale, canUndo, canRedo, message, onAdd, onUndo, 
       <span>Tidy up</span>
     </ToolButton>
     <ToolButton icon={IconMaximize} label="Show the whole flow" onClick={onFit} testId="flow-fit" />
+    {onSaveBlock ? (
+      <ToolButton icon={IconPuzzle} label="Keep the selected steps as a block to use again" onClick={onSaveBlock} testId="flow-save-block">
+        <span>Save as block</span>
+      </ToolButton>
+    ) : null}
     <span className="flow-tool-spacer" />
     {message ? <span className="flow-tool-message">{message}</span> : null}
     {stale ? <StaleWarning onDiscard={onDiscard} /> : null}
     {dirty && !stale ? <span className="flow-tool-unsaved">Unsaved changes</span> : null}
+    <ToolButton icon={IconHelp} label="How flows work" onClick={onHelp} testId="flow-help-button" />
     <ToolButton icon={IconDeviceFloppy} label="Save" onClick={onSave} disabled={!dirty} testId="flow-save">
       <span>Save</span>
     </ToolButton>

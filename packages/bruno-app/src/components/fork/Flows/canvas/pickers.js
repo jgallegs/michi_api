@@ -1,4 +1,5 @@
 import { fieldPort } from '../engine/nodes';
+import { canFollow } from '../blocks/building';
 import { canConnect, createNode, findFittingPort } from './editing';
 import { ADDABLE_PIECES, PIECES, PORT_KIND, describePiece } from './pieces';
 import { describeRequest, listRequests } from './requests';
@@ -32,7 +33,9 @@ export const listPieceOptions = (flow, collection, loose) => {
       type: 'request',
       config: { pathname: path }
     }));
-  return [...steps, ...requests];
+  // Blocks have their own gallery; the entry that opens it is offered wherever a block can go.
+  const blocks = !loose || canFollow(flow, loose) ? [{ id: 'blocks', group: 'Blocks', translateGroup: true, label: 'Choose a block…', translate: true, opensBlocks: true }] : [];
+  return [...steps, ...blocks, ...requests];
 };
 
 export const listRequestOptions = (collection) =>

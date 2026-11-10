@@ -1,7 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { translatePhrase } from 'components/fork/SpanishUi';
+
+// Interface words are searched in both languages, whichever one is on screen.
+const inSpanish = (text, isInterface) => (isInterface && translatePhrase(text)) || '';
 
 const matches = (option, words) => {
-  const text = `${option.label} ${option.hint || ''} ${option.group || ''} ${option.badge || ''}`.toLowerCase();
+  const text = [
+    option.label,
+    inSpanish(option.label, option.translate),
+    option.hint,
+    option.group,
+    inSpanish(option.group, option.translateGroup),
+    option.badge
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
   return words.every((word) => text.includes(word));
 };
 
@@ -45,7 +59,7 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
   return (
     <div
       ref={ref}
-      className="flow-picker"
+      className="flow-picker flow-overlay"
       style={{ left: position.x, top: position.y }}
       onKeyDown={onKeyDown}
       onMouseDown={(event) => event.stopPropagation()}

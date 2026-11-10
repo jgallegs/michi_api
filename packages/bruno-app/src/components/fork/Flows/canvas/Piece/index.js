@@ -20,9 +20,10 @@ import {
   IconVariable,
   IconX
 } from '@tabler/icons';
+import { LOOPBACK_PORT } from '../../engine/nodes';
 import { PIECE_WIDTH, PORT_KIND } from '../pieces';
 
-const ICONS = {
+export const STEP_ICONS = {
   start: IconPlayerPlay,
   request: IconSend,
   if: IconArrowsSplit2,
@@ -43,7 +44,7 @@ const getIn = (container, path) => path.reduce((current, key) => current?.[key],
 
 // Order ports are triangles, values leave through circles and arrive at squares. A port is filled only
 // while a cable is connected to it.
-const PortShape = ({ kind, side, filled }) => {
+export const PortShape = ({ kind, side, filled }) => {
   const fill = filled ? 'currentColor' : 'var(--flow-port-empty)';
   const common = { fill, stroke: 'currentColor', strokeWidth: 1.5, strokeLinejoin: 'round' };
   return (
@@ -55,10 +56,22 @@ const PortShape = ({ kind, side, filled }) => {
   );
 };
 
+// What each port is for, told when the pointer rests on it.
+const PORT_TITLES = {
+  'order:right': 'What runs next: pull a cable from here',
+  'order:left': 'The step before arrives here',
+  'value:right': 'A value that comes out: pull a cable to use it in another step',
+  'value:left': 'A value it needs: click to choose where it comes from',
+  'list:right': 'The list: join it to an Add to list step, or use it as a value',
+  'list:left': 'The list it adds to: join a List here'
+};
+const LOOPBACK_TITLE = 'End of round: the last step of the round arrives here';
+
 const Port = ({ node, port, state, onMouseDown }) => (
   <span
     className={`flow-port ${port.side} ${port.kind} ${state.filled ? 'filled' : ''} ${state.highlight || ''}`}
     style={{ top: port.y - PORT_SIZE / 2 }}
+    title={port.port === LOOPBACK_PORT ? LOOPBACK_TITLE : PORT_TITLES[`${port.kind}:${port.side}`]}
     data-testid={`flow-port-${node.id}-${port.side}-${port.port}`}
     onMouseDown={port.hidden ? undefined : (event) => onMouseDown(event, node, port)}
   >
@@ -203,7 +216,7 @@ const RunMark = ({ run }) => (
 );
 
 const Piece = ({ node, description, request, title, position, selected, dimmed, issues, run, portState, sources, onMouseDown, onPortMouseDown, onConfig, onAction }) => {
-  const Icon = ICONS[node.type] || IconAlertCircle;
+  const Icon = STEP_ICONS[node.type] || IconAlertCircle;
   const hasCustomTitle = title !== description.title;
   return (
     <div
