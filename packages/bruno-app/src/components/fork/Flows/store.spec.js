@@ -18,7 +18,8 @@ import {
 
 const COLLECTION = 'C:\\collections\\demo';
 
-const makeFlow = (id, name, extra = {}) => ({ id, name, version: FLOW_VERSION, folder: '', nodes: [], edges: [], ...extra });
+const START = { id: 'start', type: 'start', x: 80, y: 120, config: {} };
+const makeFlow = (id, name, extra = {}) => ({ id, name, version: FLOW_VERSION, folder: '', nodes: [START], edges: [], ...extra });
 
 describe('flows store', () => {
   let files;
@@ -67,7 +68,7 @@ describe('flows store', () => {
 
     updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, nodes: [{ id: 'n1', type: 'request' }] }));
     expect(isFlowDirty(COLLECTION, 'f1')).toBe(true);
-    expect(files[COLLECTION].f1.nodes).toEqual([]);
+    expect(files[COLLECTION].f1.nodes).toEqual([START]);
 
     await saveFlow(COLLECTION, 'f1');
     expect(isFlowDirty(COLLECTION, 'f1')).toBe(false);

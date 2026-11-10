@@ -1,5 +1,5 @@
 import { findNextEdge, findStartNode, validateFlow } from './graph';
-import { FlowCancelled, LOOPBACK_PORT, NODE_DEFINITIONS, createInputReader } from './nodes';
+import { FlowCancelled, LOOPBACK_PORT, NODE_DEFINITIONS, createInputReaders } from './nodes';
 
 export const RUN_STATUS = {
   COMPLETED: 'completed',
@@ -102,7 +102,7 @@ export const runFlow = async (flow, host, { onEvent = () => {}, signal, environm
     const runnable = { ...node, config: node.config || {} };
     const warn = (message) => onEvent({ type: 'warning', nodeId: currentId, message });
     try {
-      const outcome = await NODE_DEFINITIONS[node.type].execute({ node: runnable, flow, state, host, signal, sleep, warn, input: createInputReader({ node: runnable, flow, state, environment }) });
+      const outcome = await NODE_DEFINITIONS[node.type].execute({ node: runnable, flow, state, host, signal, sleep, warn, ...createInputReaders({ node: runnable, flow, state, environment }) });
       onEvent({ type: 'node-finished', nodeId, port: outcome.port, detail: outcome.detail });
       if (outcome.stop) {
         return { status: RUN_STATUS.STOPPED, nodeId };

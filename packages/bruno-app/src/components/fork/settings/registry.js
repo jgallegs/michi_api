@@ -31,7 +31,7 @@ export const FORK_SETTING_ENTRIES = [
     label: 'Flows',
     description:
       'A Flows section in the sidebar to chain the requests of a collection on a visual canvas, without code. Flows are saved in the collection, in the same shared settings file as the sensitive environments.',
-    note: 'Off by default: the canvas to build flows is not available yet.'
+    note: 'Off by default: flows can be built but not run yet.'
   },
   {
     id: FORK_SETTINGS.REQUEST_HISTORY,

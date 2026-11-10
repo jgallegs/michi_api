@@ -55,6 +55,11 @@ const OPERATORS = {
   isFalse: (left) => left === false || left === 'false'
 };
 
+export const COMPARISON_OPERATORS = Object.keys(OPERATORS);
+
+// Comparisons that only look at the first value.
+export const isSingleValueOperator = (operator) => ['isEmpty', 'isNotEmpty', 'isTrue', 'isFalse'].includes(operator);
+
 export const compareValues = (left, operator, right) => {
   if (!Object.prototype.hasOwnProperty.call(OPERATORS, operator)) {
     throw new Error(`Unknown comparison: ${operator}`);
