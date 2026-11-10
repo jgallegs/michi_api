@@ -206,6 +206,24 @@ export const PHRASES = {
   'When a response carries a PDF, PNG, JPEG or ZPL label (as base64 or as text, in any field), a bar above the body shows it and lets you save it. ZPL labels are drawn on this machine.':
     'Si una respuesta trae una etiqueta PDF, PNG, JPEG o ZPL (en base64 o en texto, en cualquier campo), una barra encima del cuerpo la enseña y permite guardarla. Las etiquetas ZPL se dibujan en este equipo.',
   'QR code tool': 'Herramienta de QR',
+  'Off by default: the canvas to build flows is not available yet.': 'Apagado por defecto: todavía no está disponible el lienzo para construir flujos.',
+  'New flow': 'Nuevo flujo',
+  'Rename flow': 'Renombrar flujo',
+  'Delete flow': 'Borrar flujo',
+  'Folder (optional)': 'Carpeta (opcional)',
+  'Open a collection to see its flows.': 'Abre una colección para ver sus flujos.',
+  'Loading flows...': 'Cargando flujos...',
+  'Loading flow...': 'Cargando flujo...',
+  'No flows in this collection yet.': 'Esta colección todavía no tiene flujos.',
+  'This flow no longer exists.': 'Este flujo ya no existe.',
+  'Flows are turned off in Preferences.': 'Los flujos están apagados en Preferencias.',
+  'The canvas to build this flow is not available yet.': 'Todavía no está disponible el lienzo para construir este flujo.',
+  'Delete this flow? It is removed from the collection file.': '¿Borrar este flujo? Se elimina del fichero de la colección.',
+  'The .michi.json file of this collection cannot be read, so every environment asks for confirmation. Check whether it has an unresolved git conflict.':
+    'No se puede leer el fichero .michi.json de esta colección, así que todos los entornos piden confirmación. Revisa si tiene un conflicto de git sin resolver.',
+  'Flows': 'Flujos',
+  'A Flows section in the sidebar to chain the requests of a collection on a visual canvas, without code. Flows are saved in the collection, in the same shared settings file as the sensitive environments.':
+    'Sección Flujos en la barra lateral para encadenar las peticiones de una colección en un lienzo visual, sin código. Los flujos se guardan en la colección, en el mismo fichero compartido que los entornos sensibles.',
   'Show script panels (bru.visualize)': 'Mostrar los paneles de los scripts (bru.visualize)',
   'Panels that post-response scripts draw with bru.visualize appear as tabs next to the response format. They run in an isolated frame and cannot reach the app.':
     'Los paneles que dibujan los scripts de respuesta con bru.visualize salen como pestañas junto al formato de la respuesta. Se ejecutan aislados y no pueden acceder a la app.',

@@ -43,11 +43,23 @@ describe('sensitive environments file', () => {
     expect(readSensitiveEnvironments(dir)).toEqual(['PROD']);
   });
 
-  it('ignores malformed files and refuses folders that are not collections', () => {
+  it('fails on a damaged file instead of treating it as empty, and leaves it untouched', () => {
     const dir = makeCollection();
-    fs.writeFileSync(path.join(dir, SETTINGS_FILE), '{broken');
-    expect(readSensitiveEnvironments(dir)).toEqual([]);
+    const damaged = '{\n<<<<<<< HEAD\n  "sensitiveEnvironments": ["PROD"]\n=======\n  "sensitiveEnvironments": ["PRE"]\n>>>>>>> main\n}\n';
+    fs.writeFileSync(path.join(dir, SETTINGS_FILE), damaged);
 
+    expect(() => readSensitiveEnvironments(dir)).toThrow('git conflict');
+    expect(() => writeSensitiveEnvironment(dir, 'DEV', true)).toThrow('git conflict');
+    expect(fs.readFileSync(path.join(dir, SETTINGS_FILE), 'utf8')).toBe(damaged);
+  });
+
+  it('fails when the file holds valid JSON that is not an object', () => {
+    const dir = makeCollection();
+    fs.writeFileSync(path.join(dir, SETTINGS_FILE), '["PROD"]');
+    expect(() => readSensitiveEnvironments(dir)).toThrow('git conflict');
+  });
+
+  it('refuses folders that are not collections', () => {
     const notCollection = fs.mkdtempSync(path.join(os.tmpdir(), 'not-a-collection-'));
     expect(readSensitiveEnvironments(notCollection)).toEqual([]);
     expect(() => writeSensitiveEnvironment(notCollection, 'PROD', true)).toThrow('Not a collection folder');

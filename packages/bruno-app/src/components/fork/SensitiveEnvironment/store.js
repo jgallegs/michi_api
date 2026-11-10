@@ -12,6 +12,9 @@ const WRITE_CHANNEL = 'fork:sensitive-environments:write';
 const listeners = new Set();
 const snoozedUntil = new Map();
 const sharedByCollection = new Map();
+const unreadableCollections = new Set();
+
+export const UNREADABLE_SETTINGS_MESSAGE = 'The .michi.json file of this collection cannot be read, so every environment asks for confirmation. Check whether it has an unresolved git conflict.';
 
 const emit = () => listeners.forEach((listener) => listener());
 
@@ -54,7 +57,22 @@ const setLocalMark = ({ collectionPath, environmentName }, sensitive) => {
 
 const isLocallySensitive = ({ collectionPath, environmentName }) => readLocal()[collectionPath]?.[environmentName] === true;
 
-const isSharedSensitive = ({ collectionPath, environmentName }) => Boolean(sharedByCollection.get(collectionPath)?.has(environmentName));
+const isSharedSensitive = ({ collectionPath, environmentName }) =>
+  unreadableCollections.has(collectionPath) || Boolean(sharedByCollection.get(collectionPath)?.has(environmentName));
+
+const setSharedUnreadable = (collectionPath, unreadable) => {
+  if (unreadableCollections.has(collectionPath) === unreadable) {
+    return;
+  }
+  if (unreadable) {
+    unreadableCollections.add(collectionPath);
+  } else {
+    unreadableCollections.delete(collectionPath);
+  }
+  emit();
+};
+
+export const isSharedSettingsUnreadable = (collection) => unreadableCollections.has(collection?.pathname);
 
 const storeShared = (collectionPath, names) => {
   const next = new Set(Array.isArray(names) ? names : []);
@@ -76,16 +94,19 @@ export const loadSharedSensitiveEnvironments = async (collection) => {
     return;
   }
   try {
-    storeShared(collection.pathname, await window.ipcRenderer.invoke(READ_CHANNEL, collection.pathname));
+    const names = await window.ipcRenderer.invoke(READ_CHANNEL, collection.pathname);
+    setSharedUnreadable(collection.pathname, false);
+    storeShared(collection.pathname, names);
   } catch {
-    // Unreadable settings file: keep the last known state rather than dropping marks.
+    // The marks are unknown while the file is damaged, so every environment counts as sensitive.
+    setSharedUnreadable(collection.pathname, true);
   }
 };
 
 // Resolves to true when the mark was saved in the collection file, false when it could only be kept locally.
 export const setSensitiveEnvironment = async (collection, environment, sensitive) => {
   const parts = getKeyParts(collection, environment);
-  if (!parts) {
+  if (!parts || unreadableCollections.has(parts.collectionPath)) {
     return false;
   }
 
@@ -129,7 +150,10 @@ export const isSensitiveEnvironmentSnoozed = (collection, environment, now = Dat
 
 export const clearSnoozes = () => snoozedUntil.clear();
 
-export const resetSharedCache = () => sharedByCollection.clear();
+export const resetSharedCache = () => {
+  sharedByCollection.clear();
+  unreadableCollections.clear();
+};
 
 const subscribe = (listener) => {
   listeners.add(listener);
@@ -144,6 +168,8 @@ const subscribe = (listener) => {
     window.removeEventListener('storage', onStorage);
   };
 };
+
+export const useIsSharedSettingsUnreadable = (collection) => useSyncExternalStore(subscribe, () => isSharedSettingsUnreadable(collection));
 
 // Reloads the shared file on mount and whenever the window regains focus (e.g. after a git pull).
 export const useIsSensitiveEnvironment = (collection, environment) => {

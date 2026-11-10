@@ -11,7 +11,8 @@ export const FORK_SETTINGS = {
   REQUEST_HISTORY: 'requestHistory',
   SPANISH_UI: 'spanishUi',
   QR_TOOL: 'qrTool',
-  VISUALIZE: 'visualize'
+  VISUALIZE: 'visualize',
+  FLOWS: 'flows'
 };
 
 const DEFAULTS = {
@@ -21,7 +22,8 @@ const DEFAULTS = {
   [FORK_SETTINGS.REQUEST_HISTORY]: true,
   [FORK_SETTINGS.SPANISH_UI]: false,
   [FORK_SETTINGS.QR_TOOL]: true,
-  [FORK_SETTINGS.VISUALIZE]: true
+  [FORK_SETTINGS.VISUALIZE]: true,
+  [FORK_SETTINGS.FLOWS]: false
 };
 
 const listeners = new Set();

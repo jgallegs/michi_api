@@ -4,6 +4,7 @@ import {
   clearSnoozes,
   isSensitiveEnvironment,
   isSensitiveEnvironmentSnoozed,
+  isSharedSettingsUnreadable,
   loadSharedSensitiveEnvironments,
   resetSharedCache,
   setSensitiveEnvironment,
@@ -15,12 +16,15 @@ const prod = { uid: 'e1', name: 'PROD' };
 const dev = { uid: 'e2', name: 'DEV' };
 
 // In-memory stand-in for the main process handlers that own .michi.json.
-const installSharedFile = ({ failWrites = false } = {}) => {
+const installSharedFile = ({ failWrites = false, failReads = false } = {}) => {
   const files = new Map();
   window.ipcRenderer = {
     invoke: jest.fn(async (channel, collectionPath, environmentName, sensitive) => {
       const names = new Set(files.get(collectionPath) || []);
       if (channel === 'fork:sensitive-environments:read') {
+        if (failReads) {
+          throw new Error('damaged');
+        }
         return [...names];
       }
       if (failWrites) {
@@ -84,6 +88,31 @@ describe('sensitive environment store', () => {
     installSharedFile({ failWrites: true });
     await expect(setSensitiveEnvironment(collection, prod, true)).resolves.toBe(false);
     expect(isSensitiveEnvironment(collection, prod)).toBe(true);
+  });
+
+  it('treats every environment of the collection as sensitive while its file cannot be read', async () => {
+    installSharedFile({ failReads: true });
+    await loadSharedSensitiveEnvironments(collection);
+
+    expect(isSharedSettingsUnreadable(collection)).toBe(true);
+    expect(isSensitiveEnvironment(collection, prod)).toBe(true);
+    expect(isSensitiveEnvironment(collection, dev)).toBe(true);
+    expect(isSensitiveEnvironment({ uid: 'c2', pathname: '/collections/other' }, dev)).toBe(false);
+
+    installSharedFile();
+    await loadSharedSensitiveEnvironments(collection);
+    expect(isSharedSettingsUnreadable(collection)).toBe(false);
+    expect(isSensitiveEnvironment(collection, dev)).toBe(false);
+  });
+
+  it('changes no mark while the file cannot be read', async () => {
+    const local = JSON.stringify({ [collection.pathname]: { PROD: true } });
+    window.localStorage.setItem(STORAGE_KEY, local);
+    installSharedFile({ failReads: true });
+    await loadSharedSensitiveEnvironments(collection);
+
+    await expect(setSensitiveEnvironment(collection, prod, false)).resolves.toBe(false);
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBe(local);
   });
 
   it('keys by collection path and environment name, not by uid', async () => {
