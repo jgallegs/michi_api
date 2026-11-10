@@ -1,9 +1,14 @@
 // Thin wrapper over the fork:flows:* IPC channels (packages/bruno-electron/src/fork/flows-file.js).
-const invoke = (channel, ...args) => {
+const invoke = async (channel, ...args) => {
   if (!window.ipcRenderer) {
-    return Promise.reject(Object.assign(new Error('Flows are only available in the desktop app'), { code: 'NO_IPC' }));
+    throw Object.assign(new Error('Flows are only available in the desktop app'), { code: 'NO_IPC' });
   }
-  return window.ipcRenderer.invoke(channel, ...args);
+  try {
+    return await window.ipcRenderer.invoke(channel, ...args);
+  } catch (err) {
+    // Electron prefixes errors from the main process; only the original text is useful on screen.
+    throw new Error(err.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, ''));
+  }
 };
 
 export const flowsApi = {

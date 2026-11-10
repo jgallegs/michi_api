@@ -75,6 +75,26 @@ describe('flows file', () => {
     expect(listFlows(dir)).toEqual([]);
   });
 
+  it('keeps a file with git conflict markers intact and reports it', () => {
+    const dir = makeCollection();
+    const damaged = '{\n  "sensitiveEnvironments": ["PROD"],\n  "flows": {\n<<<<<<< HEAD\n    "a": {}\n=======\n    "b": {}\n>>>>>>> main\n  }\n}\n';
+    fs.writeFileSync(path.join(dir, SETTINGS_FILE), damaged);
+
+    expect(() => listFlows(dir)).toThrow('git conflict');
+    expect(() => saveFlow(dir, makeFlow('f1', 'One'))).toThrow('git conflict');
+    expect(() => deleteFlow(dir, 'a')).toThrow('git conflict');
+    expect(fs.readFileSync(path.join(dir, SETTINGS_FILE), 'utf8')).toBe(damaged);
+  });
+
+  it('does not replace a flows value that is not an object', () => {
+    const dir = makeCollection();
+    const content = JSON.stringify({ flows: 'junk', sensitiveEnvironments: ['PROD'] });
+    fs.writeFileSync(path.join(dir, SETTINGS_FILE), content);
+
+    expect(() => saveFlow(dir, makeFlow('f1', 'One'))).toThrow('not valid');
+    expect(fs.readFileSync(path.join(dir, SETTINGS_FILE), 'utf8')).toBe(content);
+  });
+
   it('refuses folders that are not collections', () => {
     const notCollection = fs.mkdtempSync(path.join(os.tmpdir(), 'not-a-collection-'));
     expect(listFlows(notCollection)).toEqual([]);

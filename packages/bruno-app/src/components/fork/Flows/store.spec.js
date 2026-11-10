@@ -108,6 +108,12 @@ describe('flows store', () => {
     expect(files[COLLECTION]).toEqual({});
   });
 
+  it('shows the original message of an error from the main process', async () => {
+    window.ipcRenderer.invoke = jest.fn(() => Promise.reject(new Error(`Error invoking remote method 'fork:flows:list': Error: .michi.json cannot be read`)));
+    const { result } = renderHook(() => useCollectionFlows(COLLECTION));
+    await waitFor(() => expect(result.current.error).toBe('.michi.json cannot be read'));
+  });
+
   it('records the error when the file cannot be read', async () => {
     window.ipcRenderer.invoke = jest.fn(() => Promise.reject(new Error('boom')));
     const { result } = renderHook(() => useCollectionFlows(COLLECTION));

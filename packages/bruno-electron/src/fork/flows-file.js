@@ -34,8 +34,14 @@ const validateFlow = (flow) => {
 };
 
 const readFlowsMap = (collectionPath) => {
-  const flows = readSettings(collectionPath).flows;
-  return isPlainObject(flows) ? flows : {};
+  const { flows } = readSettings(collectionPath);
+  if (flows === undefined) {
+    return {};
+  }
+  if (!isPlainObject(flows)) {
+    throw new Error('The flows stored in .michi.json are not valid');
+  }
+  return flows;
 };
 
 const sortedMap = (flows) =>

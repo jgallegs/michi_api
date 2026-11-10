@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import ToggleSwitch from 'components/ToggleSwitch';
 import { useTheme } from 'providers/Theme';
-import { setSensitiveEnvironment, useIsSensitiveEnvironment } from '../store';
+import { UNREADABLE_SETTINGS_MESSAGE, isSharedSettingsUnreadable, setSensitiveEnvironment, useIsSensitiveEnvironment } from '../store';
 import StyledWrapper from './StyledWrapper';
 
 const SensitiveEnvironmentToggle = ({ collection, environment }) => {
@@ -17,6 +17,10 @@ const SensitiveEnvironmentToggle = ({ collection, environment }) => {
     setSaving(true);
     const savedInCollection = await setSensitiveEnvironment(collection, environment, !isSensitive);
     setSaving(false);
+    if (isSharedSettingsUnreadable(collection)) {
+      toast.error(UNREADABLE_SETTINGS_MESSAGE);
+      return;
+    }
     if (!savedInCollection && !isSensitive) {
       toast.error('Could not write .michi.json in the collection folder. Marked as sensitive on this computer only.');
     }

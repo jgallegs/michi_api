@@ -20,13 +20,32 @@ const assertCollectionRoot = (collectionPath) => {
 
 const settingsPath = (collectionPath) => path.join(collectionPath, SETTINGS_FILE);
 
+const unreadableSettingsError = () =>
+  new Error(`${SETTINGS_FILE} cannot be read or is not valid JSON. Check whether it has an unresolved git conflict.`);
+
+// Only a missing file counts as empty. Anything else throws, because treating a damaged file as empty
+// would drop its protections silently and let the next write replace everything in it.
 const readSettings = (collectionPath) => {
+  let content;
   try {
-    const parsed = JSON.parse(fs.readFileSync(settingsPath(collectionPath), 'utf8'));
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
+    content = fs.readFileSync(settingsPath(collectionPath), 'utf8');
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return {};
+    }
+    throw unreadableSettingsError();
   }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw unreadableSettingsError();
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw unreadableSettingsError();
+  }
+  return parsed;
 };
 
 // An empty settings object removes the file, so a collection that stops using the fork leaves no trace.

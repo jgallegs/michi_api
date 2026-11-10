@@ -61,6 +61,18 @@ describe('sensitive environment guard', () => {
     expect(getPendingConfirmation()).not.toBeNull();
   });
 
+  it('asks for confirmation in any environment while the shared file cannot be read', async () => {
+    window.ipcRenderer.invoke = jest.fn(async () => {
+      throw new Error('damaged');
+    });
+    const result = confirmSendInSensitiveEnvironment(buildCollection('e2'), item);
+    await settle();
+    expect(getPendingConfirmation()).toMatchObject({ environment: dev });
+
+    resolvePendingConfirmation({ confirmed: false });
+    await expect(result).resolves.toBe(false);
+  });
+
   it('waits for confirmation in a sensitive environment and blocks on cancel', async () => {
     const result = confirmSendInSensitiveEnvironment(buildCollection('e1'), item);
     await settle();
