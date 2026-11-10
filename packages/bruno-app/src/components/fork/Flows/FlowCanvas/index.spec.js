@@ -134,6 +134,29 @@ describe('FlowCanvas', () => {
     expect(current().edges).toHaveLength(2);
   });
 
+  it('takes a field nobody has seen yet by typing its name in the value picker', async () => {
+    const flow = makeFlow(
+      [node('a', 'request', 400, 120, { pathname: 'login.bru' }), node('each', 'foreach', 720, 120), node('b', 'request', 1040, 120, { pathname: 'get order.bru' })],
+      [edge('e1', 'start', 'out', 'a'), edge('e2', 'a', 'out', 'each'), edge('e3', 'each', 'body', 'b')]
+    );
+    await open(flow);
+
+    fireEvent.click(screen.getByText('Choose the list'));
+    fireEvent.change(screen.getByPlaceholderText('Search or type a field, like order.id'), { target: { value: 'orders' } });
+    fireEvent.click(screen.getAllByText('orders', { selector: '.flow-picker-label' })[0]);
+    expect(current().edges[3]).toMatchObject({ source: 'a', sourcePort: 'field:orders', target: 'each', targetPort: 'value:list' });
+    expect(current().nodes[1].config.fields).toEqual(['orders']);
+
+    fireEvent.mouseDown(port('b', 'left', 'var:orderId'), { button: 0 });
+    fireEvent.mouseUp(window);
+    fireEvent.change(screen.getByPlaceholderText('Search or type a field, like order.id'), { target: { value: 'id' } });
+    const offered = screen.getAllByText('id', { selector: '.flow-picker-label' });
+    expect(offered).toHaveLength(2);
+    fireEvent.click(offered[1]);
+    expect(current().edges[4]).toMatchObject({ source: 'each', sourcePort: 'field:item.id', target: 'b', targetPort: 'var:orderId' });
+    expect(current().nodes[2].config.fields).toEqual(['id']);
+  });
+
   it('types settings into a step and undoes them from the toolbar', async () => {
     await open(makeFlow([node('r', 'repeat', 400, 120, { times: '3' })], [edge('e1', 'start', 'out', 'r')]));
     fireEvent.change(screen.getByDisplayValue('3'), { target: { value: '12' } });

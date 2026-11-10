@@ -43,7 +43,7 @@ import {
 } from '../canvas/editing';
 import { canRedo, canUndo, editFlow, forgetHistory, redo, undo } from '../canvas/history';
 import { settle, tidy } from '../canvas/layout';
-import { listFieldOptions, listPieceOptions, listRequestOptions, listValueOptions, titleOf } from '../canvas/pickers';
+import { listFieldOptions, listPieceOptions, listRequestOptions, listTypedFieldOptions, listValueOptions, titleOf } from '../canvas/pickers';
 import { HEADER_HEIGHT, PIECE_WIDTH, PORT_KIND, describePiece, findPort } from '../canvas/pieces';
 import { describeRequest, relativeRequestPath } from '../canvas/requests';
 import { defaultBends, dragBend, grabSegment, nearestSegment, routePoints, simplifyBends } from '../canvas/routing';
@@ -655,8 +655,10 @@ const FlowCanvas = ({ collection, flow }) => {
     }),
     value: () => ({
       title: 'Take the value from',
+      placeholder: 'Search or type a field, like order.id',
       options: listValueOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id)),
       emptyText: 'No other step hands out a value yet',
+      custom: (text) => (FIELD_PATH.test(text) ? listTypedFieldOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id), text) : null),
       onPick: (option) =>
         edit((current) => {
           const shown = option.addField ? addRequestField(current, option.nodeId, option.addField) : current;

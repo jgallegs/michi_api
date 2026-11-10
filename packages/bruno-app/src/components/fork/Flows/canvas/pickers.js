@@ -1,4 +1,4 @@
-import { fieldPort } from '../engine/nodes';
+import { fieldPort, itemFieldPort } from '../engine/nodes';
 import { canFollow } from '../blocks/building';
 import { canConnect, createNode, findFittingPort } from './editing';
 import { ADDABLE_PIECES, PIECES, PORT_KIND, describePiece } from './pieces';
@@ -52,6 +52,17 @@ export const titleOf = (node, request) => {
   const named = ['list', 'setvalue'].includes(node.type) && node.config?.name;
   return named ? `${PIECES[node.type].title} · ${node.config.name}` : PIECES[node.type]?.title || node.type;
 };
+
+// A field nobody has seen yet, because its request has not been sent, can be typed by name: it is
+// offered on every step that hands out fields.
+export const listTypedFieldOptions = (flow, target, describe, path) =>
+  flow.nodes
+    .filter((node) => node.id !== target.nodeId && ['request', 'foreach'].includes(node.type))
+    .map((node) => {
+      const port = node.type === 'foreach' ? itemFieldPort(path) : fieldPort(path);
+      return { id: `${node.id}:${port}`, group: titleOf(node, describe(node).request), label: path, nodeId: node.id, port, addField: path };
+    })
+    .filter((option) => canConnect(flow, { nodeId: option.nodeId, port: option.port }, target));
 
 // Values other steps hand out that fit an input: the ones already shown on those steps, and the known
 // response fields of each request that are not shown yet.

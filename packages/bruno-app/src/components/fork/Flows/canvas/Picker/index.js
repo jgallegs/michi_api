@@ -20,7 +20,7 @@ const matches = (option, words) => {
 };
 
 // Small floating list with a search box, used to pick a step, a request, a value or a field. "custom"
-// turns what was typed into one more option, for choices that are not in the list.
+// turns what was typed into more options, for choices that are not in the list.
 const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 'Nothing to choose from', custom, onPick, onClose }) => {
   const ref = useRef(null);
   const [query, setQuery] = useState('');
@@ -29,8 +29,8 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
   const visible = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
     const found = options.filter((option) => matches(option, words));
-    const typed = custom && query.trim() ? custom(query.trim()) : null;
-    return typed && !found.some((option) => option.id === typed.id) ? [...found, typed] : found;
+    const typed = custom && query.trim() ? [].concat(custom(query.trim()) || []) : [];
+    return [...found, ...typed.filter((option) => !found.some((known) => known.id === option.id))];
   }, [options, query, custom]);
 
   useEffect(() => {
