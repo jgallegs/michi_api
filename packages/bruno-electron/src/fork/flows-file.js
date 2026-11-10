@@ -5,9 +5,9 @@ const { isCollectionRoot, assertCollectionRoot, readSettings, writeSettings } = 
 // collection and stay invisible to upstream Bruno. Keys are written sorted to keep git diffs stable.
 const FLOW_VERSION = 1;
 const FLOW_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
-const MAX_FLOW_BYTES = 2 * 1024 * 1024;
-// Same limit as the renderer (Flows/model.js), so a flow saved here never disappears from the list.
+// Same limit as MAX_FLOW_NAME_LENGTH in the renderer (components/fork/Flows/model.js): both must stay in sync.
 const MAX_FLOW_NAME_LENGTH = 120;
+const MAX_FLOW_BYTES = 2 * 1024 * 1024;
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 

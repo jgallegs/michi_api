@@ -23,7 +23,7 @@ const DEFAULTS = {
   [FORK_SETTINGS.SPANISH_UI]: false,
   [FORK_SETTINGS.QR_TOOL]: true,
   [FORK_SETTINGS.VISUALIZE]: true,
-  [FORK_SETTINGS.FLOWS]: true
+  [FORK_SETTINGS.FLOWS]: false
 };
 
 const listeners = new Set();

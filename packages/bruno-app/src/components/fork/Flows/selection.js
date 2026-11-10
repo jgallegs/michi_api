@@ -1,19 +1,20 @@
-import { addTab } from 'providers/ReduxStore/slices/tabs';
+import { addTab, closeTabs } from 'providers/ReduxStore/slices/tabs';
 
-export const FLOW_TAB_TYPE = 'fork-flow';
+// The tab type carries the flow id because the tab strip only hands the type to the tab title. The
+// pathname is not a real file: it lets the tab snapshot restore the tab after an app restart.
+const FLOW_TAB_PREFIX = 'fork-flow:';
 
-// The tab pathname carries the flow id so the tab survives an app restart: the snapshot restores it by
-// pathname and the id is read back from it. It is not a real file path.
-const FLOW_ID_SUFFIX = /#flow:([A-Za-z0-9_-]+)$/;
+export const isFlowTabType = (type) => typeof type === 'string' && type.startsWith(FLOW_TAB_PREFIX);
 
-export const flowTabPathname = (collection, flowId) => `${collection.pathname}#flow:${flowId}`;
+export const flowIdFromTabType = (type) => type.slice(FLOW_TAB_PREFIX.length);
 
-export const flowIdFromTab = (tab) => {
-  const match = FLOW_ID_SUFFIX.exec(tab?.pathname || '');
-  return match ? match[1] : null;
-};
+const flowTabUid = (collection, flowId) => `${collection.pathname}#flow:${flowId}`;
 
 export const openFlowTab = (dispatch, collection, flow) => {
-  const pathname = flowTabPathname(collection, flow.id);
-  dispatch(addTab({ uid: pathname, pathname, collectionUid: collection.uid, type: FLOW_TAB_TYPE, tabName: flow.name, preview: false }));
+  const uid = flowTabUid(collection, flow.id);
+  dispatch(addTab({ uid, pathname: uid, collectionUid: collection.uid, type: `${FLOW_TAB_PREFIX}${flow.id}`, preview: false }));
+};
+
+export const closeFlowTab = (dispatch, collection, flowId) => {
+  dispatch(closeTabs({ tabUids: [flowTabUid(collection, flowId)], reopenable: false }));
 };

@@ -43,7 +43,7 @@ import Preferences from 'components/Preferences';
 import EnvironmentSettings from 'components/Environments/EnvironmentSettings';
 import GlobalEnvironmentSettings from 'components/Environments/GlobalEnvironmentSettings';
 import OpenAPISyncTab from 'components/OpenAPISyncTab';
-import { GitTab, GIT_TAB_TYPE } from 'components/fork/SourceControl'; // [FORK H-19]
+import { ForkTabPanel, isForkTab } from 'components/fork/registry'; // [FORK H-19]
 import OpenAPISpecTab from 'components/OpenAPISpecTab';
 import ApiSpecTab from 'components/ApiSpecTab';
 import MockServerDashboard from 'components/MockServer/MockServerDashboard';
@@ -577,7 +577,7 @@ const RequestTabPanel = () => {
     return <FolderNotFound folderUid={focusedTab.folderUid} />;
   }
 
-  if (focusedTab.type === GIT_TAB_TYPE) return <GitTab collection={collection} />; // [FORK H-19]
+  if (isForkTab(focusedTab.type)) return <ForkTabPanel tab={focusedTab} collection={collection} />; // [FORK H-19]
 
   if (focusedTab.type === 'environment-settings') {
     return <EnvironmentSettings collection={collection} />;

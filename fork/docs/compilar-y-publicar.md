@@ -4,7 +4,7 @@ Publica el mantenedor principal (R-30). Se compila desde el tag, en una carpeta 
 
 ## Estado
 
-- Versión vigente: **Michi 4.3.0-fork.13**, sobre Bruno v4.3.0 (un `.michi.json` dañado ya no se pisa y base de los flows, DEC-26).
+- Versión vigente: **Michi 4.3.0-fork.13**, sobre Bruno v4.3.0 (un `.michi.json` dañado ya no se pisa y sección Flujos, apagada por defecto, DEC-26).
 - La 4.3.0-fork.10 y la 4.3.0-fork.11 están **retiradas**: incluían una fuente sin licencia de redistribución (DEC-25).
 - Versiones anteriores: fork.1 se publicó como Brunillo con un icono provisional, fork.2 no se publicó, y de fork.3 a fork.12 ya como Michi. Los cambios de cada una están en [fork/CHANGELOG.md](../CHANGELOG.md).
 - Bruno de código abierto no tiene actualización automática, así que R-39 se cumple sin hacer nada.
