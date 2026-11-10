@@ -388,8 +388,8 @@ const StyledWrapper = styled.div`
   .flow-tool-message { color: ${(props) => props.theme.status.warning.text}; }
   .flow-tool-unsaved { color: ${(props) => props.theme.colors.text.muted}; padding: 0 4px; }
   /* With little room the buttons keep their icon and lose their words, the least needed first. */
-  &.compact .flow-tool.secondary > span { display: none; }
-  &.tight .flow-tool:not(.run):not(.stop) > span,
+  &.compact .flow-toolbar .flow-tool.secondary > span { display: none; }
+  &.tight .flow-toolbar .flow-tool:not(.run):not(.stop):not(.wordy) > span,
   &.tight .flow-tool-unsaved { display: none; }
 
   .flow-picker {

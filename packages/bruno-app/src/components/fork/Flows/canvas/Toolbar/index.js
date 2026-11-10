@@ -65,7 +65,7 @@ const StaleWarning = ({ onDiscard }) => (
     <span className="flow-tool-message" title="Saving replaces the version that arrived. Discard your changes to see it." data-testid="flow-stale">
       This flow changed in the collection while you were editing it
     </span>
-    <button type="button" className="flow-tool" onClick={onDiscard} data-testid="flow-discard">
+    <button type="button" className="flow-tool wordy" onClick={onDiscard} data-testid="flow-discard">
       <span>Discard my changes</span>
     </button>
   </>

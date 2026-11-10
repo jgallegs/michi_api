@@ -374,7 +374,8 @@ const FlowCanvas = ({ collection, flow }) => {
       setView(frameBoxes(boxes, rootRef.current, READABLE_ZOOM, boxes.find((item) => item.id === firstId)));
       return settled;
     });
-    setSelection({ nodeIds: newIds, edgeId: null });
+    // Nothing is left selected: a block is to be filled in, and a stray Delete would take it all away.
+    setSelection({ nodeIds: [], edgeId: null });
     if (built.guide.length) {
       startGuide(flow.id, { title: built.title, translate: built.translate, points: built.guide });
     }
