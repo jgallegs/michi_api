@@ -3,6 +3,7 @@ import { uuid } from 'utils/common';
 // A flow is a graph of nodes joined by edges, stored as plain JSON in the collection's .michi.json.
 // The version lets a later editor migrate flows saved by an older one.
 export const FLOW_VERSION = 1;
+// Same limit as validateFlow in packages/bruno-electron/src/fork/flows-file.js: both must stay in sync.
 export const MAX_FLOW_NAME_LENGTH = 120;
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);

@@ -9,6 +9,7 @@ describe('fork settings store', () => {
   it('uses the defaults when nothing was saved', () => {
     expect(getForkSetting(FORK_SETTINGS.SENSITIVE_WRITES_ONLY)).toBe(true);
     expect(getForkSetting(FORK_SETTINGS.SPANISH_UI)).toBe(false);
+    expect(getForkSetting(FORK_SETTINGS.FLOWS)).toBe(false);
   });
 
   it('saves a value and reads it back after a reload', () => {

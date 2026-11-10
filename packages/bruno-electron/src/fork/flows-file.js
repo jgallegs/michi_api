@@ -5,6 +5,8 @@ const { isCollectionRoot, assertCollectionRoot, readSettings, writeSettings } = 
 // collection and stay invisible to upstream Bruno. Keys are written sorted to keep git diffs stable.
 const FLOW_VERSION = 1;
 const FLOW_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+// Same limit as MAX_FLOW_NAME_LENGTH in the renderer (components/fork/Flows/model.js): both must stay in sync.
+const MAX_FLOW_NAME_LENGTH = 120;
 const MAX_FLOW_BYTES = 2 * 1024 * 1024;
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -16,7 +18,7 @@ const validateFlow = (flow) => {
   if (typeof flow.id !== 'string' || !FLOW_ID_PATTERN.test(flow.id)) {
     throw new Error('Invalid flow id');
   }
-  if (typeof flow.name !== 'string' || !flow.name.trim()) {
+  if (typeof flow.name !== 'string' || !flow.name.trim() || flow.name.trim().length > MAX_FLOW_NAME_LENGTH) {
     throw new Error('Invalid flow name');
   }
   if (flow.version !== FLOW_VERSION) {
@@ -28,7 +30,7 @@ const validateFlow = (flow) => {
   if (!Array.isArray(flow.nodes) || !Array.isArray(flow.edges)) {
     throw new Error('Invalid flow graph');
   }
-  if (JSON.stringify(flow).length > MAX_FLOW_BYTES) {
+  if (Buffer.byteLength(JSON.stringify(flow), 'utf8') > MAX_FLOW_BYTES) {
     throw new Error('Flow is too large');
   }
 };
