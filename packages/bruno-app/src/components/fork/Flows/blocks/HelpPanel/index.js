@@ -40,7 +40,7 @@ const KEYS = [
 ];
 
 // Everything needed to read a flow, on one screen and always one click away.
-const HelpPanel = ({ onShowBlocks, onClose }) => (
+const HelpPanel = ({ onShowBlocks, onCourse, onClose }) => (
   <div className="flow-help flow-overlay" onMouseDown={stop} onDoubleClick={stop} data-testid="flow-help">
     <div className="flow-help-header">
       <span className="flow-help-title">How flows work</span>
@@ -73,6 +73,9 @@ const HelpPanel = ({ onShowBlocks, onClose }) => (
       ))}
     </div>
     <div className="flow-help-footer">
+      <button type="button" className="flow-tool" onClick={onCourse} data-testid="flow-help-course">
+        <span>Guided course</span>
+      </button>
       <button type="button" className="flow-tool" onClick={onShowBlocks} data-testid="flow-help-blocks">
         <span>Show the blocks</span>
       </button>

@@ -1,7 +1,11 @@
 // Spanish for the interface texts. Keys are the exact English text of a label, button, tab or menu
 // entry (after the branding phrases are applied at build time). Anything missing stays in English.
 
+import { FLOWS_COURSE } from './flowsCourse';
+
 export const PHRASES = {
+  // The guided course of Flows has its own file; what is written below wins where both say something.
+  ...FLOWS_COURSE,
   // Request tabs and panes
   'Params': 'Parámetros',
   'Query': 'Consulta',
@@ -326,6 +330,12 @@ export const PHRASES = {
   'Which field of the response?': '¿Qué campo de la respuesta?',
   'Requests': 'Peticiones',
   'Add request': 'Añadir petición',
+  'Guided course': 'Curso guiado',
+  'All the lessons': 'Todas las lecciones',
+  'Try it on the canvas': 'Probarlo en el lienzo',
+  'Previous': 'Anterior',
+  'Finish': 'Terminar',
+  'New to flows? Take the guided course': '¿Primera vez con flows? Haz el curso guiado',
   'Ask before running': 'Preguntar antes de ejecutar',
   'Question': 'Pregunta',
   'Usual answer': 'Respuesta habitual',

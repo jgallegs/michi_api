@@ -14,7 +14,9 @@ import { closeGuide, noteGuideRun, readGuide, startGuide, tickGuidePoint, useGui
 import { deleteOwnBlock, saveOwnBlock, useOwnBlocks } from '../blocks/store';
 import Gallery from '../blocks/Gallery';
 import GuidePanel from '../blocks/GuidePanel';
+import { READY_BLOCKS } from '../blocks/catalog';
 import HelpPanel from '../blocks/HelpPanel';
+import CoursePanel from '../course/CoursePanel';
 import SaveBlockModal from '../blocks/SaveBlockModal';
 import { discardFlowDraft, getCollectionFlows, saveFlow, useFlowDirty, useFlowStale } from '../store';
 import TableModal from '../data/TableModal';
@@ -188,6 +190,7 @@ const FlowCanvas = ({ collection, flow }) => {
   const [suggest, setSuggest] = useState(null);
   const [report, setReport] = useState(null);
   const [asking, setAsking] = useState(null);
+  const [course, setCourse] = useState(false);
   const [editingTable, setEditingTable] = useState(null);
   const [width, setWidth] = useState(Infinity);
   const ownBlocks = useOwnBlocks(collectionPath);
@@ -754,6 +757,8 @@ const FlowCanvas = ({ collection, flow }) => {
     const closeOnTop = () => {
       if (help) {
         setHelp(false);
+      } else if (course) {
+        setCourse(false);
       } else if (showsGallery) {
         closeGallery();
       } else {
@@ -1148,6 +1153,10 @@ const FlowCanvas = ({ collection, flow }) => {
           startsFlow={isNew}
           onPick={placeBlock}
           onDeleteOwn={(blockId) => deleteOwnBlock(collectionPath, blockId).catch((err) => toast.error(err.message))}
+          onCourse={() => {
+            closeGallery();
+            setCourse(true);
+          }}
           onClose={closeGallery}
         />
       ) : null}
@@ -1162,9 +1171,27 @@ const FlowCanvas = ({ collection, flow }) => {
           onClose={() => closeGuide(flow.id)}
         />
       ) : null}
+      {course ? (
+        <CoursePanel
+          onClose={() => setCourse(false)}
+          // A lesson is tried on the flow that is open: its block lands with its guide, its step at the centre.
+          onPractice={(practice) => {
+            const block = practice.block ? READY_BLOCKS.find((item) => item.id === practice.block) : null;
+            if (block) {
+              placeBlock({ kind: 'ready', block });
+            } else if (practice.step) {
+              addPiece(practice.step, undefined, centerOfView(), null);
+            }
+          }}
+        />
+      ) : null}
       {help ? (
         <HelpPanel
           onClose={() => setHelp(false)}
+          onCourse={() => {
+            setHelp(false);
+            setCourse(true);
+          }}
           onShowBlocks={() => {
             setHelp(false);
             setGallery({ world: centerOfView(), loose: null });

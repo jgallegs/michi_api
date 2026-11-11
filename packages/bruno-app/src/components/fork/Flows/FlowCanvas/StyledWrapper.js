@@ -588,6 +588,86 @@ const StyledWrapper = styled.div`
     cursor: default;
   }
 
+  .flow-course {
+    position: absolute;
+    z-index: 6;
+    left: 12px;
+    top: 52px;
+    display: flex;
+    flex-direction: column;
+    width: 360px;
+    max-height: calc(100% - 68px);
+    box-sizing: border-box;
+    color: ${(props) => props.theme.text};
+    background: ${(props) => props.theme.background.base};
+    border: 1px solid ${(props) => props.theme.border.border1};
+    border-radius: ${(props) => props.theme.border.radius.md};
+    box-shadow: ${(props) => props.theme.shadow.md};
+    cursor: default;
+    user-select: text;
+  }
+  .flow-course-header { display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px 14px; }
+  .flow-course-title { flex: 1; font-weight: 600; }
+  .flow-course-progress,
+  .flow-course-count { font-size: ${(props) => props.theme.font.size.xs}; color: ${(props) => props.theme.colors.text.muted}; font-variant-numeric: tabular-nums; }
+  .flow-course-bar {
+    height: 3px;
+    margin: 0 14px;
+    border-radius: 2px;
+    background: ${(props) => props.theme.background.crust};
+
+    span { display: block; height: 100%; border-radius: 2px; background: var(--flow-order); transition: width 0.2s ease-out; }
+  }
+  .flow-course-body { padding: 10px 14px 12px; overflow-y: auto; line-height: 1.5; }
+  .flow-course-chapter {
+    margin: 6px 0 2px;
+    font-size: ${(props) => props.theme.font.size.xs};
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: ${(props) => props.theme.colors.text.muted};
+  }
+  .flow-course-lesson-title { margin-bottom: 8px; font-size: ${(props) => props.theme.font.size.md}; font-weight: 600; }
+  .flow-course-line { margin: 0 0 8px; }
+  .flow-course-practice { margin-top: 4px; }
+  .flow-course-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-top: 1px solid ${(props) => props.theme.border.border1};
+  }
+  .flow-course-entry {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 4px 6px;
+    border: none;
+    border-radius: ${(props) => props.theme.border.radius.sm};
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover { background: ${(props) => props.theme.background.crust}; }
+    &.current { font-weight: 600; }
+    &.done { color: ${(props) => props.theme.colors.text.muted}; }
+  }
+  .flow-course-tick { display: inline-flex; flex-shrink: 0; width: 14px; color: ${(props) => props.theme.status.success.text}; }
+  .flow-gallery-course {
+    margin-top: 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: var(--flow-order);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
   .flow-gallery {
     z-index: 6;
     left: 50%;

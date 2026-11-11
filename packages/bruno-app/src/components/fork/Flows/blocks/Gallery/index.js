@@ -40,7 +40,7 @@ const OwnBlock = ({ block, confirming, onPick, onAskDelete, onCancelDelete, onDe
 
 // What a new flow opens with, and what "Blocks" brings back later: everything that can be dropped on the
 // canvas already built, named after what it is for.
-const Gallery = ({ ownBlocks, startsFlow, onPick, onDeleteOwn, onClose }) => {
+const Gallery = ({ ownBlocks, startsFlow, onPick, onDeleteOwn, onCourse, onClose }) => {
   const [confirming, setConfirming] = useState(null);
 
   return (
@@ -49,6 +49,7 @@ const Gallery = ({ ownBlocks, startsFlow, onPick, onDeleteOwn, onClose }) => {
         <div>
           <div className="flow-gallery-title">What do you want to do?</div>
           <div className="flow-gallery-subtitle">Pick one and it lands on the canvas already connected. You only fill in the blanks.</div>
+          <button type="button" className="flow-gallery-course" onClick={onCourse} data-testid="flow-gallery-course">New to flows? Take the guided course</button>
         </div>
         <button type="button" className="flow-icon-button" aria-label="Close" title="Close" onClick={onClose} data-testid="flow-gallery-close">
           <IconX size={14} strokeWidth={2} />

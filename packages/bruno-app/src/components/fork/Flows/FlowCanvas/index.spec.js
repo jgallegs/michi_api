@@ -25,6 +25,7 @@ import { startRun, stopRun } from '../run/controller';
 import { RUN_PHASE, patchRunSession, resetRunSessions } from '../run/session';
 import { resetGuides } from '../blocks/guide';
 import { resetOwnBlocks } from '../blocks/store';
+import { resetCourse } from '../course/progress';
 import { rememberShape, resetKnownFields, setApiDocuments } from '../fields/memory';
 import { FORK_SETTINGS, resetForkSettingsCache, setForkSetting } from 'components/fork/settings/store';
 import { VALUE_CABLES, setValueCables } from '../canvas/view';
@@ -91,6 +92,7 @@ describe('FlowCanvas', () => {
     resetGuides();
     resetOwnBlocks();
     resetCanvasMemory();
+    resetCourse();
     // Most of what follows looks at the cables of the values, which are only all in sight when asked.
     setValueCables(VALUE_CABLES.ALWAYS);
     resetKnownFields();
@@ -211,6 +213,45 @@ describe('FlowCanvas', () => {
     pick('items.1.id');
     expect(current().nodes[1].config.fields).toEqual(['items.1.id']);
     expect(screen.getByTestId('flow-position-a-items.1.id')).toHaveTextContent('#2');
+  });
+
+  describe('guided course', () => {
+    it('opens from the gallery of a new flow and goes lesson by lesson', async () => {
+      await open(makeFlow());
+      fireEvent.click(screen.getByTestId('flow-gallery-course'));
+      expect(screen.queryByTestId('flow-gallery')).not.toBeInTheDocument();
+      expect(screen.getByTestId('flow-course-lesson')).toHaveTextContent('What a flow is');
+      expect(screen.getByTestId('flow-course-progress')).toHaveTextContent('0 / 37');
+      expect(screen.getByTestId('flow-course-previous')).toBeDisabled();
+
+      fireEvent.click(screen.getByTestId('flow-course-next'));
+      expect(screen.getByTestId('flow-course-lesson')).toHaveTextContent('Moving around the canvas');
+      expect(screen.getByTestId('flow-course-progress')).toHaveTextContent('1 / 37');
+      fireEvent.click(screen.getByTestId('flow-course-previous'));
+      expect(screen.getByTestId('flow-course-lesson')).toHaveTextContent('What a flow is');
+    });
+
+    it('lets a lesson be tried on the canvas: its block lands with its guide', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      fireEvent.click(screen.getByTestId('flow-help-button'));
+      fireEvent.click(screen.getByTestId('flow-help-course'));
+      expect(screen.queryByTestId('flow-help')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('flow-course-index'));
+      fireEvent.click(screen.getByTestId('flow-course-entry-validate'));
+      expect(screen.getByTestId('flow-course-lesson')).toHaveTextContent('Validate: a 200 with an error inside');
+      fireEvent.click(screen.getByTestId('flow-course-practice'));
+      expect(current().nodes.map((item) => item.type)).toEqual(['start', 'wait', 'request', 'validate', 'note']);
+      expect(screen.getByTestId('flow-guide')).toHaveTextContent('Validate a field of the response');
+      expect(screen.getByTestId('flow-course')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('flow-course-index'));
+      fireEvent.click(screen.getByTestId('flow-course-entry-flows-in-flows'));
+      fireEvent.click(screen.getByTestId('flow-course-practice'));
+      expect(current().nodes[current().nodes.length - 1].type).toBe('flow');
+      fireEvent.click(screen.getByTestId('flow-course-close'));
+      expect(screen.queryByTestId('flow-course')).not.toBeInTheDocument();
+    });
   });
 
   describe('questions, tables and trying a step', () => {
