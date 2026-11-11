@@ -101,7 +101,8 @@ describe('FlowsSection', () => {
       const store = renderSection();
       await screen.findByText('Create shipments');
 
-      fireEvent.click(screen.getAllByTitle('Duplicate flow')[0]);
+      const row = screen.getAllByTestId('flow-row').find((item) => item.textContent === 'Create shipments');
+      fireEvent.click(row.querySelector('[title="Duplicate flow"]'));
       await waitFor(() => expect(files['generated-uid']).toBeDefined());
       expect(files['generated-uid']).toMatchObject({ name: 'Create shipments (3)', folder: 'Daily', nodes: steps });
       await waitFor(() => expect(store.getState().tabs.activeTabUid).toBe('/collections/orders#flow:generated-uid'));
