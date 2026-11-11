@@ -200,7 +200,7 @@ describe('FlowCanvas', () => {
       expect(screen.getByTestId('flow-contents-l')).toHaveTextContent('It fills up as the flow runs');
       act(() => patchRunSession('f1', { lists: { l: 2 }, contents: { l: shipments } }));
       const lines = [...screen.getByTestId('flow-contents-l').querySelectorAll('.flow-content-item')].map((line) => line.textContent);
-      expect(lines).toEqual(['1shipment E1parcels (2)', '2shipment E2parcels (1)']);
+      expect(lines).toEqual(['1 shipment E1 · parcels (2)', '2 shipment E2 · parcels (1)']);
     });
 
     it('opens a report of the list as a table, each item with what it has inside', async () => {

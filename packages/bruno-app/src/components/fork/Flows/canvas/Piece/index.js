@@ -160,10 +160,12 @@ const Contents = ({ node, row, items }) => {
       {count ? (
         items.slice(from).map((item, index) => (
           <div key={from + index} className="flow-content-item fork-no-translate">
-            <span className="flow-content-number">{from + index + 1}</span>
+            <span className="flow-content-number">{from + index + 1} </span>
             <span className="flow-content-text">
-              {summarize(item).map(({ name, value }) => (
-                <span key={name || 'value'} className="flow-content-field">
+              {summarize(item).map(({ name, value }, position) => (
+                // The separators are real text, so a copied line still reads field by field.
+                <span key={name || 'value'}>
+                  {position ? <span className="flow-content-name"> · </span> : null}
                   {name ? <span className="flow-content-name">{name} </span> : null}
                   {value}
                 </span>

@@ -285,7 +285,8 @@ const StyledWrapper = styled.div`
     margin: 0 10px;
     padding: 4px 6px;
     box-sizing: border-box;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     border: 1px solid ${(props) => props.theme.border.border1};
     border-radius: ${(props) => props.theme.border.radius.sm};
     background: ${(props) => props.theme.background.mantle};
@@ -294,9 +295,9 @@ const StyledWrapper = styled.div`
     user-select: text;
     cursor: text;
   }
-  .flow-content-item { display: flex; gap: 6px; white-space: nowrap; }
-  .flow-content-number { flex-shrink: 0; min-width: 12px; text-align: right; color: ${(props) => props.theme.colors.text.muted}; }
-  .flow-content-field { margin-right: 8px; }
+  .flow-content-item { display: flex; gap: 4px; }
+  .flow-content-number { flex-shrink: 0; min-width: 12px; text-align: right; white-space: pre; color: ${(props) => props.theme.colors.text.muted}; }
+  .flow-content-text { min-width: 0; overflow-wrap: anywhere; }
   .flow-content-name { color: ${(props) => props.theme.colors.text.muted}; }
   .flow-contents-empty { color: ${(props) => props.theme.colors.text.muted}; user-select: none; }
 
