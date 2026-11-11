@@ -1,19 +1,39 @@
 // Field paths as the canvas writes them: names joined by dots, where a number picks one item of a list
-// ("orders.2.id" is the id of the third order, "orders.-1.id" the one of the last). Without a number a
-// list is entered through its first item.
+// ("orders.2.id" is the id of the third order, "orders.-1.id" the one of the last) and "?name=value"
+// picks the first item whose field is that value ("orders.?state=open.id"). Without either, a list is
+// entered through its first item.
 export const MAX_FIELDS = 300;
 export const MAX_DEPTH = 8;
 
 const INDEX = /^-?\d+$/;
+const WHERE = /^\?[^=]+=/;
 const BRACKET_INDEX = /\[\s*(-?\d+)\s*\]/g;
+const BRACKET_WHERE = /\[\s*([\w-]+)\s*=\s*([^\]]*?)\s*\]/g;
 
-export const isIndexSegment = (segment) => INDEX.test(String(segment));
+// A segment that says which item of a list is read, by position or by what it holds.
+export const isIndexSegment = (segment) => INDEX.test(String(segment)) || WHERE.test(String(segment));
+
+// The value goes with its dots and percent signs written out, so the path can still be cut at its dots.
+export const whereSegment = ({ key, value }) => `?${key}=${String(value).replace(/%/g, '%25').replace(/\./g, '%2E')}`;
+
+const readPick = (segment) => {
+  if (INDEX.test(segment)) {
+    return { index: Number(segment) };
+  }
+  const cut = segment.indexOf('=');
+  return { index: null, where: { key: segment.slice(1, cut), value: segment.slice(cut + 1).replace(/%2E/g, '.').replace(/%25/g, '%') } };
+};
 
 export const splitFieldPath = (path) => String(path || '').split('.').filter(Boolean);
 
 // People who write scripts type "orders[2].id"; it means the same as "orders.2.id".
 export const toFieldPath = (text) =>
-  splitFieldPath(String(text || '').trim().replace(BRACKET_INDEX, '.$1.')).join('.');
+  splitFieldPath(
+    String(text || '')
+      .trim()
+      .replace(BRACKET_WHERE, (whole, key, value) => `.${whereSegment({ key, value })}.`)
+      .replace(BRACKET_INDEX, '.$1.')
+  ).join('.');
 
 export const plainFieldPath = (path) =>
   splitFieldPath(path)
@@ -73,7 +93,7 @@ export const listLevels = (path, lists = []) => {
     const hasIndex = next !== undefined && isIndexSegment(next);
     const isLast = !segments.slice(at + 1).some((later) => !isIndexSegment(later));
     if (hasIndex || lists.includes(list)) {
-      levels.push({ list, name: segment, index: hasIndex ? Number(next) : null, whole: isLast });
+      levels.push({ list, name: segment, index: null, ...(hasIndex ? readPick(next) : {}), whole: isLast });
     }
   });
   return levels;
@@ -98,7 +118,9 @@ export const withListPosition = (path, list, index) => {
     result.push(segment);
     if (names.join('.') === list) {
       const isLast = !segments.slice(at + 1).some((later) => !isIndexSegment(later));
-      if (Number.isInteger(index) && (index !== 0 || isLast)) {
+      if (index && typeof index === 'object') {
+        result.push(whereSegment(index));
+      } else if (Number.isInteger(index) && (index !== 0 || isLast)) {
         result.push(String(index));
       }
     }
@@ -107,7 +129,10 @@ export const withListPosition = (path, list, index) => {
 };
 
 // How a position reads on a step: "#1" is the first item, "last" the last one and "all" the whole list.
-export const describePosition = ({ index, whole }) => {
+export const describePosition = ({ index, whole, where }) => {
+  if (where) {
+    return { text: `${where.key}=${where.value}` };
+  }
   if (index === null && whole) {
     return { text: 'all', translate: true };
   }

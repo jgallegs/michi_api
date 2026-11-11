@@ -163,11 +163,37 @@ describe('FlowCanvas', () => {
     expect(screen.getByTestId('flow-position-a-parcels.-1.code')).toHaveTextContent('last');
 
     fireEvent.click(screen.getByTestId('flow-position-a-parcels.-1.code'));
-    fireEvent.change(screen.getByPlaceholderText('Type a position, like 3'), { target: { value: '3' } });
+    fireEvent.change(screen.getByPlaceholderText('A position, like 3, or field=value'), { target: { value: '3' } });
     pick('Item number 3');
     expect(current().nodes[1].config.fields).toEqual(['parcels.2.code']);
     expect(screen.getByTestId('flow-position-a-parcels.2.code')).toHaveTextContent('#3');
     expect(chip('login · parcels.2.code')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('flow-position-a-parcels.2.code'));
+    fireEvent.change(screen.getByPlaceholderText('A position, like 3, or field=value'), { target: { value: 'order = 02' } });
+    pick('The one whose order is 02');
+    expect(current().nodes[1].config.fields).toEqual(['parcels.?order=02.code']);
+    expect(screen.getByTestId('flow-position-a-parcels.?order=02.code')).toHaveTextContent('order=02');
+    expect(current().edges[2]).toMatchObject({ sourcePort: 'field:parcels.?order=02.code' });
+  });
+
+  it('offers on a For each item step the fields its items have', async () => {
+    act(() => rememberShape(COLLECTION, 'login.bru', { fields: ['total', 'orders', 'orders.id', 'orders.lines', 'orders.lines.sku'], lists: ['orders', 'orders.lines'] }));
+    const flow = makeFlow(
+      [node('a', 'request', 400, 120, { pathname: 'login.bru', fields: ['orders'] }), node('each', 'foreach', 720, 120, { fields: ['id'] }), node('b', 'request', 1040, 120, { pathname: 'get order.bru' })],
+      [edge('e1', 'start', 'out', 'a'), edge('e2', 'a', 'out', 'each'), edge('e3', 'each', 'body', 'b'), edge('e4', 'a', 'field:orders', 'each', 'value:list')]
+    );
+    await open(flow);
+
+    fireEvent.click(within(screen.getByTestId('flow-piece-each')).getByText('Add a field'));
+    expect([...document.querySelectorAll('.flow-picker-label')].map((item) => item.textContent)).toEqual(['lines', 'lines.sku']);
+    fireEvent.keyDown(screen.getByPlaceholderText('Search or type a field, like order.id'), { key: 'Escape' });
+
+    fireEvent.mouseDown(port('b', 'left', 'var:orderId'), { button: 0 });
+    fireEvent.mouseUp(window);
+    pick('lines.sku');
+    expect(current().nodes[2].config.fields).toEqual(['id', 'lines.sku']);
+    expect(current().edges[4]).toMatchObject({ source: 'each', sourcePort: 'field:item.lines.sku', target: 'b', targetPort: 'var:orderId' });
   });
 
   it('offers the fields an API document or a script declare, saying where they come from', async () => {

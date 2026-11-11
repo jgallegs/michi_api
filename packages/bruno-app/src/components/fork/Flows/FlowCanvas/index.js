@@ -54,6 +54,7 @@ import {
   isNamedByUser,
   listAddTabs,
   listFieldOptions,
+  listItemFieldOptions,
   listPieceOptions,
   listPositionOptions,
   listRequestOptions,
@@ -838,7 +839,10 @@ const FlowCanvas = ({ collection, flow }) => {
     field: () => ({
       title: 'Which field of the response?',
       placeholder: 'Search or type a field, like order.id',
-      options: listFieldOptions(pieces.get(picker.nodeId).node, pieces.get(picker.nodeId).request),
+      options:
+        pieces.get(picker.nodeId).node.type === 'foreach'
+          ? listItemFieldOptions(flow, pieces.get(picker.nodeId).node, (node) => pieces.get(node.id))
+          : listFieldOptions(pieces.get(picker.nodeId).node, pieces.get(picker.nodeId).request),
       emptyText: 'Type the name of the field, like order.id',
       custom: (text) => (typedFieldPath(text) ? { id: typedFieldPath(text), label: typedFieldPath(text), path: typedFieldPath(text) } : null),
       onPick: (option) => edit((current) => makeRoomAround(collection, addRequestField(current, picker.nodeId, option.path), picker.nodeId))
@@ -847,7 +851,7 @@ const FlowCanvas = ({ collection, flow }) => {
       const levels = pieces.get(picker.nodeId).description.rows.find((row) => row.removableField === picker.path)?.positions || [];
       return {
         title: 'Which item of the list?',
-        placeholder: 'Type a position, like 3',
+        placeholder: 'A position, like 3, or field=value',
         options: listPositionOptions(levels),
         custom: (text) => listTypedPositionOptions(levels, text),
         onPick: (option) => edit((current) => moveRequestField(current, picker.nodeId, picker.path, withListPosition(picker.path, option.list, option.index)))

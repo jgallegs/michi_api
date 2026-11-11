@@ -14,16 +14,33 @@ const readProperty = (container, key) => {
 // A number picks one item of a list, counting from the end when it is negative.
 const readItem = (list, position) => list[position < 0 ? list.length + position : position];
 
+// "?name=value" picks the first item whose field is that value. Dots and percent signs of the value
+// travel written as %2E and %25, so the path can still be cut at its dots.
+const WHERE_SEGMENT = '?';
+const readWhere = (segment) => {
+  const cut = segment.indexOf('=');
+  const value = segment.slice(cut + 1).replace(/%2E/g, '.').replace(/%25/g, '%');
+  return { key: segment.slice(1, cut), value };
+};
+const findItem = (list, segment) => {
+  const { key, value } = readWhere(segment);
+  return list.find((item) => String(readProperty(item, key) ?? '') === value);
+};
+
 // Response fields are offered without indexes, so a named field inside a list reads its first element.
 export const getByPath = (value, path) =>
   String(path || '')
     .split('.')
     .filter(Boolean)
     .reduce((current, segment) => {
+      const isWhere = segment.startsWith(WHERE_SEGMENT) && segment.includes('=');
       if (Array.isArray(current)) {
+        if (isWhere) {
+          return findItem(current, segment);
+        }
         return INDEX_SEGMENT.test(segment) ? readItem(current, Number(segment)) : readProperty(current[0], segment);
       }
-      return readProperty(current, segment);
+      return isWhere ? undefined : readProperty(current, segment);
     }, value);
 
 const toText = (value) => (typeof value === 'object' ? JSON.stringify(value) : String(value));

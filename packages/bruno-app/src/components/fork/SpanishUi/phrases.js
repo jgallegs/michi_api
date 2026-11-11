@@ -326,6 +326,7 @@ export const PHRASES = {
   'Which field of the response?': '¿Qué campo de la respuesta?',
   'Requests': 'Peticiones',
   'Add request': 'Añadir petición',
+  'A position, like 3, or field=value': 'Una posición, como 3, o campo=valor',
   'Value cables: all in sight. Click to see only the ones of the step you point at': 'Cables de valores: todos a la vista. Pulsa para ver solo los del paso que señales',
   'Value cables: only the ones of the step you point at. Click to see them all': 'Cables de valores: solo los del paso que señales. Pulsa para verlos todos',
   'The cables of the values show when you rest the pointer on a step or select it. The eye in the bar shows them all.': 'Los cables de los valores salen al dejar el ratón sobre un paso o al seleccionarlo. El ojo de la barra los enseña todos.',
@@ -570,6 +571,7 @@ export const PATTERNS = [
   [/^Changes \((\d+)\)$/, (count) => `Cambios (${count})`],
   [/^Item number (\d+)$/, (position) => `Elemento número ${position}`],
   [/^List (\d+)$/, (position) => `Lista ${position}`],
+  [/^The one whose (.+) is (.+)$/, (name, value) => `El que tiene ${name} = ${value}`],
   [/^Unknown kind of step: (.+)$/, (type) => `Tipo de paso desconocido: ${type}`],
   [/^No value arrived for "(.+)"$/, (name) => `No ha llegado ningún valor para "${name}"`],
   [/^(List|Set variable) · (.+)$/, (kind, name) => `${PHRASES[kind]} · ${name}`]

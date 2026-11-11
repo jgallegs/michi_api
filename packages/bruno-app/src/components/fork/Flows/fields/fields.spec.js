@@ -46,6 +46,16 @@ describe('flow fields', () => {
       expect(withListPosition('orders.3', 'orders', null)).toBe('orders');
     });
 
+    it('picks an item by what it holds, written like in a script or chosen', () => {
+      expect(toFieldPath('parcels[order=02].code')).toBe('parcels.?order=02.code');
+      expect(toFieldPath('parcels[ size = 1.5 ]')).toBe('parcels.?size=1%2E5');
+      expect(plainFieldPath('parcels.?order=02.code')).toBe('parcels.code');
+      expect(listLevels('parcels.?size=1%2E5.code', [])).toEqual([{ list: 'parcels', name: 'parcels', index: null, where: { key: 'size', value: '1.5' }, whole: false }]);
+      expect(withListPosition('parcels.2.code', 'parcels', { key: 'order', value: '02' })).toBe('parcels.?order=02.code');
+      expect(withListPosition('parcels.?order=02.code', 'parcels', 0)).toBe('parcels.code');
+      expect(describePosition({ index: null, whole: false, where: { key: 'order', value: '02' } })).toEqual({ text: 'order=02' });
+    });
+
     it('says a position the way people count', () => {
       expect(describePosition({ index: null, whole: false })).toEqual({ text: '#1' });
       expect(describePosition({ index: 2, whole: false })).toEqual({ text: '#3' });

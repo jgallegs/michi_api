@@ -20,6 +20,15 @@ describe('flow values', () => {
       expect(getByPath(body, 'shipments.5')).toBeUndefined();
     });
 
+    it('picks the item of a list whose field has a value', () => {
+      const parcels = { parcels: [{ order: '01', code: 'A' }, { order: '02', code: 'B', size: 1.5 }] };
+      expect(getByPath(parcels, 'parcels.?order=02.code')).toBe('B');
+      expect(getByPath(parcels, 'parcels.?size=1%2E5.code')).toBe('B');
+      expect(getByPath(parcels, 'parcels.?order=09.code')).toBeUndefined();
+      expect(getByPath(parcels, 'parcels.?order=01')).toEqual({ order: '01', code: 'A' });
+      expect(getByPath({ parcels: 'text' }, 'parcels.?order=01')).toBeUndefined();
+    });
+
     it('returns the whole value without a path and undefined for missing fields', () => {
       expect(getByPath(body, '')).toBe(body);
       expect(getByPath(body, 'nope.deep')).toBeUndefined();
