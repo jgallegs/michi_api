@@ -184,6 +184,68 @@ describe('FlowCanvas', () => {
     expect(screen.getByTestId('flow-position-a-items.1.id')).toHaveTextContent('#2');
   });
 
+  describe('what a list holds', () => {
+    const collecting = () =>
+      makeFlow(
+        [node('a', 'request', 400, 120, { pathname: 'login.bru', fields: ['code'] }), node('add', 'listappend', 720, 120, { mode: 'value' }), node('l', 'list', 720, 420, { name: 'Final' })],
+        [edge('e1', 'start', 'out', 'a'), edge('e2', 'a', 'out', 'add'), edge('e3', 'a', 'field:', 'add', 'value:value'), edge('e4', 'l', 'field:items', 'add', 'list')]
+      );
+    const shipments = [
+      { shipment: 'E1', parcels: [{ code: 'E1-B1' }, { code: 'E1-B2' }] },
+      { shipment: 'E2', parcels: [{ code: 'E2-B1' }] }
+    ];
+
+    it('shows inside the List step what it holds, one line per item', async () => {
+      await open(collecting());
+      expect(screen.getByTestId('flow-contents-l')).toHaveTextContent('It fills up as the flow runs');
+      act(() => patchRunSession('f1', { lists: { l: 2 }, contents: { l: shipments } }));
+      const lines = [...screen.getByTestId('flow-contents-l').querySelectorAll('.flow-content-item')].map((line) => line.textContent);
+      expect(lines).toEqual(['1shipment E1parcels (2)', '2shipment E2parcels (1)']);
+    });
+
+    it('opens a report of the list as a table, each item with what it has inside', async () => {
+      await open(collecting());
+      act(() => patchRunSession('f1', { lists: { l: 2 }, contents: { l: shipments } }));
+      fireEvent.click(screen.getByTestId('flow-action-l-open-report'));
+      const table = screen.getByTestId('flow-report-table');
+      expect([...table.querySelectorAll('th')].map((cell) => cell.textContent)).toEqual(['#', 'shipment', 'parcels · code']);
+      expect([...table.querySelectorAll('tbody tr')].map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent))).toEqual([
+        ['1', 'E1', 'E1-B1'],
+        ['E1-B2'],
+        ['2', 'E2', 'E2-B1']
+      ]);
+      expect(table.querySelector('tbody td:nth-child(2)')).toHaveAttribute('rowspan', '2');
+      expect(screen.getByText('List · Final', { selector: '.flow-report-title' })).toBeInTheDocument();
+    });
+
+    it('offers to join a value when its name is typed in a box, and Enter takes it', async () => {
+      await open(collecting());
+      fireEvent.change(within(screen.getByTestId('flow-piece-add')).getByRole('combobox'), { target: { value: 'object' } });
+      expect(current().edges.map((item) => item.id)).toEqual(['e1', 'e2', 'e4']);
+
+      fireEvent.click(within(screen.getByTestId('flow-piece-add')).getByText('Add a field'));
+      const [, value] = within(screen.getByTestId('flow-piece-add')).getAllByRole('textbox');
+      fireEvent.change(value, { target: { value: 'cod' } });
+      expect(within(screen.getByTestId('flow-suggest')).getByText('code')).toBeInTheDocument();
+      expect(screen.queryByText('Enter takes the first one')).not.toBeInTheDocument();
+
+      fireEvent.change(value, { target: { value: 'code' } });
+      expect(screen.getByText('Enter takes the first one')).toBeInTheDocument();
+      fireEvent.keyDown(value, { key: 'Enter' });
+      const field = current().nodes[2].config.fields[0];
+      expect(field.value).toBe('');
+      expect(current().edges[3]).toMatchObject({ source: 'a', sourcePort: 'field:code', target: 'add', targetPort: `value:${field.id}` });
+      expect(screen.queryByTestId('flow-suggest')).not.toBeInTheDocument();
+      expect(chip('login · code')).toBeInTheDocument();
+    });
+
+    it('offers nothing for a text no other step hands out', async () => {
+      await open(collecting());
+      fireEvent.change(within(screen.getByTestId('flow-piece-l')).getByRole('textbox'), { target: { value: 'code' } });
+      expect(screen.queryByTestId('flow-suggest')).not.toBeInTheDocument();
+    });
+  });
+
   describe('cables that can be followed', () => {
     const busy = () =>
       makeFlow(

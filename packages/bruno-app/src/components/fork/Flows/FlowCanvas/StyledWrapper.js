@@ -281,6 +281,42 @@ const StyledWrapper = styled.div`
   }
   .flow-chip-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+  .flow-contents {
+    margin: 0 10px;
+    padding: 4px 6px;
+    box-sizing: border-box;
+    overflow: auto;
+    border: 1px solid ${(props) => props.theme.border.border1};
+    border-radius: ${(props) => props.theme.border.radius.sm};
+    background: ${(props) => props.theme.background.mantle};
+    font-size: ${(props) => props.theme.font.size.xs};
+    line-height: 1.5;
+    user-select: text;
+    cursor: text;
+  }
+  .flow-content-item { display: flex; gap: 6px; white-space: nowrap; }
+  .flow-content-number { flex-shrink: 0; min-width: 12px; text-align: right; color: ${(props) => props.theme.colors.text.muted}; }
+  .flow-content-field { margin-right: 8px; }
+  .flow-content-name { color: ${(props) => props.theme.colors.text.muted}; }
+  .flow-contents-empty { color: ${(props) => props.theme.colors.text.muted}; user-select: none; }
+
+  .flow-suggest {
+    position: absolute;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    width: 260px;
+    padding: 6px;
+    color: ${(props) => props.theme.dropdown.color};
+    background: ${(props) => props.theme.dropdown.bg};
+    border: 1px solid ${(props) => props.theme.border.border1};
+    border-radius: ${(props) => props.theme.border.radius.md};
+    box-shadow: ${(props) => props.theme.shadow.md};
+    cursor: default;
+  }
+  .flow-suggest-title,
+  .flow-suggest-key { padding: 2px 4px 4px; font-size: ${(props) => props.theme.font.size.xs}; color: ${(props) => props.theme.dropdown.mutedText}; }
+
   .flow-position {
     flex-shrink: 0;
     height: 18px;

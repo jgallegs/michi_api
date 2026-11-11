@@ -2,7 +2,7 @@ jest.mock('utils/common', () => ({ uuid: () => 'uid' }));
 
 import { HEADER_HEIGHT, PIECES, PORT_KIND, ROW_HEIGHT, describePiece, findPort } from './pieces';
 import { NODE_DEFINITIONS } from '../engine/nodes';
-import { ADD, listAddTabs, listFieldOptions, listPieceOptions, listValueOptions, titleOf } from './pickers';
+import { ADD, listAddTabs, listFieldOptions, listPieceOptions, listValueOptions, listValueSuggestions, titleOf } from './pickers';
 import { describeRequest, listFieldPaths, listRequestVariables, relativeRequestPath } from './requests';
 
 const node = (id, type, config = {}, extra = {}) => ({ id, type, x: 0, y: 0, config, ...extra });
@@ -159,6 +159,20 @@ describe('flow pieces', () => {
       const fromValue = { nodeId: 'a', port: 'field:session.token', side: 'right' };
       expect(listPieceOptions(flow, collection, fromValue).map((option) => option.label)).toEqual(['Validate', 'Repeat', 'For each item', 'Add to list', 'Set variable', 'Wait', 'Note', 'Stop']);
       expect(listPieceOptions(flow, collection, fromValue, ADD.REQUESTS).map((option) => option.label)).toEqual(['login', 'get order']);
+    });
+
+    it('offers, while typing in a box, the values called like what is typed', () => {
+      const options = [
+        { id: '1', label: 'session.token' },
+        { id: '2', label: 'token' },
+        { id: '3', label: 'Status code', translate: true },
+        { id: '4', label: 'tokens.count' }
+      ];
+      const spanish = (text) => ({ 'Status code': 'Código de estado' })[text] || '';
+      expect(listValueSuggestions(options, 'Token', spanish).map((option) => [option.label, option.exact])).toEqual([['token', true], ['tokens.count', false], ['session.token', false]]);
+      expect(listValueSuggestions(options, 'código', spanish).map((option) => option.label)).toEqual(['Status code']);
+      expect(listValueSuggestions(options, 't', spanish)).toEqual([]);
+      expect(listValueSuggestions(options, '622222222', spanish)).toEqual([]);
     });
 
     it('offers the fields of a response that are not on the step yet', () => {

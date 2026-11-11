@@ -21,6 +21,8 @@ export const PIECE_WIDTH = 240;
 export const HEADER_HEIGHT = 34;
 export const ROW_HEIGHT = 28;
 export const PIECE_PADDING = 6;
+// Rows the view of what a list holds takes inside its step.
+export const CONTENT_ROWS = 4;
 
 export const OPERATOR_LABELS = {
   equals: 'is equal to',
@@ -219,7 +221,9 @@ export const PIECES = {
     rows: () => [
       { id: 'name', label: 'Name', control: { type: 'text', path: ['name'], placeholder: 'Optional' } },
       { id: 'items', label: 'Items', right: { port: fieldPort('items'), kind: PORT_KIND.LIST } },
-      { id: 'length', label: 'How many', right: value(fieldPort('length')) }
+      { id: 'length', label: 'How many', right: value(fieldPort('length')) },
+      { id: 'contents', contents: true, span: CONTENT_ROWS },
+      { id: 'report', action: 'open-report', label: 'View report', icon: 'report' }
     ]
   },
   listappend: { title: 'Add to list', headerIn: true, headerOut: true, rows: listAppendRows },
@@ -237,7 +241,13 @@ export const describePiece = (node, flow, request) => {
     return { title: node.type, unknown: true, rows: [], ports: [], height: HEADER_HEIGHT + PIECE_PADDING };
   }
   const rows = piece.rows(node, flow, request);
-  const rowY = (index) => HEADER_HEIGHT + index * ROW_HEIGHT + ROW_HEIGHT / 2;
+  // A row may be as tall as several ("span"): where each one starts is counted in plain rows.
+  const tops = [];
+  const used = rows.reduce((total, row) => {
+    tops.push(total);
+    return total + (row.span || 1);
+  }, 0);
+  const rowY = (index) => HEADER_HEIGHT + tops[index] * ROW_HEIGHT + ROW_HEIGHT / 2;
   const ports = [
     ...(piece.headerIn ? [{ ...order(IN_PORT), side: 'left', y: HEADER_HEIGHT / 2 }] : []),
     ...(piece.headerOut ? [{ ...order(OUT_PORT), side: 'right', y: HEADER_HEIGHT / 2 }] : []),
@@ -252,7 +262,7 @@ export const describePiece = (node, flow, request) => {
     headerOut: Boolean(piece.headerOut),
     rows,
     ports,
-    height: HEADER_HEIGHT + rows.length * ROW_HEIGHT + PIECE_PADDING
+    height: HEADER_HEIGHT + used * ROW_HEIGHT + PIECE_PADDING
   };
 };
 

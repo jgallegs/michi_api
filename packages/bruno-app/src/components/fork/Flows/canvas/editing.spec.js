@@ -14,6 +14,7 @@ import {
   moveNodes,
   pasteNodes,
   moveRequestField,
+  removeCablesWithoutPort,
   removeListField,
   removeNodes,
   removeRequestField,
@@ -149,6 +150,21 @@ describe('flow editing', () => {
     expect(merged.nodes[1].config.fields).toEqual(['orders.2.id']);
     expect(cable(merged)).toEqual(['a.field:orders.2.id>b.var:id']);
     expect(moveRequestField(flow, 'a', 'orders.id', 'orders.id')).toBe(flow);
+  });
+
+  it('takes away the cables of the ports a step no longer has', () => {
+    const flow = {
+      nodes: [{ id: 'a', type: 'request', config: {} }, { id: 'add', type: 'listappend', config: {} }, { id: 'b', type: 'wait', config: {} }],
+      edges: [
+        { id: 'e1', source: 'a', sourcePort: 'out', target: 'add', targetPort: 'in' },
+        { id: 'e2', source: 'a', sourcePort: 'field:', target: 'add', targetPort: 'value:value' },
+        { id: 'e3', source: 'add', sourcePort: 'out', target: 'b', targetPort: 'in' }
+      ]
+    };
+    const several = { ...flow, nodes: flow.nodes.map((item) => (item.id === 'add' ? { ...item, config: { mode: 'object', fields: [] } } : item)) };
+    const { ports } = describePiece(several.nodes[1], several, null);
+    expect(removeCablesWithoutPort(several, 'add', ports).edges.map((item) => item.id)).toEqual(['e1', 'e3']);
+    expect(removeCablesWithoutPort(flow, 'add', describePiece(flow.nodes[1], flow, null).ports)).toBe(flow);
   });
 
   it('takes the cables of a field of the item away with it', () => {

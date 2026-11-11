@@ -7,6 +7,7 @@ import { useIsSensitiveEnvironment } from 'components/fork/SensitiveEnvironment/
 import toast from 'react-hot-toast';
 import { findLoopBody, findReachedNodeIds, findStartNode, validateFlow } from '../engine/graph';
 import { NODE_DEFINITIONS, OUT_PORT, isLoopNode } from '../engine/nodes';
+import { translatePhrase } from 'components/fork/SpanishUi';
 import { say } from '../language';
 import { COLUMN, buildOwnBlock, buildReadyBlock, canFollow, insertBlock, makeOwnBlock } from '../blocks/building';
 import { closeGuide, noteGuideRun, readGuide, startGuide, tickGuidePoint, useGuide } from '../blocks/guide';
@@ -27,6 +28,7 @@ import {
   addNode,
   addRequestField,
   moveRequestField,
+  removeCablesWithoutPort,
   canConnect,
   connect,
   copyNodes,
@@ -57,6 +59,7 @@ import {
   listTypedFieldOptions,
   listTypedPositionOptions,
   listValueOptions,
+  listValueSuggestions,
   titleOf
 } from '../canvas/pickers';
 import { HEADER_HEIGHT, PIECE_WIDTH, PORT_KIND, describePiece, findPort } from '../canvas/pieces';
@@ -65,6 +68,7 @@ import { defaultBends, dragBend, grabSegment, nearestSegment, routePoints, simpl
 import { useKnownFields } from '../fields/memory';
 import { toFieldPath, withListPosition } from '../fields/paths';
 import { RUN_MODE, startRun, stopRun } from '../run/controller';
+import ReportModal from '../report/ReportModal';
 import { RUN_PHASE, useRunSession } from '../run/session';
 import StyledWrapper from './StyledWrapper';
 
@@ -171,6 +175,8 @@ const FlowCanvas = ({ collection, flow }) => {
   const [startsByHand, setStartsByHand] = useState(() => startedByHand.has(flow.id));
   const [help, setHelp] = useState(false);
   const [namingBlock, setNamingBlock] = useState(false);
+  const [suggest, setSuggest] = useState(null);
+  const [report, setReport] = useState(null);
   const [width, setWidth] = useState(Infinity);
   const ownBlocks = useOwnBlocks(collectionPath);
   const guide = useGuide(flow.id);
@@ -336,8 +342,10 @@ const FlowCanvas = ({ collection, flow }) => {
   useEffect(() => {
     const root = rootRef.current;
     const onWheel = (event) => {
-      // Lists and panels on top of the canvas scroll on their own.
-      if (event.target.closest?.('.flow-overlay')) {
+      // Lists and panels on top of the canvas scroll on their own, and so does what a List step holds
+      // once it no longer fits.
+      const holder = event.target.closest?.('.flow-contents');
+      if (event.target.closest?.('.flow-overlay') || (holder && holder.scrollHeight > holder.clientHeight)) {
         return;
       }
       event.preventDefault();
@@ -551,7 +559,8 @@ const FlowCanvas = ({ collection, flow }) => {
     }
     event.stopPropagation();
     setPicker(null);
-    if (event.target.closest('input, select, button, .flow-port')) {
+    // What a List holds is text to select and copy, not a handle to drag the step by.
+    if (event.target.closest('input, select, button, .flow-port, .flow-contents')) {
       return;
     }
     rootRef.current.focus();
@@ -724,7 +733,8 @@ const FlowCanvas = ({ collection, flow }) => {
       s: command && save,
       enter: command && (() => run(RUN_MODE.RUN)),
       a: command && (() => setSelection({ nodeIds: flow.nodes.map((node) => node.id), edgeId: null })),
-      c: command && (() => {
+      // With text selected (what a List holds), copying is the usual copy of that text.
+      c: command && !window.getSelection?.()?.toString() && (() => {
         copied = copyNodes(flow, selection.nodeIds);
       }),
       v: command && paste,
@@ -741,7 +751,29 @@ const FlowCanvas = ({ collection, flow }) => {
   };
 
   const onConfig = (node, path, value) =>
-    edit((current) => makeRoomAround(collection, updateNodeConfig(current, node.id, path, value), node.id), { mergeKey: `${node.id}:${path.join('.')}` });
+    edit(
+      (current) => {
+        const changed = updateNodeConfig(current, node.id, path, value);
+        const { ports } = describeNode(collection, changed, changed.nodes.find((candidate) => candidate.id === node.id), knownFields).description;
+        return makeRoomAround(collection, removeCablesWithoutPort(changed, node.id, ports), node.id);
+      },
+      { mergeKey: `${node.id}:${path.join('.')}` }
+    );
+
+  // Joins an input to the value picked for it: the field is shown on its step if it was not, and what
+  // was typed in the box, if anything, goes away.
+  const takeValue = (option, target, typedPath) =>
+    edit((current) => {
+      const shown = option.addField ? addRequestField(current, option.nodeId, option.addField) : current;
+      const joined = connect(shown, { nodeId: option.nodeId, port: option.port }, target);
+      const cleared = typedPath ? updateNodeConfig(joined, target.nodeId, typedPath, '') : joined;
+      return makeRoomAround(collection, cleared, option.nodeId);
+    });
+
+  const acceptSuggestion = (option) => {
+    takeValue(option, { nodeId: suggest.nodeId, port: suggest.port }, suggest.path);
+    setSuggest(null);
+  };
 
   const onAction = (node, action, payload, event) => {
     const grow = (change) => edit((current) => makeRoomAround(collection, change(current), node.id));
@@ -754,6 +786,14 @@ const FlowCanvas = ({ collection, flow }) => {
       'remove-list-field': () => edit((current) => removeListField(current, node.id, payload)),
       'pick-request': () => setPicker({ kind: 'request', position: anchorBelow(event.currentTarget), nodeId: node.id }),
       'pick-value': () => setPicker({ kind: 'value', position: anchorBelow(event.currentTarget), nodeId: node.id, port: payload }),
+      'open-report': () => setReport({ nodeId: node.id }),
+      'suggest-value': () => {
+        const target = { nodeId: node.id, port: payload.port };
+        const options = listValueSuggestions(listValueOptions(flow, target, (other) => pieces.get(other.id)), payload.text, translatePhrase);
+        setSuggest(options.length ? { ...target, path: payload.path, position: anchorBelow(event.currentTarget), options } : null);
+      },
+      'suggest-close': () => setSuggest(null),
+      'suggest-accept': () => suggest?.options[0].exact && acceptSuggestion(suggest.options[0]),
       'disconnect': () =>
         edit((current) => removeEdges(current, current.edges.filter((edge) => edge.target === node.id && edge.targetPort === payload).map((edge) => edge.id)))
     };
@@ -783,12 +823,7 @@ const FlowCanvas = ({ collection, flow }) => {
       options: listValueOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id)),
       emptyText: 'No other step hands out a value yet',
       custom: (text) => (typedFieldPath(text) ? listTypedFieldOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id), typedFieldPath(text)) : null),
-      onPick: (option) =>
-        edit((current) => {
-          const shown = option.addField ? addRequestField(current, option.nodeId, option.addField) : current;
-          const joined = connect(shown, { nodeId: option.nodeId, port: option.port }, { nodeId: picker.nodeId, port: picker.port });
-          return makeRoomAround(collection, joined, option.nodeId);
-        })
+      onPick: (option) => takeValue(option, { nodeId: picker.nodeId, port: picker.port })
     }),
     field: () => ({
       title: 'Which field of the response?',
@@ -942,6 +977,7 @@ const FlowCanvas = ({ collection, flow }) => {
               run={runMarkOf(node)}
               portState={portStateOf(node.id)}
               sources={sourcesOf(node.id)}
+              contents={session.contents?.[node.id]}
               onMouseDown={onPieceMouseDown}
               onHover={setHovered}
               onPortMouseDown={onPortMouseDown}
@@ -1026,6 +1062,27 @@ const FlowCanvas = ({ collection, flow }) => {
           }}
         />
       ) : null}
+      {suggest && pieces.has(suggest.nodeId) ? (
+        <div
+          className="flow-suggest flow-overlay"
+          style={{ left: suggest.position.x, top: suggest.position.y }}
+          // The box keeps the keyboard while one of these is clicked.
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          data-testid="flow-suggest"
+        >
+          <div className="flow-suggest-title">What you type is kept as text. To use a value of another step, pick it:</div>
+          {suggest.options.map((option) => (
+            <button key={option.id} type="button" className="flow-picker-option" onClick={() => acceptSuggestion(option)}>
+              <span className={`flow-picker-label ${option.translate ? '' : 'fork-no-translate'}`}>{option.label}</span>
+              <span className={`flow-picker-hint ${option.translateGroup ? '' : 'fork-no-translate'}`}>{option.group}</span>
+            </button>
+          ))}
+          {suggest.options[0].exact ? <div className="flow-suggest-key">Enter takes the first one</div> : null}
+        </div>
+      ) : null}
       {menu ? (
         <ContextMenu
           position={menu.position}
@@ -1074,6 +1131,9 @@ const FlowCanvas = ({ collection, flow }) => {
   return (
     <>
       {canvas}
+      {report && pieces.has(report.nodeId) ? (
+        <ReportModal title={say(pieces.get(report.nodeId).title)} flowName={flow.name} items={session.contents?.[report.nodeId] || []} onClose={() => setReport(null)} />
+      ) : null}
       {namingBlock ? (
         <SaveBlockModal
           count={selection.nodeIds.filter((id) => pieces.get(id)?.node.type !== 'start').length}

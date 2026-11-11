@@ -61,6 +61,28 @@ export const listFieldOptions = (node, request) =>
     .filter((path) => !(node.config?.fields || []).includes(path))
     .map((path) => ({ id: path, label: path, path, ...originHint(request, path) }));
 
+// What to offer while someone types in the box of an input: the values of other steps called like what
+// is being typed, the ones called exactly so first. "inSpanish" gives the name an interface text has on
+// screen, so it is found in either language.
+const MAX_SUGGESTIONS = 6;
+
+export const listValueSuggestions = (options, text, inSpanish) => {
+  const wanted = String(text || '').trim().toLowerCase();
+  if (wanted.length < 2) {
+    return [];
+  }
+  const namesOf = (option) => [option.label, option.translate ? inSpanish(option.label) : ''].filter(Boolean).map((name) => name.toLowerCase());
+  const rank = (option) => {
+    const names = namesOf(option);
+    return names.includes(wanted) ? 0 : names.some((name) => name.startsWith(wanted)) ? 1 : names.some((name) => name.includes(wanted)) ? 2 : 3;
+  };
+  return options
+    .map((option) => ({ ...option, exact: rank(option) === 0, rank: rank(option) }))
+    .filter((option) => option.rank < 3)
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, MAX_SUGGESTIONS);
+};
+
 // The items a field can read from each list on its path. A position typed as a number counts from 1,
 // the way people count; the path keeps it the way the engine reads it.
 const positionOption = (level, several, label, index) => ({

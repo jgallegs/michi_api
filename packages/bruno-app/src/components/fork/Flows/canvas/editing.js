@@ -173,6 +173,14 @@ export const moveRequestField = (flow, nodeId, from, to) => {
   };
 };
 
+// A setting can take ports away from a step (another way of adding to a list, another kind of check):
+// the cables that were joined to them go with them, instead of hanging from nowhere.
+export const removeCablesWithoutPort = (flow, nodeId, ports) => {
+  const has = (side, port) => ports.some((candidate) => candidate.side === side && candidate.port === port);
+  const edges = flow.edges.filter((edge) => !(edge.source === nodeId && !has('right', edge.sourcePort)) && !(edge.target === nodeId && !has('left', edge.targetPort)));
+  return edges.length === flow.edges.length ? flow : { ...flow, edges };
+};
+
 export const addListField = (flow, nodeId) =>
   mapNode(flow, nodeId, (node) => ({
     ...node,
