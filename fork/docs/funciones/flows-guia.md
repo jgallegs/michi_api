@@ -10,6 +10,10 @@ En *Preferencias → Michi* enciende **Flujos** (*Flows*) y, si quieres la app e
 
 Un flow encadena peticiones que ya tienes en la colección. Si la petición todavía no existe, créala primero como siempre.
 
+Si prefieres aprender paso a paso, la app trae un **curso guiado**: al abrir un flow nuevo, pulsa «¿Primera vez con flows? Haz el curso guiado». Cada lección te deja practicar sobre el lienzo.
+
+![El curso guiado, a la izquierda del lienzo](../img/flows-curso.png)
+
 ## Tu primer flow en un minuto
 
 1. En la sección **Flujos**, pulsa **+** y ponle un nombre.
@@ -61,6 +65,7 @@ Hay tres clases de cosas, y cada una tiene su lista:
 | Repetir una llamada y quedarme solo con las que salieron bien | Repetir una llamada y guardar solo las respuestas válidas | La petición, el campo que hay que mirar, el valor que no vale y cuántas veces |
 | Traer todas las páginas de un listado | Recorrer las páginas de un resultado | La petición y de dónde sale el número de página |
 | Hacer una llamada por cada elemento de un listado | Enviar una petición por cada elemento de una lista | La petición que da la lista, dónde está la lista y la petición que se repite |
+| Enviar la misma petición con datos distintos cada vez | Enviar una petición por cada fila de una tabla | Tus filas, pegadas de Excel, la petición y qué columna va a cada valor |
 | Esperar a que un proceso termine | Esperar a que algo esté listo | La petición que dice cómo va y el valor que significa "listo" |
 | Probar el ciclo completo de un recurso | Crear, comprobar y borrar | Las tres peticiones y el id que pasa de una a otra |
 | Crear algo solo si todavía no está | Crear solo si no existe | La petición que busca, la que crea y la que actualiza |
@@ -117,6 +122,8 @@ Si aun así no está, escribe su nombre: `datos.numero`.
 
 ![Un campo de una lista, con la ficha que dice qué elemento lee](../img/flows-posicion.png)
 
+También puedes pedir el elemento que tenga algo: escribe en esa ficha `estado=abierto` y el campo lee el primer elemento cuyo estado es abierto.
+
 Para hacer algo con **todos** los elementos, usa el paso **Por cada elemento**.
 
 ## Cuando llega un 200 con un error dentro
@@ -131,6 +138,24 @@ Hay servicios que contestan 200 y dentro traen un código que dice que no se hiz
 Dentro de un **Repetir**, si de **No válido** no cuelga nada, esa vuelta se acaba ahí y empieza la siguiente: la respuesta mala no se guarda y el flow sigue.
 
 ![Una ejecución en la que Validar deja fuera la respuesta que traía un error](../img/flows-validar.png)
+
+## Datos distintos en cada vuelta
+
+Para enviar la misma petición muchas veces con datos distintos, añade un paso **Tabla de datos**, pulsa **Editar los datos** y pega tus filas tal como las copias de Excel. La primera línea son los nombres de las columnas.
+
+![Ventana para pegar los datos de una tabla](../img/flows-tabla.png)
+
+Únela a un paso **Por cada elemento**: cada vuelta recibe una fila, y al pulsar el cuadrado de un valor de la petición te ofrece las columnas.
+
+## Que el flow pregunte antes de ejecutarse
+
+En el paso **Inicio**, pulsa **Preguntar antes de ejecutar** y escribe la pregunta y su respuesta habitual: cuántos envíos, qué producto. Une la respuesta a lo que la necesite. Al pulsar **Ejecutar** sale una ventana con las preguntas, así cualquiera puede usar el flow sin tocar el lienzo.
+
+![El flow pregunta antes de ejecutarse](../img/flows-preguntas.png)
+
+## Probar un paso sin ejecutarlo todo
+
+Clic derecho sobre un paso: **Ejecutar solo este paso** o **Ejecutar desde este paso**. Usan lo que dejó la última ejecución, así que no se vuelven a enviar las peticiones anteriores. Viene bien cuando el flow crea cosas de verdad.
 
 ## Ver y sacar lo que se ha generado
 
@@ -147,6 +172,8 @@ Para verlo bien y llevártelo, pulsa **Ver informe** en la Lista. Sale una tabla
 | **Guardar como HTML** | Tener el informe en un fichero para guardarlo o enviarlo |
 
 El informe es de la última ejecución. Si cierras Michi se pierde, así que guárdalo o cópialo antes.
+
+Cada ejecución tiene además su propio informe, paso a paso: en **Salida**, pulsa el botón de tabla que hay junto al nombre del flow.
 
 ## Ejecutar
 
