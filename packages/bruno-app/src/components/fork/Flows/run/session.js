@@ -6,7 +6,7 @@ export const RUN_PHASE = { IDLE: 'idle', RUNNING: 'running', PAUSED: 'paused', D
 
 const MAX_LOG_ENTRIES = 2000;
 
-const IDLE_SESSION = { phase: RUN_PHASE.IDLE, outcome: null, steps: {}, loops: {}, lists: {}, hop: null, resume: null, confirmedEnvironment: undefined };
+const IDLE_SESSION = { phase: RUN_PHASE.IDLE, outcome: null, steps: {}, loops: {}, lists: {}, contents: {}, hop: null, resume: null, confirmedEnvironment: undefined };
 
 const sessions = new Map();
 const listeners = new Set();

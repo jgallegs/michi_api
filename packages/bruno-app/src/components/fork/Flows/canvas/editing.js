@@ -8,6 +8,7 @@ export const snap = (value) => Math.round(value / GRID) * GRID;
 
 const DEFAULT_CONFIG = {
   if: { check: 'success' },
+  validate: { operator: 'equals' },
   repeat: { times: '3' },
   wait: { seconds: '1' },
   listappend: { mode: 'value' }
@@ -172,6 +173,14 @@ export const moveRequestField = (flow, nodeId, from, to) => {
   };
 };
 
+// A setting can take ports away from a step (another way of adding to a list, another kind of check):
+// the cables that were joined to them go with them, instead of hanging from nowhere.
+export const removeCablesWithoutPort = (flow, nodeId, ports) => {
+  const has = (side, port) => ports.some((candidate) => candidate.side === side && candidate.port === port);
+  const edges = flow.edges.filter((edge) => !(edge.source === nodeId && !has('right', edge.sourcePort)) && !(edge.target === nodeId && !has('left', edge.targetPort)));
+  return edges.length === flow.edges.length ? flow : { ...flow, edges };
+};
+
 export const addListField = (flow, nodeId) =>
   mapNode(flow, nodeId, (node) => ({
     ...node,
@@ -198,7 +207,9 @@ export const copyNodes = (flow, nodeIds) => {
 
 export const pasteNodes = (flow, copied, offset = { x: 40, y: 40 }) => {
   const newIds = new Map(copied.nodes.map((node) => [node.id, uuid()]));
-  const nodes = copied.nodes.map((node) => ({ ...node, id: newIds.get(node.id), x: node.x + offset.x, y: node.y + offset.y }));
+  // An "Add to list" pasted with its list goes on adding to the copy; pasted alone, to the original.
+  const configOf = (node) => (newIds.has(node.config?.list) ? { ...node.config, list: newIds.get(node.config.list) } : node.config);
+  const nodes = copied.nodes.map((node) => ({ ...node, id: newIds.get(node.id), x: node.x + offset.x, y: node.y + offset.y, config: configOf(node) }));
   const edges = copied.edges.map(({ bends, ...edge }) => ({ ...edge, id: uuid(), source: newIds.get(edge.source), target: newIds.get(edge.target) }));
   return { flow: { ...flow, nodes: [...flow.nodes, ...nodes], edges: [...flow.edges, ...edges] }, newIds: nodes.map((node) => node.id) };
 };

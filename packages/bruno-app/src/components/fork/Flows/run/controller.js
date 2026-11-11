@@ -53,6 +53,14 @@ const describeOutcome = (detail, port) => {
         tag: { text: detail.result ? 'Yes' : 'No', translate: true },
         parts: [short(detail.left), word(OPERATOR_LABELS[detail.operator]), short(detail.right), '→', word(detail.result ? 'Yes' : 'No')]
       };
+    case 'validation': {
+      const verdict = detail.valid ? 'Valid' : 'Not valid';
+      return {
+        tag: { text: verdict, translate: true, tone: detail.valid ? 'ok' : 'bad' },
+        ...(detail.valid ? {} : { tone: 'warning' }),
+        parts: [short(detail.left), word(OPERATOR_LABELS[detail.operator]), short(detail.right), '→', word(verdict)]
+      };
+    }
     case 'repeat':
       return { parts: port === 'exit' ? [word('Nothing to repeat')] : [word('Round'), '1', word('of'), `${detail.times}`] };
     case 'leave':
@@ -132,7 +140,7 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
     const say = (entry) => appendRunLog({ flowId, ...entry });
 
     if (isFresh) {
-      patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null, steps: {}, loops: {}, lists: {}, hop: null, resume: null });
+      patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null, steps: {}, loops: {}, lists: {}, contents: {}, hop: null, resume: null });
       say({ kind: 'header', label: { text: flow.name }, parts: [environmentOf(collection)?.name || word('No environment')] });
     } else {
       patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null });
@@ -156,7 +164,9 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
         patchRunSession(flowId, (session) => ({
           steps: { ...session.steps, [event.nodeId]: { state: 'done', tag: outcome?.tag || session.steps[event.nodeId]?.tag } },
           loops: event.detail?.kind === 'repeat' && event.port === 'body' ? { ...session.loops, [event.nodeId]: { index: 1, times: event.detail.times } } : session.loops,
-          lists: event.detail?.kind === 'list' ? { ...session.lists, [event.detail.listNodeId]: event.detail.items.length } : session.lists
+          lists: event.detail?.kind === 'list' ? { ...session.lists, [event.detail.listNodeId]: event.detail.items.length } : session.lists,
+          // What each list holds, for the step to show it and for its report.
+          contents: event.detail?.kind === 'list' ? { ...session.contents, [event.detail.listNodeId]: event.detail.items } : session.contents
         }));
         if (outcome) {
           say({ kind: 'step', tone: outcome.tone, label: labelOf(event.nodeId), parts: outcome.parts, detail: outcome.detail });

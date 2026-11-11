@@ -14,9 +14,11 @@ const SHAPES = [
 const BUILDING = [
   'Pull a cable and drop it on empty space to choose what comes next.',
   'Drag a request from the sidebar onto the canvas.',
-  'Double click on empty space to add a step or a block.',
+  'Right click on empty space to add a step, a request or a block right there.',
   'Faded steps are not connected to Start and do not run.',
-  'Drag any stretch of a cable to shape it. Double click puts it back.'
+  'Drag any stretch of a cable to shape it. Double click puts it back.',
+  'A value wears the colour of the step it comes from, on its cable and where it arrives.',
+  'The cables of the values show when you rest the pointer on a step or select it. The eye in the bar shows them all.'
 ];
 
 const RUNNING = [

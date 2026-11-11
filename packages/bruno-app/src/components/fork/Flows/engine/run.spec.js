@@ -121,6 +121,44 @@ describe('runFlow', () => {
     });
   });
 
+  describe('Validate', () => {
+    const validate = (config) => ({ id: 'v', type: 'validate', config });
+
+    it('goes on through Not valid when the value is the one that means so', async () => {
+      const flow = flowOf(
+        [request('a'), validate({ operator: 'notEquals', right: '0' }), request('good'), request('bad')],
+        [edge('a', 'out', 'v'), edge('a', 'field:code', 'v', 'value:left'), edge('v', 'valid', 'good'), edge('v', 'invalid', 'bad')]
+      );
+      const refused = makeHost({ a: { status: 200, data: { code: 7 } } });
+      const { events } = await run(flow, refused);
+      expect(refused.sent.map((item) => item.id)).toEqual(['a', 'bad']);
+      expect(events.find((event) => event.nodeId === 'v' && event.detail)).toMatchObject({ detail: { kind: 'validation', valid: false, left: 7, operator: 'notEquals', right: '0' } });
+
+      const accepted = makeHost({ a: { status: 200, data: { code: 0 } } });
+      await run(flow, accepted);
+      expect(accepted.sent.map((item) => item.id)).toEqual(['a', 'good']);
+    });
+
+    it('keeps out of a list the responses that are not valid, and the loop goes on', async () => {
+      const flow = flowOf(
+        [{ id: 'list', type: 'list', config: {} }, repeat('r', 4), request('a'), validate({ operator: 'equals', right: 'ERROR' }), { id: 'add', type: 'listappend', config: {} }],
+        [
+          edge('r', 'body', 'a'),
+          edge('a', 'out', 'v'),
+          edge('a', 'field:state', 'v', 'value:left'),
+          edge('v', 'valid', 'add'),
+          edge('a', 'field:id', 'add', 'value:value'),
+          edge('list', 'field:items', 'add', 'list')
+        ]
+      );
+      const host = makeHost({ a: (call) => ({ status: 200, data: { id: call, state: call % 2 ? 'OK' : 'ERROR' } }) });
+      const { result, listOf } = await run(flow, host);
+      expect(result.status).toBe(RUN_STATUS.COMPLETED);
+      expect(host.sent).toHaveLength(4);
+      expect(listOf('list')).toEqual([1, 3]);
+    });
+  });
+
   it('repeats through the end of iteration input and leaves through exit', async () => {
     const flow = flowOf(
       [repeat('r', 3), request('a'), request('after')],
@@ -221,6 +259,22 @@ describe('runFlow', () => {
     const { listOf, events } = await run(flow, host);
     expect(listOf('list')).toEqual([{ first: 1, second: null, source: 'typed' }]);
     expect(events.some((event) => event.type === 'warning' && event.message.includes('"second"'))).toBe(true);
+  });
+
+  it('adds to the list chosen in the step, without a cable between them', async () => {
+    const flow = flowOf(
+      [
+        { id: 'one', type: 'list', config: {} },
+        { id: 'two', type: 'list', config: {} },
+        request('a'),
+        { id: 'add', type: 'listappend', config: { list: 'two' } }
+      ],
+      [edge('a', 'out', 'add'), edge('a', 'field:id', 'add', 'value:value')]
+    );
+    const { listOf, result } = await run(flow, makeHost({ a: { status: 200, data: { id: 7 } } }));
+    expect(result.status).toBe(RUN_STATUS.COMPLETED);
+    expect(listOf('two')).toEqual([7]);
+    expect(listOf('one')).toBeUndefined();
   });
 
   it('starts every run with an empty list', async () => {

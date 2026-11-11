@@ -2,7 +2,7 @@ jest.mock('utils/common', () => ({ uuid: () => 'uid' }));
 
 import { HEADER_HEIGHT, PIECES, PORT_KIND, ROW_HEIGHT, describePiece, findPort } from './pieces';
 import { NODE_DEFINITIONS } from '../engine/nodes';
-import { listFieldOptions, listPieceOptions, listValueOptions, titleOf } from './pickers';
+import { ADD, listAddTabs, listFieldOptions, listPieceOptions, listValueOptions, listValueSuggestions, titleOf } from './pickers';
 import { describeRequest, listFieldPaths, listRequestVariables, relativeRequestPath } from './requests';
 
 const node = (id, type, config = {}, extra = {}) => ({ id, type, x: 0, y: 0, config, ...extra });
@@ -78,7 +78,24 @@ describe('flow pieces', () => {
   it('gives "Add to list" one input per field', () => {
     const fields = [{ id: 'f1', key: 'a' }, { id: 'f2', key: 'b' }];
     const description = describePiece(node('p', 'listappend', { mode: 'object', fields }), { nodes: [], edges: [] }, null);
-    expect(portsOf(description, 'left')).toEqual(['in', 'list', 'value:f1', 'value:f2']);
+    expect(portsOf(description, 'left')).toEqual(['in', 'value:f1', 'value:f2']);
+  });
+
+  it('lets "Add to list" choose its list by name, and keeps the port of a flow that joined it by cable', () => {
+    const add = node('p', 'listappend', {});
+    const lists = [node('l1', 'list', { name: 'Final' }), node('l2', 'list', {})];
+    const choice = (flow, step = add) => describePiece(step, flow, null).rows.find((row) => row.id === 'list');
+
+    expect(choice({ nodes: [add, lists[0]], edges: [] }).control).toMatchObject({ fallback: 'l1', options: [{ value: 'l1', label: 'Final', own: true }] });
+    expect(choice({ nodes: [add, ...lists], edges: [] }).control).toMatchObject({
+      fallback: '',
+      options: [{ value: '', label: 'Choose a list' }, { value: 'l1', label: 'Final', own: true }, { value: 'l2', label: 'List 2', own: false }]
+    });
+
+    const cabled = { nodes: [add, ...lists], edges: [edge('l2', 'field:items', 'p', 'list')] };
+    expect(choice(cabled)).toMatchObject({ left: { port: 'list' }, control: { fallback: 'l2' } });
+    const chosen = node('p', 'listappend', { list: 'l1' });
+    expect(choice({ ...cabled, nodes: [chosen, ...lists] }, chosen).left).toBeUndefined();
   });
 
   describe('request', () => {
@@ -140,19 +157,39 @@ describe('flow pieces', () => {
       return { request, description: describePiece(item, flow, request) };
     };
 
-    it('offers every step and every HTTP request when adding freely', () => {
-      const options = listPieceOptions(flow, collection, null);
-      expect(options.filter((option) => option.group === 'Steps').map((option) => option.type)).toEqual(['request', 'if', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop']);
-      expect(options.filter((option) => option.config).map((option) => option.config.pathname)).toEqual(['login.bru', 'orders/get order.bru']);
+    it('offers the steps and the requests of the collection as two separate lists', () => {
+      expect(listPieceOptions(flow, collection, null).map((option) => option.type)).toEqual(['if', 'validate', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop']);
+      const requests = listPieceOptions(flow, collection, null, ADD.REQUESTS);
+      expect(requests.map((option) => option.config.pathname)).toEqual(['login.bru', 'orders/get order.bru']);
+      expect(requests.map((option) => option.group)).toEqual([undefined, 'orders']);
+      expect(listAddTabs(flow, null).map((tab) => tab.id)).toEqual(['steps', 'requests', 'blocks']);
+      expect(listAddTabs(flow, { nodeId: 'a', port: 'field:session.token', side: 'right' }).map((tab) => tab.id)).toEqual(['steps', 'requests']);
     });
 
     it('offers only what the loose end of a cable can be joined to', () => {
-      const afterStart = listPieceOptions(flow, collection, { nodeId: 'start', port: 'out', side: 'right' }).map((option) => option.label);
+      const fromStart = { nodeId: 'start', port: 'out', side: 'right' };
+      const afterStart = listPieceOptions(flow, collection, fromStart).map((option) => option.label);
       expect(afterStart).not.toContain('List');
-      expect(afterStart).toEqual(expect.arrayContaining(['Repeat', 'login', 'get order']));
+      expect(afterStart).toContain('Repeat');
+      expect(listPieceOptions(flow, collection, fromStart, ADD.REQUESTS).map((option) => option.label)).toEqual(['login', 'get order']);
 
-      const forValue = listPieceOptions(flow, collection, { nodeId: 'a', port: 'field:session.token', side: 'right' }).map((option) => option.label);
-      expect(forValue).toEqual(['Repeat', 'For each item', 'Add to list', 'Set variable', 'Wait', 'Note', 'Stop', 'login', 'get order']);
+      const fromValue = { nodeId: 'a', port: 'field:session.token', side: 'right' };
+      expect(listPieceOptions(flow, collection, fromValue).map((option) => option.label)).toEqual(['Validate', 'Repeat', 'For each item', 'Add to list', 'Set variable', 'Wait', 'Note', 'Stop']);
+      expect(listPieceOptions(flow, collection, fromValue, ADD.REQUESTS).map((option) => option.label)).toEqual(['login', 'get order']);
+    });
+
+    it('offers, while typing in a box, the values called like what is typed', () => {
+      const options = [
+        { id: '1', label: 'session.token' },
+        { id: '2', label: 'token' },
+        { id: '3', label: 'Status code', translate: true },
+        { id: '4', label: 'tokens.count' }
+      ];
+      const spanish = (text) => ({ 'Status code': 'Código de estado' })[text] || '';
+      expect(listValueSuggestions(options, 'Token', spanish).map((option) => [option.label, option.exact])).toEqual([['token', true], ['tokens.count', false], ['session.token', false]]);
+      expect(listValueSuggestions(options, 'código', spanish).map((option) => option.label)).toEqual(['Status code']);
+      expect(listValueSuggestions(options, 't', spanish)).toEqual([]);
+      expect(listValueSuggestions(options, '622222222', spanish)).toEqual([]);
     });
 
     it('offers the fields of a response that are not on the step yet', () => {

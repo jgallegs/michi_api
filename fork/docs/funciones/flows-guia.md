@@ -30,6 +30,21 @@ Un flow encadena peticiones que ya tienes en la colección. Si la petición toda
 
 Si prefieres empezar sin bloque, pulsa **Empezar en blanco**. La galería vuelve cuando quieras con el botón **Bloques**.
 
+## Añadir cosas al flow
+
+Hay tres clases de cosas, y cada una tiene su lista:
+
+| Qué | Dónde |
+|---|---|
+| **Pasos** (Si, Validar, Repetir, Esperar…) | Botón **Añadir paso** |
+| **Peticiones** de la colección, por carpetas | Botón **Añadir petición** |
+| **Bloques** ya montados | Botón **Bloques** |
+
+- **Clic derecho** en un hueco del lienzo ofrece las tres, y lo que elijas cae donde estaba el puntero.
+- Si tiras de un **triángulo** y sueltas el cable en vacío sale la misma lista, con sus tres pestañas, y lo que elijas queda ya unido.
+
+![La lista de añadir, con sus pestañas](../img/flows-anadir.png)
+
 ## Qué bloque elijo
 
 | Quiero… | Bloque | Lo que relleno |
@@ -39,9 +54,11 @@ Si prefieres empezar sin bloque, pulsa **Empezar en blanco**. La galería vuelve
 | Dar tiempo al servidor entre dos llamadas | Esperar entre dos llamadas | Las dos peticiones y los segundos |
 | Que el flow no siga si algo responde mal | Parar si una llamada falla | La petición |
 | Asegurarme de que un valor es el que espero | Comprobar un valor de la respuesta | La petición, el valor y lo que debería valer |
+| Dejar fuera las respuestas que llegan bien pero traen un error dentro | Validar un campo de la respuesta | La petición, el campo que hay que mirar y el valor que significa que no vale |
 | Insistir hasta que una llamada funcione | Reintentar hasta que funcione | La petición, cuántos intentos y cuánto espera |
 | Ver que varios servicios están vivos | Comprobar que varios servicios responden | Una petición por servicio |
 | Hacer la misma llamada varias veces y quedarme con todo | Repetir una llamada y guardar los resultados | La petición y cuántas veces |
+| Repetir una llamada y quedarme solo con las que salieron bien | Repetir una llamada y guardar solo las respuestas válidas | La petición, el campo que hay que mirar, el valor que no vale y cuántas veces |
 | Traer todas las páginas de un listado | Recorrer las páginas de un resultado | La petición y de dónde sale el número de página |
 | Hacer una llamada por cada elemento de un listado | Enviar una petición por cada elemento de una lista | La petición que da la lista, dónde está la lista y la petición que se repite |
 | Esperar a que un proceso termine | Esperar a que algo esté listo | La petición que dice cómo va y el valor que significa "listo" |
@@ -59,6 +76,10 @@ Un bloque es un punto de partida: después puedes añadir, quitar o cambiar paso
 - Un paso **atenuado** no está unido a **Inicio** y no se ejecuta. Sirve para dejar piezas de reserva.
 - Un paso con **aviso naranja** dice debajo lo que le falta. Mientras haya avisos, **Ejecutar** no envía nada.
 - Lo que un **Repetir** repite queda dentro de un marco.
+- **Los cables gruesos son el orden**, y llevan una flecha que dice hacia dónde van: naranja lo normal, **verde** lo que sale de *Sí* o *Válido* y **rojo** lo que sale de *No* o *No válido*.
+- **Los cables de los valores no se ven** hasta que dejas el ratón sobre un paso o lo seleccionas: entonces salen los suyos, finos y del color del paso del que viene el valor. No hacen falta para leer el flow, porque cada entrada ya lo dice en su ficha. Si quieres verlos todos, pulsa el **ojo** de la barra.
+
+![Un flow con solo el orden a la vista](../img/flows-cables.png)
 
 El botón **?** de la barra abre este mismo resumen dentro de la app, con las teclas.
 
@@ -73,6 +94,10 @@ Es lo que más se hace: el token del login, el id de lo que se acaba de crear.
 3. Si el campo todavía no sale porque esa petición no se ha enviado nunca, **escribe su nombre** en el buscador (`token`, `pedido.id`) y elígelo en el paso del que viene.
 
 El paso enseña de dónde toma el valor en una ficha, y se quita con su aspa.
+
+> **Ojo:** lo que escribes dentro de la caja es texto tal cual. Si escribes `token`, el paso usa la palabra «token», no el campo. Mientras escribes, Michi te ofrece debajo los valores que se llaman así: elígelo ahí, o pulsa `Intro` si el nombre coincide, y la caja se convierte en ficha.
+
+![Al escribir el nombre de un campo, se ofrece conectarlo](../img/flows-sugerencia.png)
 
 ![Valores que pasan de un paso a otro](../img/flows-valores.png)
 
@@ -93,6 +118,35 @@ Si aun así no está, escribe su nombre: `datos.numero`.
 ![Un campo de una lista, con la ficha que dice qué elemento lee](../img/flows-posicion.png)
 
 Para hacer algo con **todos** los elementos, usa el paso **Por cada elemento**.
+
+## Cuando llega un 200 con un error dentro
+
+Hay servicios que contestan 200 y dentro traen un código que dice que no se hizo nada. Para que el flow no trate esa respuesta como buena está el paso **Validar**:
+
+1. Ponlo detrás de la petición.
+2. Pulsa el cuadrado de **No válido si** y elige el campo que hay que mirar, por ejemplo el código de retorno.
+3. Elige la comparación y escribe el valor: *no es igual a* `0`.
+4. De **Válido** saca lo que usa la respuesta (guardarla en una lista, la llamada siguiente). De **No válido**, lo que quieras que pase en ese caso, o nada.
+
+Dentro de un **Repetir**, si de **No válido** no cuelga nada, esa vuelta se acaba ahí y empieza la siguiente: la respuesta mala no se guarda y el flow sigue.
+
+![Una ejecución en la que Validar deja fuera la respuesta que traía un error](../img/flows-validar.png)
+
+## Ver y sacar lo que se ha generado
+
+Cuando un flow guarda cosas en una **Lista** (los envíos creados, por ejemplo), la propia caja de la Lista enseña lo que va entrando, una línea por elemento, mientras se ejecuta.
+
+Para verlo bien y llevártelo, pulsa **Ver informe** en la Lista. Sale una tabla con una fila por elemento; si un elemento tiene dentro una lista, como los bultos de un envío, salen debajo, cada uno en su fila.
+
+![El informe de una lista, con cada envío y sus bultos](../img/flows-informe.png)
+
+| Botón | Para qué |
+|---|---|
+| **Copiar tabla** | Pegarla en Excel, en un correo o en Teams |
+| **Copiar como JSON** | Llevarte los datos tal cual |
+| **Guardar como HTML** | Tener el informe en un fichero para guardarlo o enviarlo |
+
+El informe es de la última ejecución. Si cierras Michi se pierde, así que guárdalo o cópialo antes.
 
 ## Ejecutar
 

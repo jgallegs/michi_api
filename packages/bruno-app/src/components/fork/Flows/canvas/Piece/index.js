@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   IconAlertCircle,
   IconArrowsSplit2,
+  IconShieldCheck,
   IconChevronDown,
   IconChevronRight,
   IconClock,
@@ -17,17 +18,21 @@ import {
   IconPlus,
   IconRepeat,
   IconSend,
+  IconTable,
   IconVariable,
   IconX
 } from '@tabler/icons';
 import { LOOPBACK_PORT } from '../../engine/nodes';
 import { say } from '../../language';
-import { PIECE_WIDTH, PORT_KIND } from '../pieces';
+import { BRANCH_TONES } from '../colors';
+import { PIECE_WIDTH, PORT_KIND, ROW_HEIGHT } from '../pieces';
+import { summarize } from '../../report/table';
 
 export const STEP_ICONS = {
   start: IconPlayerPlay,
   request: IconSend,
   if: IconArrowsSplit2,
+  validate: IconShieldCheck,
   repeat: IconRepeat,
   foreach: IconListDetails,
   leave: IconLogout,
@@ -70,8 +75,8 @@ const LOOPBACK_TITLE = 'End of round: the last step of the round arrives here';
 
 const Port = ({ node, port, state, onMouseDown }) => (
   <span
-    className={`flow-port ${port.side} ${port.kind} ${state.filled ? 'filled' : ''} ${state.highlight || ''}`}
-    style={{ top: port.y - PORT_SIZE / 2 }}
+    className={`flow-port ${port.side} ${port.kind} ${state.filled ? 'filled' : ''} ${state.highlight || ''} ${BRANCH_TONES[port.port] ? `tone-${BRANCH_TONES[port.port]}` : ''}`}
+    style={{ top: port.y - PORT_SIZE / 2, ...(state.color ? { '--flow-value': state.color } : {}) }}
     title={port.port === LOOPBACK_PORT ? LOOPBACK_TITLE : PORT_TITLES[`${port.kind}:${port.side}`]}
     data-testid={`flow-port-${node.id}-${port.side}-${port.port}`}
     onMouseDown={port.hidden ? undefined : (event) => onMouseDown(event, node, port)}
@@ -81,7 +86,7 @@ const Port = ({ node, port, state, onMouseDown }) => (
 );
 
 const Chip = ({ source, onRemove }) => (
-  <span className="flow-chip" title={`${source.title} · ${source.label}`}>
+  <span className="flow-chip" title={`${source.title} · ${source.label}`} style={source.color ? { '--flow-value': source.color } : undefined}>
     <span className="flow-chip-text">
       <span className={source.ownTitle ? 'fork-no-translate' : ''}>{source.title}</span>
       <span className="fork-no-translate"> · </span>
@@ -93,17 +98,30 @@ const Chip = ({ source, onRemove }) => (
   </span>
 );
 
+// What is typed in a box is text as it is. Typing the name of something another step hands out is how
+// people expect to use it, so while the box has the keyboard the canvas offers to join it instead.
 const TypedValue = ({ node, row, source, onConfig, onAction }) => {
   if (source) {
     return <Chip source={source} onRemove={() => onAction('disconnect', row.left.port)} />;
   }
+  const offer = (event) => row.left && onAction('suggest-value', { port: row.left.port, path: row.control.path, text: event.target.value }, event);
   return (
     <>
       <input
         className="flow-input"
         value={getIn(node.config, row.control.path) ?? ''}
         placeholder={row.control.placeholder}
-        onChange={(event) => onConfig(row.control.path, event.target.value)}
+        onChange={(event) => {
+          onConfig(row.control.path, event.target.value);
+          offer(event);
+        }}
+        onFocus={offer}
+        onBlur={() => row.left && onAction('suggest-close')}
+        onKeyDown={(event) => {
+          if (row.left && (event.key === 'Enter' || event.key === 'Escape')) {
+            onAction(event.key === 'Enter' ? 'suggest-accept' : 'suggest-close', row.left.port, event);
+          }
+        }}
       />
       {row.left ? (
         <button type="button" className="flow-icon-button" aria-label="Use a value from another step" title="Use a value from another step" onClick={(event) => onAction('pick-value', row.left.port, event)}>
@@ -124,7 +142,50 @@ const RequestChoice = ({ request, onAction }) => {
   );
 };
 
-const Row = ({ node, row, request, sources, onConfig, onAction }) => {
+const MAX_ITEMS_SHOWN = 200;
+
+// What a list holds after the last run, one short line per item, where it can be read and selected.
+// It follows the run: the newest item is kept in sight.
+const Contents = ({ node, row, items }) => {
+  const ref = useRef(null);
+  const count = items?.length || 0;
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.scrollTop = ref.current.scrollHeight;
+    }
+  }, [count]);
+  const from = Math.max(0, count - MAX_ITEMS_SHOWN);
+  return (
+    <div ref={ref} className="flow-contents" style={{ height: row.span * ROW_HEIGHT }} data-testid={`flow-contents-${node.id}`}>
+      {count ? (
+        items.slice(from).map((item, index) => (
+          <div key={from + index} className="flow-content-item fork-no-translate">
+            <span className="flow-content-number">{from + index + 1} </span>
+            <span className="flow-content-text">
+              {summarize(item).map(({ name, value }, position) => (
+                // The separators are real text, so a copied line still reads field by field.
+                <span key={name || 'value'}>
+                  {position ? <span className="flow-content-name"> · </span> : null}
+                  {name ? <span className="flow-content-name">{name} </span> : null}
+                  {value}
+                </span>
+              ))}
+            </span>
+          </div>
+        ))
+      ) : (
+        <span className="flow-contents-empty">It fills up as the flow runs</span>
+      )}
+    </div>
+  );
+};
+
+const ACTION_ICONS = { report: IconTable };
+
+const Row = ({ node, row, request, sources, contents, onConfig, onAction }) => {
+  if (row.contents) {
+    return <Contents node={node} row={row} items={contents} />;
+  }
   if (row.section) {
     const Caret = row.collapsed ? IconChevronRight : IconChevronDown;
     return (
@@ -137,8 +198,8 @@ const Row = ({ node, row, request, sources, onConfig, onAction }) => {
   }
   if (row.action) {
     return (
-      <button type="button" className="flow-row flow-row-action" onClick={(event) => onAction(row.action, null, event)}>
-        <IconPlus size={12} strokeWidth={2} />
+      <button type="button" className="flow-row flow-row-action" onClick={(event) => onAction(row.action, null, event)} data-testid={`flow-action-${node.id}-${row.action}`}>
+        {React.createElement(ACTION_ICONS[row.icon] || IconPlus, { size: 12, strokeWidth: 2 })}
         <span>{row.label}</span>
       </button>
     );
@@ -169,9 +230,11 @@ const Row = ({ node, row, request, sources, onConfig, onAction }) => {
   if (control?.type === 'select') {
     return (
       <div className="flow-row">
+        {row.label ? <span className="flow-label" title={row.label}>{row.label}</span> : null}
         <select className="flow-select" value={getIn(node.config, control.path) ?? control.fallback} onChange={(event) => onConfig(control.path, event.target.value)}>
           {control.options.map((option) => (
-            <option key={option.value} value={option.value}>{say(option.label)}</option>
+            // A name someone gave is shown as it is; the rest follows the interface.
+            <option key={option.value} value={option.value}>{option.own ? option.label : say(option.label)}</option>
           ))}
         </select>
       </div>
@@ -236,7 +299,7 @@ const RunMark = ({ run }) => (
   </>
 );
 
-const Piece = ({ node, description, request, title, position, selected, dimmed, issues, run, portState, sources, onMouseDown, onPortMouseDown, onConfig, onAction }) => {
+const Piece = ({ node, description, request, title, position, selected, dimmed, issues, run, portState, sources, contents, onMouseDown, onPortMouseDown, onConfig, onAction, onHover }) => {
   const Icon = STEP_ICONS[node.type] || IconAlertCircle;
   // Only a request step is titled with a name someone chose; "List · orders" is still an interface text.
   const hasOwnTitle = node.type === 'request' && title !== description.title;
@@ -248,6 +311,8 @@ const Piece = ({ node, description, request, title, position, selected, dimmed, 
       data-testid={`flow-piece-${node.id}`}
       data-piece-type={node.type}
       onMouseDown={(event) => onMouseDown(event, node)}
+      onMouseEnter={() => onHover(node.id)}
+      onMouseLeave={() => onHover(null)}
     >
       <div className="flow-piece-header">
         <Icon size={15} strokeWidth={1.75} className="flow-piece-icon" />
@@ -261,7 +326,7 @@ const Piece = ({ node, description, request, title, position, selected, dimmed, 
       </div>
       {issues.length ? <div className="flow-issue-text">{issues[0].message}</div> : null}
       {description.rows.map((row) => (
-        <Row key={row.id} node={node} row={row} request={request} sources={sources} onConfig={onConfig} onAction={onAction} />
+        <Row key={row.id} node={node} row={row} request={request} sources={sources} contents={contents} onConfig={onConfig} onAction={onAction} />
       ))}
       {description.ports.map((port) => (
         <Port key={`${port.side}:${port.port}`} node={node} port={port} state={portState(port)} onMouseDown={onPortMouseDown} />

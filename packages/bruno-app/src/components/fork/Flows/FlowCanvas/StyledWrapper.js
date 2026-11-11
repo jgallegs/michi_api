@@ -40,9 +40,27 @@ const StyledWrapper = styled.div`
     stroke-width: 2;
     stroke-linecap: round;
   }
-  .flow-cable.order .flow-cable-line { stroke: var(--flow-order); }
-  .flow-cable.value .flow-cable-line { stroke: var(--flow-value); stroke-width: 1.5; stroke-dasharray: 5 4; }
-  .flow-cable.selected .flow-cable-line { stroke-width: 3.5; }
+  .flow-cable-rim {
+    fill: none;
+    stroke: ${(props) => props.theme.background.mantle};
+    stroke-width: 6;
+    stroke-linecap: round;
+  }
+  .flow-cable.tone-good { --flow-order: ${(props) => props.theme.status.success.text}; }
+  .flow-cable.tone-bad { --flow-order: ${(props) => props.theme.status.danger.text}; }
+  /* Stepping back waits a moment, so crossing the canvas with the pointer does not make it flicker. */
+  .flow-cable { transition: opacity 0.12s ease-out; }
+  .flow-cable.dim { opacity: 0.22; transition-delay: 0.15s; }
+  .flow-cable.order .flow-cable-line { stroke: var(--flow-order); stroke-width: 2.5; }
+  .flow-cable-mark { fill: var(--flow-order); stroke: ${(props) => props.theme.background.mantle}; stroke-width: 1; }
+  .flow-cable.value .flow-cable-line { stroke: var(--flow-value); stroke-width: 1.25; }
+  .flow-cable.draft.value .flow-cable-line { stroke-dasharray: 5 4; }
+  .flow-cable.value.lit .flow-cable-line,
+  .flow-cable.value:hover .flow-cable-line { stroke-width: 2; }
+  .flow-cable.order.lit .flow-cable-line,
+  .flow-cable.order:hover .flow-cable-line { stroke-width: 3.5; }
+  .flow-cable.selected .flow-cable-line { stroke-width: 4; }
+  .flow-cable.value.selected .flow-cable-line { stroke-width: 2.5; }
   .flow-cable.draft .flow-cable-line { opacity: 0.7; }
   .flow-cable-pulse {
     fill: none;
@@ -268,6 +286,43 @@ const StyledWrapper = styled.div`
   }
   .flow-chip-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+  .flow-contents {
+    margin: 0 10px;
+    padding: 4px 6px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 1px solid ${(props) => props.theme.border.border1};
+    border-radius: ${(props) => props.theme.border.radius.sm};
+    background: ${(props) => props.theme.background.mantle};
+    font-size: ${(props) => props.theme.font.size.xs};
+    line-height: 1.5;
+    user-select: text;
+    cursor: text;
+  }
+  .flow-content-item { display: flex; gap: 4px; }
+  .flow-content-number { flex-shrink: 0; min-width: 12px; text-align: right; white-space: pre; color: ${(props) => props.theme.colors.text.muted}; }
+  .flow-content-text { min-width: 0; overflow-wrap: anywhere; }
+  .flow-content-name { color: ${(props) => props.theme.colors.text.muted}; }
+  .flow-contents-empty { color: ${(props) => props.theme.colors.text.muted}; user-select: none; }
+
+  .flow-suggest {
+    position: absolute;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    width: 260px;
+    padding: 6px;
+    color: ${(props) => props.theme.dropdown.color};
+    background: ${(props) => props.theme.dropdown.bg};
+    border: 1px solid ${(props) => props.theme.border.border1};
+    border-radius: ${(props) => props.theme.border.radius.md};
+    box-shadow: ${(props) => props.theme.shadow.md};
+    cursor: default;
+  }
+  .flow-suggest-title,
+  .flow-suggest-key { padding: 2px 4px 4px; font-size: ${(props) => props.theme.font.size.xs}; color: ${(props) => props.theme.dropdown.mutedText}; }
+
   .flow-position {
     flex-shrink: 0;
     height: 18px;
@@ -313,6 +368,8 @@ const StyledWrapper = styled.div`
     &.left { left: -7px; }
     &.right { right: -7px; }
     &.order { color: var(--flow-order); }
+    &.order.tone-good { color: ${(props) => props.theme.status.success.text}; }
+    &.order.tone-bad { color: ${(props) => props.theme.status.danger.text}; }
     &.value,
     &.list { color: var(--flow-value); }
     &:hover,
@@ -424,7 +481,51 @@ const StyledWrapper = styled.div`
     box-shadow: ${(props) => props.theme.shadow.md};
     cursor: default;
   }
+  .flow-menu {
+    position: absolute;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    min-width: 190px;
+    padding: 4px;
+    color: ${(props) => props.theme.dropdown.color};
+    background: ${(props) => props.theme.dropdown.bg};
+    border: 1px solid ${(props) => props.theme.border.border1};
+    border-radius: ${(props) => props.theme.border.radius.md};
+    box-shadow: ${(props) => props.theme.shadow.md};
+    cursor: default;
+  }
+  .flow-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: none;
+    border-radius: ${(props) => props.theme.border.radius.sm};
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover { background: ${(props) => props.theme.dropdown.hoverBg}; }
+    svg { flex-shrink: 0; color: ${(props) => props.theme.dropdown.mutedText}; }
+  }
+
   .flow-picker-title { padding: 2px 4px 6px; font-weight: 600; }
+  .flow-picker-tabs { display: flex; gap: 2px; margin-bottom: 6px; border-bottom: 1px solid ${(props) => props.theme.dropdown.separator}; }
+  .flow-picker-tab {
+    padding: 4px 10px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    font: inherit;
+    color: ${(props) => props.theme.dropdown.mutedText};
+    cursor: pointer;
+
+    &:hover { color: ${(props) => props.theme.dropdown.color}; }
+    &.active { color: ${(props) => props.theme.dropdown.color}; border-bottom-color: var(--flow-order); font-weight: 600; }
+  }
   .flow-picker-search {
     height: 26px;
     padding: 0 8px;

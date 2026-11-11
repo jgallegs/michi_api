@@ -7,6 +7,7 @@ import {
   STATUS_PORT,
   VARIABLE_PORT_PREFIX,
   fieldPort,
+  findListOf,
   itemFieldPort,
   valuePort,
   variablePort
@@ -21,6 +22,8 @@ export const PIECE_WIDTH = 240;
 export const HEADER_HEIGHT = 34;
 export const ROW_HEIGHT = 28;
 export const PIECE_PADDING = 6;
+// Rows the view of what a list holds takes inside its step.
+export const CONTENT_ROWS = 4;
 
 export const OPERATOR_LABELS = {
   equals: 'is equal to',
@@ -139,7 +142,38 @@ const ifRows = (node) => {
   ];
 };
 
-const listAppendRows = (node) => {
+// Reads as a sentence: "Not valid if [a value] [is equal to] [that]".
+const validateRows = (node) => {
+  const operator = node.config?.operator || 'equals';
+  const operators = COMPARISON_OPERATORS.map((name) => ({ value: name, label: OPERATOR_LABELS[name] }));
+  return [
+    typed('left', 'Not valid if', 'A value'),
+    { id: 'operator', control: { type: 'select', path: ['operator'], options: operators, fallback: 'equals' } },
+    ...(isSingleValueOperator(operator) ? [] : [typed('right', 'That', 'The value that is not valid')]),
+    { id: 'valid', label: 'Valid', right: order('valid') },
+    { id: 'invalid', label: 'Not valid', right: order('invalid') }
+  ];
+};
+
+// The list is chosen by name inside the step. A flow built when it was joined by a cable keeps its
+// cable, and its port, until another list is chosen here.
+const listChoiceRow = (node, flow) => {
+  const lists = flow.nodes.filter((candidate) => candidate.type === 'list');
+  const chosen = findListOf(flow, node);
+  const cabled = !node.config?.list && flow.edges.some((edge) => edge.target === node.id && edge.targetPort === LIST_PORT);
+  const options = [
+    ...(chosen ? [] : [{ value: '', label: 'Choose a list' }]),
+    ...lists.map((list, index) => ({ value: list.id, label: list.config?.name || (lists.length > 1 ? `List ${index + 1}` : 'List'), own: Boolean(list.config?.name) }))
+  ];
+  return {
+    id: 'list',
+    label: 'List',
+    ...(cabled ? { left: { port: LIST_PORT, kind: PORT_KIND.LIST } } : {}),
+    control: { type: 'select', path: ['list'], options, fallback: chosen?.id || '' }
+  };
+};
+
+const listAppendRows = (node, flow) => {
   const config = node.config || {};
   const fields = config.fields || [];
   const valueRows
@@ -155,7 +189,7 @@ const listAppendRows = (node) => {
         ]
       : [typed('value', 'Value', 'What to add')];
   return [
-    { id: 'list', label: 'List', left: { port: LIST_PORT, kind: PORT_KIND.LIST } },
+    listChoiceRow(node, flow),
     { id: 'mode', control: { type: 'select', path: ['mode'], options: APPEND_MODES, fallback: 'value' } },
     ...valueRows
   ];
@@ -183,6 +217,7 @@ export const PIECES = {
   start: { title: 'Start', headerOut: true, rows: () => [] },
   request: { title: 'Request', headerIn: true, headerOut: true, rows: requestRows },
   if: { title: 'If', headerIn: true, rows: ifRows },
+  validate: { title: 'Validate', headerIn: true, rows: validateRows },
   repeat: {
     title: 'Repeat',
     headerIn: true,
@@ -205,7 +240,9 @@ export const PIECES = {
     rows: () => [
       { id: 'name', label: 'Name', control: { type: 'text', path: ['name'], placeholder: 'Optional' } },
       { id: 'items', label: 'Items', right: { port: fieldPort('items'), kind: PORT_KIND.LIST } },
-      { id: 'length', label: 'How many', right: value(fieldPort('length')) }
+      { id: 'length', label: 'How many', right: value(fieldPort('length')) },
+      { id: 'contents', contents: true, span: CONTENT_ROWS },
+      { id: 'report', action: 'open-report', label: 'View report', icon: 'report' }
     ]
   },
   listappend: { title: 'Add to list', headerIn: true, headerOut: true, rows: listAppendRows },
@@ -214,7 +251,7 @@ export const PIECES = {
 };
 
 // The steps offered when adding one; Start is always there and never added by hand.
-export const ADDABLE_PIECES = ['request', 'if', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop'];
+export const ADDABLE_PIECES = ['request', 'if', 'validate', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop'];
 
 // Everything the canvas needs to draw a step: its rows and where each port sits inside it.
 export const describePiece = (node, flow, request) => {
@@ -223,7 +260,13 @@ export const describePiece = (node, flow, request) => {
     return { title: node.type, unknown: true, rows: [], ports: [], height: HEADER_HEIGHT + PIECE_PADDING };
   }
   const rows = piece.rows(node, flow, request);
-  const rowY = (index) => HEADER_HEIGHT + index * ROW_HEIGHT + ROW_HEIGHT / 2;
+  // A row may be as tall as several ("span"): where each one starts is counted in plain rows.
+  const tops = [];
+  const used = rows.reduce((total, row) => {
+    tops.push(total);
+    return total + (row.span || 1);
+  }, 0);
+  const rowY = (index) => HEADER_HEIGHT + tops[index] * ROW_HEIGHT + ROW_HEIGHT / 2;
   const ports = [
     ...(piece.headerIn ? [{ ...order(IN_PORT), side: 'left', y: HEADER_HEIGHT / 2 }] : []),
     ...(piece.headerOut ? [{ ...order(OUT_PORT), side: 'right', y: HEADER_HEIGHT / 2 }] : []),
@@ -238,7 +281,7 @@ export const describePiece = (node, flow, request) => {
     headerOut: Boolean(piece.headerOut),
     rows,
     ports,
-    height: HEADER_HEIGHT + rows.length * ROW_HEIGHT + PIECE_PADDING
+    height: HEADER_HEIGHT + used * ROW_HEIGHT + PIECE_PADDING
   };
 };
 

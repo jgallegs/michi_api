@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { IconClipboard, IconPlus, IconSend, IconStack } from '@tabler/icons';
 import { useDrop } from 'react-dnd';
 import { useStore } from 'react-redux';
 import { findEnvironmentInCollection } from 'utils/collections';
@@ -6,6 +7,7 @@ import { useIsSensitiveEnvironment } from 'components/fork/SensitiveEnvironment/
 import toast from 'react-hot-toast';
 import { findLoopBody, findReachedNodeIds, findStartNode, validateFlow } from '../engine/graph';
 import { NODE_DEFINITIONS, OUT_PORT, isLoopNode } from '../engine/nodes';
+import { translatePhrase } from 'components/fork/SpanishUi';
 import { say } from '../language';
 import { COLUMN, buildOwnBlock, buildReadyBlock, canFollow, insertBlock, makeOwnBlock } from '../blocks/building';
 import { closeGuide, noteGuideRun, readGuide, startGuide, tickGuidePoint, useGuide } from '../blocks/guide';
@@ -16,6 +18,9 @@ import HelpPanel from '../blocks/HelpPanel';
 import SaveBlockModal from '../blocks/SaveBlockModal';
 import { discardFlowDraft, saveFlow, useFlowDirty, useFlowStale } from '../store';
 import Cables from '../canvas/Cables';
+import { BRANCH_TONES, colorValueSources } from '../canvas/colors';
+import ContextMenu from '../canvas/ContextMenu';
+import { VALUE_CABLES, resetView, setValueCables, useValueCables } from '../canvas/view';
 import Picker from '../canvas/Picker';
 import Piece from '../canvas/Piece';
 import Toolbar from '../canvas/Toolbar';
@@ -24,6 +29,7 @@ import {
   addNode,
   addRequestField,
   moveRequestField,
+  removeCablesWithoutPort,
   canConnect,
   connect,
   copyNodes,
@@ -44,7 +50,9 @@ import {
 import { canRedo, canUndo, editFlow, forgetHistory, redo, undo } from '../canvas/history';
 import { settle, tidy } from '../canvas/layout';
 import {
+  ADD,
   isNamedByUser,
+  listAddTabs,
   listFieldOptions,
   listPieceOptions,
   listPositionOptions,
@@ -52,14 +60,16 @@ import {
   listTypedFieldOptions,
   listTypedPositionOptions,
   listValueOptions,
+  listValueSuggestions,
   titleOf
 } from '../canvas/pickers';
 import { HEADER_HEIGHT, PIECE_WIDTH, PORT_KIND, describePiece, findPort } from '../canvas/pieces';
 import { describeRequest, relativeRequestPath } from '../canvas/requests';
-import { defaultBends, dragBend, grabSegment, nearestSegment, routePoints, simplifyBends } from '../canvas/routing';
+import { defaultBends, dragBend, grabSegment, nearestSegment, routePoints, simplifyBends, spreadCables } from '../canvas/routing';
 import { useKnownFields } from '../fields/memory';
 import { toFieldPath, withListPosition } from '../fields/paths';
 import { RUN_MODE, startRun, stopRun } from '../run/controller';
+import ReportModal from '../report/ReportModal';
 import { RUN_PHASE, useRunSession } from '../run/session';
 import StyledWrapper from './StyledWrapper';
 
@@ -84,6 +94,10 @@ const FIELD_PATH = /^\S+$/;
 const typedFieldPath = (text) => (FIELD_PATH.test(text) ? toFieldPath(text) : '');
 
 const GUIDE_MARK_OFFSET = 11;
+// Room a floating list needs, to open it where it fits inside the canvas.
+const PICKER_ROOM = { width: 260, height: 320 };
+const MENU_ROOM = { width: 200, height: 160 };
+const EDGE = 8;
 
 // Where each flow was left on screen, the steps copied last and the flows whose opening gallery was
 // closed, while the app is open.
@@ -96,6 +110,7 @@ export const resetCanvasMemory = () => {
   viewports.clear();
   startedByHand.clear();
   copied = null;
+  resetView();
 };
 
 const portKey = (nodeId, side, port) => `${nodeId}|${side}|${port}`;
@@ -157,9 +172,14 @@ const FlowCanvas = ({ collection, flow }) => {
   const [picker, setPicker] = useState(null);
   // gallery: where the block picked from it goes (a point, the loose end of a cable). A new flow opens with it.
   const [gallery, setGallery] = useState(null);
+  const [menu, setMenu] = useState(null);
+  const [hovered, setHovered] = useState(null);
+  const valueCables = useValueCables();
   const [startsByHand, setStartsByHand] = useState(() => startedByHand.has(flow.id));
   const [help, setHelp] = useState(false);
   const [namingBlock, setNamingBlock] = useState(false);
+  const [suggest, setSuggest] = useState(null);
+  const [report, setReport] = useState(null);
   const [width, setWidth] = useState(Infinity);
   const ownBlocks = useOwnBlocks(collectionPath);
   const guide = useGuide(flow.id);
@@ -209,7 +229,10 @@ const FlowCanvas = ({ collection, flow }) => {
     return { x: side === 'left' ? box.x : box.x + PIECE_WIDTH, y: box.y + (found ? found.y : HEADER_HEIGHT / 2) };
   };
 
-  const cables = flow.edges
+  const isValueCable = (edge) => targetKind(edge.targetPort) !== PORT_KIND.ORDER;
+  const valueColors = useMemo(() => colorValueSources(flow, isValueCable), [flow]);
+
+  const routed = flow.edges
     .map((edge) => {
       const start = portPoint(edge.source, edge.sourcePort, 'right');
       const end = portPoint(edge.target, edge.targetPort, 'left');
@@ -225,12 +248,41 @@ const FlowCanvas = ({ collection, flow }) => {
         start,
         end,
         bends,
-        points: routePoints(start, end, bends),
-        kind: targetKind(edge.targetPort) === PORT_KIND.ORDER ? 'order' : 'value',
+        fixed: Boolean(shaping || stored),
+        kind: isValueCable(edge) ? 'value' : 'order',
         selected: selection.edgeId === edge.id
       };
     })
     .filter(Boolean);
+
+  // The cables nobody shaped make room for each other. The ones of the selected steps stand out; resting
+  // the pointer on a step also makes the rest step back, which is how a busy flow is followed.
+  const lanes = spreadCables(
+    routed.map(({ edge, start, end, bends, fixed }) => ({ id: edge.id, net: `${edge.source}|${edge.sourcePort}`, ends: [edge.source, edge.target], start, end, bends, fixed })),
+    flow.nodes.filter((node) => pieces.has(node.id)).map(boxOf)
+  );
+  const underPointer = hovered && !gesture && !moving ? [hovered] : [];
+  const touches = (nodeIds, edge) => nodeIds.includes(edge.source) || nodeIds.includes(edge.target);
+  // Unless asked to show them all, a cable that carries a value is only drawn while it matters: for the
+  // step under the pointer, for the selected ones, or while it is being shaped.
+  const allValuesInSight = valueCables === VALUE_CABLES.ALWAYS;
+  const inSight = routed.filter((cable) => {
+    const matters = cable.selected || touches(underPointer, cable.edge) || touches(selection.nodeIds, cable.edge) || (gesture?.type === 'bend' && gesture.edgeId === cable.edge.id);
+    return cable.kind !== 'value' || allValuesInSight || matters;
+  });
+  const cables = inSight.map((cable) => {
+    const bends = lanes.get(cable.edge.id) || cable.bends;
+    const lit = cable.selected || touches(underPointer, cable.edge) || touches(selection.nodeIds, cable.edge);
+    return {
+      ...cable,
+      bends,
+      points: routePoints(cable.start, cable.end, bends),
+      color: cable.kind === 'value' ? valueColors.get(cable.edge.source) : undefined,
+      tone: cable.kind === 'order' ? BRANCH_TONES[cable.edge.sourcePort] : undefined,
+      lit,
+      dim: underPointer.length > 0 && !cable.selected && !touches(underPointer, cable.edge)
+    };
+  });
 
   const connectedPorts = useMemo(
     () => new Set(flow.edges.flatMap((edge) => [portKey(edge.source, 'right', edge.sourcePort), portKey(edge.target, 'left', edge.targetPort)])),
@@ -248,10 +300,19 @@ const FlowCanvas = ({ collection, flow }) => {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
 
+  // The canvas shows nothing beyond its edges, so a list asked for near one opens a little inside.
+  const keepInside = (position, room) => {
+    const rect = rootRef.current.getBoundingClientRect();
+    return {
+      x: clamp(position.x, EDGE, Math.max(EDGE, rect.width - room.width - EDGE)),
+      y: clamp(position.y, EDGE, Math.max(EDGE, rect.height - room.height - EDGE))
+    };
+  };
+
   const anchorBelow = (element) => {
     const rect = rootRef.current.getBoundingClientRect();
     const target = element.getBoundingClientRect();
-    return { x: target.left - rect.left, y: target.bottom - rect.top + 4 };
+    return keepInside({ x: target.left - rect.left, y: target.bottom - rect.top + 4 }, PICKER_ROOM);
   };
 
   const fitView = useCallback(() => {
@@ -291,8 +352,10 @@ const FlowCanvas = ({ collection, flow }) => {
   useEffect(() => {
     const root = rootRef.current;
     const onWheel = (event) => {
-      // Lists and panels on top of the canvas scroll on their own.
-      if (event.target.closest?.('.flow-overlay')) {
+      // Lists and panels on top of the canvas scroll on their own, and so does what a List step holds
+      // once it no longer fits.
+      const holder = event.target.closest?.('.flow-contents');
+      if (event.target.closest?.('.flow-overlay') || (holder && holder.scrollHeight > holder.clientHeight)) {
         return;
       }
       event.preventDefault();
@@ -429,12 +492,34 @@ const FlowCanvas = ({ collection, flow }) => {
     [drop]
   );
 
-  const startPan = (event) => {
+  // Dragging moves the canvas; "onClick" is told when the button went up where it went down.
+  const startPan = (event, onClick) => {
     const origin = { x: event.clientX, y: event.clientY, view: viewRef.current };
     track(
       (move) => setView({ ...origin.view, x: origin.view.x + move.clientX - origin.x, y: origin.view.y + move.clientY - origin.y }),
-      () => {}
+      (up) => {
+        if (onClick && Math.hypot(up.clientX - origin.x, up.clientY - origin.y) < CLICK_DISTANCE) {
+          onClick(up);
+        }
+      }
     );
+  };
+
+  // Opens the list of what can be added, on one of its kinds; blocks have their own gallery.
+  const openAdd = (what, { position, world, loose = null }) => {
+    if (what === ADD.BLOCKS) {
+      setPicker(null);
+      setGallery({ world, loose });
+    } else {
+      setPicker({ kind: 'piece', what, position: keepInside(position, PICKER_ROOM), world, loose });
+    }
+  };
+
+  // The right button on an empty spot offers what can be added there.
+  const openMenu = (event) => {
+    if (!event.target.closest?.('.flow-piece, .flow-toolbar, .flow-overlay')) {
+      setMenu({ position: keepInside(toLocal(event), MENU_ROOM), world: toWorld(event) });
+    }
   };
 
   const startBoxSelect = (event) => {
@@ -462,9 +547,10 @@ const FlowCanvas = ({ collection, flow }) => {
   const onCanvasMouseDown = (event) => {
     rootRef.current.focus();
     setPicker(null);
+    setMenu(null);
     if (event.button === 1 || event.button === 2 || (event.button === 0 && event.altKey)) {
       event.preventDefault();
-      startPan(event);
+      startPan(event, event.button === 2 ? openMenu : null);
     } else if (event.button === 0) {
       startBoxSelect(event);
     }
@@ -474,7 +560,7 @@ const FlowCanvas = ({ collection, flow }) => {
     if (event.target.closest('.flow-piece, .flow-cable, .flow-toolbar, .flow-picker')) {
       return;
     }
-    setPicker({ kind: 'piece', position: toLocal(event), world: toWorld(event), loose: null });
+    openAdd(ADD.STEPS, { position: toLocal(event), world: toWorld(event) });
   };
 
   const onPieceMouseDown = (event, node) => {
@@ -483,7 +569,8 @@ const FlowCanvas = ({ collection, flow }) => {
     }
     event.stopPropagation();
     setPicker(null);
-    if (event.target.closest('input, select, button, .flow-port')) {
+    // What a List holds is text to select and copy, not a handle to drag the step by.
+    if (event.target.closest('input, select, button, .flow-port, .flow-contents')) {
       return;
     }
     rootRef.current.focus();
@@ -571,7 +658,7 @@ const FlowCanvas = ({ collection, flow }) => {
           setPicker({ kind: 'value', position: toLocal(up), nodeId: node.id, port: port.port });
         } else if (dragged || port.side === 'right') {
           const world = dragged ? point : { x: origin.x + 80, y: origin.y };
-          setPicker({ kind: 'piece', position: toLocal(up), world, loose: from });
+          openAdd(ADD.STEPS, { position: toLocal(up), world, loose: from });
         }
       }
     );
@@ -656,7 +743,8 @@ const FlowCanvas = ({ collection, flow }) => {
       s: command && save,
       enter: command && (() => run(RUN_MODE.RUN)),
       a: command && (() => setSelection({ nodeIds: flow.nodes.map((node) => node.id), edgeId: null })),
-      c: command && (() => {
+      // With text selected (what a List holds), copying is the usual copy of that text.
+      c: command && !window.getSelection?.()?.toString() && (() => {
         copied = copyNodes(flow, selection.nodeIds);
       }),
       v: command && paste,
@@ -673,7 +761,29 @@ const FlowCanvas = ({ collection, flow }) => {
   };
 
   const onConfig = (node, path, value) =>
-    edit((current) => makeRoomAround(collection, updateNodeConfig(current, node.id, path, value), node.id), { mergeKey: `${node.id}:${path.join('.')}` });
+    edit(
+      (current) => {
+        const changed = updateNodeConfig(current, node.id, path, value);
+        const { ports } = describeNode(collection, changed, changed.nodes.find((candidate) => candidate.id === node.id), knownFields).description;
+        return makeRoomAround(collection, removeCablesWithoutPort(changed, node.id, ports), node.id);
+      },
+      { mergeKey: `${node.id}:${path.join('.')}` }
+    );
+
+  // Joins an input to the value picked for it: the field is shown on its step if it was not, and what
+  // was typed in the box, if anything, goes away.
+  const takeValue = (option, target, typedPath) =>
+    edit((current) => {
+      const shown = option.addField ? addRequestField(current, option.nodeId, option.addField) : current;
+      const joined = connect(shown, { nodeId: option.nodeId, port: option.port }, target);
+      const cleared = typedPath ? updateNodeConfig(joined, target.nodeId, typedPath, '') : joined;
+      return makeRoomAround(collection, cleared, option.nodeId);
+    });
+
+  const acceptSuggestion = (option) => {
+    takeValue(option, { nodeId: suggest.nodeId, port: suggest.port }, suggest.path);
+    setSuggest(null);
+  };
 
   const onAction = (node, action, payload, event) => {
     const grow = (change) => edit((current) => makeRoomAround(collection, change(current), node.id));
@@ -686,6 +796,14 @@ const FlowCanvas = ({ collection, flow }) => {
       'remove-list-field': () => edit((current) => removeListField(current, node.id, payload)),
       'pick-request': () => setPicker({ kind: 'request', position: anchorBelow(event.currentTarget), nodeId: node.id }),
       'pick-value': () => setPicker({ kind: 'value', position: anchorBelow(event.currentTarget), nodeId: node.id, port: payload }),
+      'open-report': () => setReport({ nodeId: node.id }),
+      'suggest-value': () => {
+        const target = { nodeId: node.id, port: payload.port };
+        const options = listValueSuggestions(listValueOptions(flow, target, (other) => pieces.get(other.id)), payload.text, translatePhrase);
+        setSuggest(options.length ? { ...target, path: payload.path, position: anchorBelow(event.currentTarget), options } : null);
+      },
+      'suggest-close': () => setSuggest(null),
+      'suggest-accept': () => suggest?.options[0].exact && acceptSuggestion(suggest.options[0]),
       'disconnect': () =>
         edit((current) => removeEdges(current, current.edges.filter((edge) => edge.target === node.id && edge.targetPort === payload).map((edge) => edge.id)))
     };
@@ -694,9 +812,14 @@ const FlowCanvas = ({ collection, flow }) => {
 
   const pickers = {
     piece: () => ({
-      title: picker.loose ? 'What goes here?' : 'Add a step',
-      options: listPieceOptions(flow, collection, picker.loose),
-      onPick: (option) => (option.opensBlocks ? setGallery({ world: picker.world, loose: picker.loose }) : addPiece(option.type, option.config, picker.world, picker.loose))
+      title: picker.loose ? 'What goes here?' : picker.what === ADD.REQUESTS ? 'Add a request' : 'Add a step',
+      placeholder: picker.what === ADD.REQUESTS ? 'Search a request' : 'Search a step',
+      emptyText: picker.what === ADD.REQUESTS ? 'No request fits here' : 'No step fits. Look in Requests',
+      tabs: listAddTabs(flow, picker.loose),
+      tab: picker.what,
+      onTab: (what) => openAdd(what, picker),
+      options: listPieceOptions(flow, collection, picker.loose, picker.what),
+      onPick: (option) => addPiece(option.type, option.config, picker.world, picker.loose)
     }),
     request: () => ({
       title: 'Which request does it send?',
@@ -710,12 +833,7 @@ const FlowCanvas = ({ collection, flow }) => {
       options: listValueOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id)),
       emptyText: 'No other step hands out a value yet',
       custom: (text) => (typedFieldPath(text) ? listTypedFieldOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id), typedFieldPath(text)) : null),
-      onPick: (option) =>
-        edit((current) => {
-          const shown = option.addField ? addRequestField(current, option.nodeId, option.addField) : current;
-          const joined = connect(shown, { nodeId: option.nodeId, port: option.port }, { nodeId: picker.nodeId, port: picker.port });
-          return makeRoomAround(collection, joined, option.nodeId);
-        })
+      onPick: (option) => takeValue(option, { nodeId: picker.nodeId, port: picker.port })
     }),
     field: () => ({
       title: 'Which field of the response?',
@@ -775,10 +893,20 @@ const FlowCanvas = ({ collection, flow }) => {
           title: source.title,
           label: row?.label || edge.sourcePort.replace(/^field:/, '') || 'value',
           ownTitle: isNamedByUser(source.node, source.request),
-          ownLabel: !row || Boolean(row.removableField)
+          ownLabel: !row || Boolean(row.removableField),
+          color: valueColors.get(edge.source)
         });
       });
     return sources;
+  };
+
+  // An output wears the colour of its step; an input, the one of the step its value comes from.
+  const valueColorOfPort = (nodeId, port) => {
+    if (port.side === 'right') {
+      return valueColors.get(nodeId);
+    }
+    const incoming = flow.edges.find((edge) => edge.target === nodeId && edge.targetPort === port.port);
+    return incoming ? valueColors.get(incoming.source) : undefined;
   };
 
   const cableGesture = gesture?.type === 'cable' ? gesture : null;
@@ -787,7 +915,8 @@ const FlowCanvas = ({ collection, flow }) => {
     const isOrigin = cableGesture && portKey(cableGesture.from.nodeId, cableGesture.from.side, cableGesture.from.port) === key;
     const isSnap = cableGesture?.snap && portKey(cableGesture.snap.nodeId, cableGesture.snap.side, cableGesture.snap.port) === key;
     const highlight = !cableGesture ? '' : isSnap ? 'snap' : isOrigin || cableGesture.valid.has(key) ? 'valid' : 'faded';
-    return { filled: connectedPorts.has(key) || Boolean(isOrigin) || Boolean(isSnap), highlight };
+    const filled = connectedPorts.has(key) || Boolean(isOrigin) || Boolean(isSnap);
+    return { filled, highlight, color: filled && port.kind !== PORT_KIND.ORDER ? valueColorOfPort(nodeId, port) : undefined };
   };
 
   const draftCable = cableGesture
@@ -858,7 +987,9 @@ const FlowCanvas = ({ collection, flow }) => {
               run={runMarkOf(node)}
               portState={portStateOf(node.id)}
               sources={sourcesOf(node.id)}
+              contents={session.contents?.[node.id]}
               onMouseDown={onPieceMouseDown}
+              onHover={setHovered}
               onPortMouseDown={onPortMouseDown}
               onConfig={(path, value) => onConfig(node, path, value)}
               onAction={(action, payload, event) => onAction(node, action, payload, event)}
@@ -915,7 +1046,8 @@ const FlowCanvas = ({ collection, flow }) => {
         canUndo={canUndo(flow.id)}
         canRedo={canRedo(flow.id)}
         message={generalIssue?.message}
-        onAdd={() => setPicker({ kind: 'piece', position: { x: 12, y: 52 }, world: centerOfView(), loose: null })}
+        onAdd={() => openAdd(ADD.STEPS, { position: { x: 12, y: 52 }, world: centerOfView() })}
+        onAddRequest={() => openAdd(ADD.REQUESTS, { position: { x: 12, y: 52 }, world: centerOfView() })}
         onBlocks={() => (showsGallery ? closeGallery() : setGallery({ world: centerOfView(), loose: null }))}
         onSaveBlock={canSaveBlock ? () => setNamingBlock(true) : null}
         onHelp={() => setHelp((shown) => !shown)}
@@ -926,6 +1058,8 @@ const FlowCanvas = ({ collection, flow }) => {
           setView(null);
         }}
         onFit={fitView}
+        valueCablesShown={valueCables === VALUE_CABLES.ALWAYS}
+        onValueCables={() => setValueCables(valueCables === VALUE_CABLES.ALWAYS ? VALUE_CABLES.POINTED : VALUE_CABLES.ALWAYS)}
         onSave={save}
       />
       {openPicker ? (
@@ -938,6 +1072,39 @@ const FlowCanvas = ({ collection, flow }) => {
             openPicker.onPick(option);
             setPicker(null);
           }}
+        />
+      ) : null}
+      {suggest && pieces.has(suggest.nodeId) ? (
+        <div
+          className="flow-suggest flow-overlay"
+          style={{ left: suggest.position.x, top: suggest.position.y }}
+          // The box keeps the keyboard while one of these is clicked.
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          data-testid="flow-suggest"
+        >
+          <div className="flow-suggest-title">What you type is kept as text. To use a value of another step, pick it:</div>
+          {suggest.options.map((option) => (
+            <button key={option.id} type="button" className="flow-picker-option" onClick={() => acceptSuggestion(option)}>
+              <span className={`flow-picker-label ${option.translate ? '' : 'fork-no-translate'}`}>{option.label}</span>
+              <span className={`flow-picker-hint ${option.translateGroup ? '' : 'fork-no-translate'}`}>{option.group}</span>
+            </button>
+          ))}
+          {suggest.options[0].exact ? <div className="flow-suggest-key">Enter takes the first one</div> : null}
+        </div>
+      ) : null}
+      {menu ? (
+        <ContextMenu
+          position={menu.position}
+          onClose={() => setMenu(null)}
+          items={[
+            { id: 'steps', label: 'Add a step', icon: IconPlus, onPick: () => openAdd(ADD.STEPS, menu) },
+            { id: 'requests', label: 'Add a request', icon: IconSend, onPick: () => openAdd(ADD.REQUESTS, menu) },
+            { id: 'blocks', label: 'Add a block', icon: IconStack, onPick: () => openAdd(ADD.BLOCKS, menu) },
+            ...(copied?.nodes.length ? [{ id: 'paste', label: 'Paste', icon: IconClipboard, onPick: paste }] : [])
+          ]}
         />
       ) : null}
       {showsGallery ? (
@@ -976,6 +1143,9 @@ const FlowCanvas = ({ collection, flow }) => {
   return (
     <>
       {canvas}
+      {report && pieces.has(report.nodeId) ? (
+        <ReportModal title={say(pieces.get(report.nodeId).title)} flowName={flow.name} items={session.contents?.[report.nodeId] || []} onClose={() => setReport(null)} />
+      ) : null}
       {namingBlock ? (
         <SaveBlockModal
           count={selection.nodeIds.filter((id) => pieces.get(id)?.node.type !== 'start').length}

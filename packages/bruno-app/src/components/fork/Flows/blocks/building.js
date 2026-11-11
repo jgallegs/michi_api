@@ -1,5 +1,5 @@
 import { uuid } from 'utils/common';
-import { IN_PORT } from '../engine/nodes';
+import { IN_PORT, LIST_PORT } from '../engine/nodes';
 import { FLOW_VERSION } from '../model';
 import { connect, copyNodes, createNode, pasteNodes, snap, sourceKind } from '../canvas/editing';
 import { PIECES, PIECE_WIDTH, PORT_KIND } from '../canvas/pieces';
@@ -19,11 +19,15 @@ export const buildReadyBlock = (block, say = (text) => text) => {
     (graph, [from, fromPort, to, toPort]) => connect(graph, { nodeId: idOf[from], port: fromPort }, { nodeId: idOf[to], port: toPort }),
     { nodes, edges: [] }
   );
+  // A block says which list each "Add to list" fills with a cable; on the canvas that is a choice
+  // inside the step, so the cable becomes that choice.
+  const toList = joined.edges.filter((edge) => edge.targetPort === LIST_PORT);
+  const listOf = (node) => toList.find((edge) => edge.target === node.id)?.source;
   return {
     title: block.title,
     translate: true,
-    nodes,
-    edges: joined.edges,
+    nodes: nodes.map((node) => (listOf(node) ? { ...node, config: { ...node.config, list: listOf(node) } } : node)),
+    edges: joined.edges.filter((edge) => edge.targetPort !== LIST_PORT),
     entryId: nodes[0].id,
     guide: block.guide.map((point, index) => ({ id: `${block.id}:${index}`, nodeId: point.step ? idOf[point.step] : null, text: point.text, check: point.check }))
   };

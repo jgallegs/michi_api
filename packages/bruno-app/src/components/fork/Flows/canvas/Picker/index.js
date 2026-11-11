@@ -21,8 +21,9 @@ const matches = (option, words) => {
 };
 
 // Small floating list with a search box, used to pick a step, a request, a value or a field. "custom"
-// turns what was typed into more options, for choices that are not in the list.
-const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 'Nothing to choose from', custom, onPick, onClose }) => {
+// turns what was typed into more options, for choices that are not in the list. "tabs" splits what
+// can be picked into kinds, each with its own list.
+const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 'Nothing to choose from', custom, tabs, tab, onTab, onPick, onClose }) => {
   const ref = useRef(null);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -38,6 +39,9 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
     return [...all.filter(isExact), ...all.filter((option) => !isExact(option))];
   }, [options, query, custom]);
 
+  // Another tab is another list: it starts from its first option.
+  useEffect(() => setActive(0), [tab]);
+
   useEffect(() => {
     const onMouseDown = (event) => {
       if (ref.current && !ref.current.contains(event.target)) {
@@ -52,6 +56,11 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
     event.stopPropagation();
     if (event.key === 'Escape') {
       onClose();
+    } else if (event.key === 'Tab' && tabs) {
+      // Tab goes to the next kind of thing to pick, and back to the first after the last.
+      event.preventDefault();
+      const at = tabs.findIndex((item) => item.id === tab);
+      onTab(tabs[(at + (event.shiftKey ? tabs.length - 1 : 1)) % tabs.length].id);
     } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       const step = event.key === 'ArrowDown' ? 1 : -1;
@@ -72,6 +81,23 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
       data-testid="flow-picker"
     >
       {title ? <div className="flow-picker-title">{title}</div> : null}
+      {tabs ? (
+        <div className="flow-picker-tabs">
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`flow-picker-tab ${item.id === tab ? 'active' : ''}`}
+              // The search box keeps the keyboard, so what is typed next still filters the list.
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onTab(item.id)}
+              data-testid={`flow-picker-tab-${item.id}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <input
         autoFocus
         className="flow-picker-search"

@@ -1,4 +1,4 @@
-import { IN_PORT, LIST_PORT, LOOPBACK_PORT, NODE_DEFINITIONS, OUT_PORT, isLoopNode, isValueTargetPort, valuePort } from './nodes';
+import { IN_PORT, LIST_PORT, LOOPBACK_PORT, NODE_DEFINITIONS, OUT_PORT, findListOf, isLoopNode, isValueTargetPort, valuePort } from './nodes';
 
 const definitionOf = (node) => NODE_DEFINITIONS[node.type];
 
@@ -80,8 +80,9 @@ const validateNode = (flow, node) => {
   if (node.type === 'request' && !node.config?.pathname) {
     return [issue('request-not-set', 'Choose the request this step sends', node.id)];
   }
-  if (node.type === 'listappend' && !flow.edges.some((edge) => edge.target === node.id && edge.targetPort === LIST_PORT)) {
-    return [issue('list-not-connected', 'Connect this step to the list it adds to', node.id)];
+  // A cable that comes from something that is not a list has its own warning.
+  if (node.type === 'listappend' && !flow.edges.some((edge) => edge.target === node.id && edge.targetPort === LIST_PORT) && !findListOf(flow, node)) {
+    return [issue('list-not-connected', 'Choose the list this step adds to', node.id)];
   }
   if (node.type === 'foreach' && !flow.edges.some((edge) => edge.target === node.id && edge.targetPort === valuePort('list'))) {
     return [issue('list-not-chosen', 'Choose the list this step goes through', node.id)];

@@ -8,35 +8,44 @@ const ORIGIN = { x: 0, y: 0 };
 
 const fitsLooseEnd = (flow, node, request, loose) => !loose || Boolean(findFittingPort(flow, describePiece(node, flow, request), node, loose));
 
-// Steps that can be added. With the loose end of a cable, only the ones that cable can be joined to.
-export const listPieceOptions = (flow, collection, loose) => {
-  const steps = ADDABLE_PIECES.filter((type) => fitsLooseEnd(flow, createNode(type, ORIGIN), null, loose)).map((type) => ({
+// What can be added to a flow comes in three kinds, each with its own list: the steps that do
+// something, the requests of the collection and the blocks, which have their own gallery.
+export const ADD = { STEPS: 'steps', REQUESTS: 'requests', BLOCKS: 'blocks' };
+
+// A request is added from the list of requests, already chosen, so the empty one is not offered.
+const listStepOptions = (flow, loose) =>
+  ADDABLE_PIECES.filter((type) => type !== 'request' && fitsLooseEnd(flow, createNode(type, ORIGIN), null, loose)).map((type) => ({
     id: `piece:${type}`,
-    group: 'Steps',
     label: PIECES[type].title,
     translate: true,
-    translateGroup: true,
     type
   }));
-  const requests = listRequests(collection)
+
+// Grouped by folder, in the order of the collection.
+const listRequestStepOptions = (flow, collection, loose) =>
+  listRequests(collection)
     .filter(({ path }) => {
       const node = createNode('request', ORIGIN, { pathname: path });
       return fitsLooseEnd(flow, node, describeRequest(collection, node), loose);
     })
     .map(({ path, name, method, folder }) => ({
       id: `request:${path}`,
-      group: 'Requests of the collection',
-      translateGroup: true,
+      ...(folder ? { group: folder } : {}),
       label: name,
-      hint: folder,
       badge: method,
       type: 'request',
       config: { pathname: path }
     }));
-  // Blocks have their own gallery; the entry that opens it is offered wherever a block can go.
-  const blocks = !loose || canFollow(flow, loose) ? [{ id: 'blocks', group: 'Blocks', translateGroup: true, label: 'Choose a block…', translate: true, opensBlocks: true }] : [];
-  return [...steps, ...blocks, ...requests];
-};
+
+// With the loose end of a cable, only what that cable can be joined to.
+export const listPieceOptions = (flow, collection, loose, what = ADD.STEPS) =>
+  what === ADD.REQUESTS ? listRequestStepOptions(flow, collection, loose) : listStepOptions(flow, loose);
+
+export const listAddTabs = (flow, loose) => [
+  { id: ADD.STEPS, label: 'Steps' },
+  { id: ADD.REQUESTS, label: 'Requests' },
+  ...(!loose || canFollow(flow, loose) ? [{ id: ADD.BLOCKS, label: 'Blocks' }] : [])
+];
 
 export const listRequestOptions = (collection) =>
   listRequests(collection).map(({ path, name, method, folder }) => ({ id: path, label: name, hint: folder, badge: method, path }));
@@ -51,6 +60,28 @@ export const listFieldOptions = (node, request) =>
   (request?.fields || [])
     .filter((path) => !(node.config?.fields || []).includes(path))
     .map((path) => ({ id: path, label: path, path, ...originHint(request, path) }));
+
+// What to offer while someone types in the box of an input: the values of other steps called like what
+// is being typed, the ones called exactly so first. "inSpanish" gives the name an interface text has on
+// screen, so it is found in either language.
+const MAX_SUGGESTIONS = 6;
+
+export const listValueSuggestions = (options, text, inSpanish) => {
+  const wanted = String(text || '').trim().toLowerCase();
+  if (wanted.length < 2) {
+    return [];
+  }
+  const namesOf = (option) => [option.label, option.translate ? inSpanish(option.label) : ''].filter(Boolean).map((name) => name.toLowerCase());
+  const rank = (option) => {
+    const names = namesOf(option);
+    return names.includes(wanted) ? 0 : names.some((name) => name.startsWith(wanted)) ? 1 : names.some((name) => name.includes(wanted)) ? 2 : 3;
+  };
+  return options
+    .map((option) => ({ ...option, exact: rank(option) === 0, rank: rank(option) }))
+    .filter((option) => option.rank < 3)
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, MAX_SUGGESTIONS);
+};
 
 // The items a field can read from each list on its path. A position typed as a number counts from 1,
 // the way people count; the path keeps it the way the engine reads it.
