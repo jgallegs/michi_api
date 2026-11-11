@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { IconClipboard, IconPlus, IconSend, IconStack } from '@tabler/icons';
 import { useDrop } from 'react-dnd';
 import { useStore } from 'react-redux';
 import { findEnvironmentInCollection } from 'utils/collections';
@@ -16,6 +17,7 @@ import HelpPanel from '../blocks/HelpPanel';
 import SaveBlockModal from '../blocks/SaveBlockModal';
 import { discardFlowDraft, saveFlow, useFlowDirty, useFlowStale } from '../store';
 import Cables from '../canvas/Cables';
+import ContextMenu from '../canvas/ContextMenu';
 import Picker from '../canvas/Picker';
 import Piece from '../canvas/Piece';
 import Toolbar from '../canvas/Toolbar';
@@ -44,7 +46,9 @@ import {
 import { canRedo, canUndo, editFlow, forgetHistory, redo, undo } from '../canvas/history';
 import { settle, tidy } from '../canvas/layout';
 import {
+  ADD,
   isNamedByUser,
+  listAddTabs,
   listFieldOptions,
   listPieceOptions,
   listPositionOptions,
@@ -157,6 +161,7 @@ const FlowCanvas = ({ collection, flow }) => {
   const [picker, setPicker] = useState(null);
   // gallery: where the block picked from it goes (a point, the loose end of a cable). A new flow opens with it.
   const [gallery, setGallery] = useState(null);
+  const [menu, setMenu] = useState(null);
   const [startsByHand, setStartsByHand] = useState(() => startedByHand.has(flow.id));
   const [help, setHelp] = useState(false);
   const [namingBlock, setNamingBlock] = useState(false);
@@ -429,12 +434,34 @@ const FlowCanvas = ({ collection, flow }) => {
     [drop]
   );
 
-  const startPan = (event) => {
+  // Dragging moves the canvas; "onClick" is told when the button went up where it went down.
+  const startPan = (event, onClick) => {
     const origin = { x: event.clientX, y: event.clientY, view: viewRef.current };
     track(
       (move) => setView({ ...origin.view, x: origin.view.x + move.clientX - origin.x, y: origin.view.y + move.clientY - origin.y }),
-      () => {}
+      (up) => {
+        if (onClick && Math.hypot(up.clientX - origin.x, up.clientY - origin.y) < CLICK_DISTANCE) {
+          onClick(up);
+        }
+      }
     );
+  };
+
+  // Opens the list of what can be added, on one of its kinds; blocks have their own gallery.
+  const openAdd = (what, { position, world, loose = null }) => {
+    if (what === ADD.BLOCKS) {
+      setPicker(null);
+      setGallery({ world, loose });
+    } else {
+      setPicker({ kind: 'piece', what, position, world, loose });
+    }
+  };
+
+  // The right button on an empty spot offers what can be added there.
+  const openMenu = (event) => {
+    if (!event.target.closest?.('.flow-piece, .flow-toolbar, .flow-overlay')) {
+      setMenu({ position: toLocal(event), world: toWorld(event) });
+    }
   };
 
   const startBoxSelect = (event) => {
@@ -462,9 +489,10 @@ const FlowCanvas = ({ collection, flow }) => {
   const onCanvasMouseDown = (event) => {
     rootRef.current.focus();
     setPicker(null);
+    setMenu(null);
     if (event.button === 1 || event.button === 2 || (event.button === 0 && event.altKey)) {
       event.preventDefault();
-      startPan(event);
+      startPan(event, event.button === 2 ? openMenu : null);
     } else if (event.button === 0) {
       startBoxSelect(event);
     }
@@ -474,7 +502,7 @@ const FlowCanvas = ({ collection, flow }) => {
     if (event.target.closest('.flow-piece, .flow-cable, .flow-toolbar, .flow-picker')) {
       return;
     }
-    setPicker({ kind: 'piece', position: toLocal(event), world: toWorld(event), loose: null });
+    openAdd(ADD.STEPS, { position: toLocal(event), world: toWorld(event) });
   };
 
   const onPieceMouseDown = (event, node) => {
@@ -571,7 +599,7 @@ const FlowCanvas = ({ collection, flow }) => {
           setPicker({ kind: 'value', position: toLocal(up), nodeId: node.id, port: port.port });
         } else if (dragged || port.side === 'right') {
           const world = dragged ? point : { x: origin.x + 80, y: origin.y };
-          setPicker({ kind: 'piece', position: toLocal(up), world, loose: from });
+          openAdd(ADD.STEPS, { position: toLocal(up), world, loose: from });
         }
       }
     );
@@ -694,9 +722,14 @@ const FlowCanvas = ({ collection, flow }) => {
 
   const pickers = {
     piece: () => ({
-      title: picker.loose ? 'What goes here?' : 'Add a step',
-      options: listPieceOptions(flow, collection, picker.loose),
-      onPick: (option) => (option.opensBlocks ? setGallery({ world: picker.world, loose: picker.loose }) : addPiece(option.type, option.config, picker.world, picker.loose))
+      title: picker.loose ? 'What goes here?' : picker.what === ADD.REQUESTS ? 'Add a request' : 'Add a step',
+      placeholder: picker.what === ADD.REQUESTS ? 'Search a request' : 'Search a step',
+      emptyText: picker.what === ADD.REQUESTS ? 'No request fits here' : 'No step fits. Look in Requests',
+      tabs: listAddTabs(flow, picker.loose),
+      tab: picker.what,
+      onTab: (what) => openAdd(what, picker),
+      options: listPieceOptions(flow, collection, picker.loose, picker.what),
+      onPick: (option) => addPiece(option.type, option.config, picker.world, picker.loose)
     }),
     request: () => ({
       title: 'Which request does it send?',
@@ -915,7 +948,8 @@ const FlowCanvas = ({ collection, flow }) => {
         canUndo={canUndo(flow.id)}
         canRedo={canRedo(flow.id)}
         message={generalIssue?.message}
-        onAdd={() => setPicker({ kind: 'piece', position: { x: 12, y: 52 }, world: centerOfView(), loose: null })}
+        onAdd={() => openAdd(ADD.STEPS, { position: { x: 12, y: 52 }, world: centerOfView() })}
+        onAddRequest={() => openAdd(ADD.REQUESTS, { position: { x: 12, y: 52 }, world: centerOfView() })}
         onBlocks={() => (showsGallery ? closeGallery() : setGallery({ world: centerOfView(), loose: null }))}
         onSaveBlock={canSaveBlock ? () => setNamingBlock(true) : null}
         onHelp={() => setHelp((shown) => !shown)}
@@ -938,6 +972,18 @@ const FlowCanvas = ({ collection, flow }) => {
             openPicker.onPick(option);
             setPicker(null);
           }}
+        />
+      ) : null}
+      {menu ? (
+        <ContextMenu
+          position={menu.position}
+          onClose={() => setMenu(null)}
+          items={[
+            { id: 'steps', label: 'Add a step', icon: IconPlus, onPick: () => openAdd(ADD.STEPS, menu) },
+            { id: 'requests', label: 'Add a request', icon: IconSend, onPick: () => openAdd(ADD.REQUESTS, menu) },
+            { id: 'blocks', label: 'Add a block', icon: IconStack, onPick: () => openAdd(ADD.BLOCKS, menu) },
+            ...(copied?.nodes.length ? [{ id: 'paste', label: 'Paste', icon: IconClipboard, onPick: paste }] : [])
+          ]}
         />
       ) : null}
       {showsGallery ? (

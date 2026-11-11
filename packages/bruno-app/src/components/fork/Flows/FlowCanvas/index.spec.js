@@ -112,7 +112,10 @@ describe('FlowCanvas', () => {
     fireEvent.mouseUp(window);
     expect(screen.getByText('What goes here?')).toBeInTheDocument();
     expect(screen.queryByText('List', { selector: '.flow-picker-label' })).not.toBeInTheDocument();
+    expect(screen.queryByText('login', { selector: '.flow-picker-label' })).not.toBeInTheDocument();
 
+    fireEvent.click(screen.getByTestId('flow-picker-tab-requests'));
+    expect(screen.queryByText('Repeat', { selector: '.flow-picker-label' })).not.toBeInTheDocument();
     pick('login');
 
     const [, added] = current().nodes;
@@ -378,7 +381,7 @@ describe('FlowCanvas', () => {
       await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
       fireEvent.mouseDown(port('w', 'right', 'out'), { button: 0 });
       fireEvent.mouseUp(window);
-      pick('Choose a block…');
+      fireEvent.click(screen.getByTestId('flow-picker-tab-blocks'));
       fireEvent.click(screen.getByTestId('flow-block-sequence'));
 
       const first = current().nodes[2];
@@ -391,7 +394,7 @@ describe('FlowCanvas', () => {
       fireEvent.mouseDown(port('a', 'right', 'status'), { button: 0 });
       fireEvent.mouseUp(window);
       expect(screen.getByText('What goes here?')).toBeInTheDocument();
-      expect(screen.queryByText('Choose a block…')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('flow-picker-tab-blocks')).not.toBeInTheDocument();
     });
 
     it('keeps the selected steps as a block of the collection and offers it back', async () => {
@@ -494,8 +497,39 @@ describe('FlowCanvas', () => {
     it('finds a step by its name in Spanish', async () => {
       await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
       fireEvent.click(screen.getByTestId('flow-add-step'));
-      fireEvent.change(screen.getByPlaceholderText('Search'), { target: { value: 'esperar' } });
+      fireEvent.change(screen.getByPlaceholderText('Search a step'), { target: { value: 'esperar' } });
       expect(screen.getAllByText(/./, { selector: '.flow-picker-label' }).map((item) => item.textContent)).toEqual(['Wait']);
+    });
+
+    it('adds a request from its own button, without the steps in the way', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      fireEvent.click(screen.getByTestId('flow-add-request'));
+      expect(screen.getByText('Add a request')).toBeInTheDocument();
+      expect(screen.getAllByText(/./, { selector: '.flow-picker-label' }).map((item) => item.textContent)).toEqual(['login', 'get order']);
+      pick('get order');
+      expect(current().nodes[2]).toMatchObject({ type: 'request', config: { pathname: 'get order.bru' } });
+    });
+
+    it('offers what can be added with the right button, where the pointer is', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      const canvas = screen.getByTestId('flow-canvas');
+      fireEvent.mouseDown(canvas, { button: 2, clientX: 300, clientY: 400 });
+      fireEvent.mouseUp(window, { button: 2, clientX: 300, clientY: 400 });
+      expect(within(screen.getByTestId('flow-menu')).getAllByRole('button').map((item) => item.textContent)).toEqual(['Add a step', 'Add a request', 'Add a block']);
+
+      fireEvent.click(screen.getByTestId('flow-menu-blocks'));
+      expect(screen.queryByTestId('flow-menu')).not.toBeInTheDocument();
+      expect(screen.getByTestId('flow-gallery')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('flow-block-sequence'));
+      expect(current().nodes).toHaveLength(5);
+    });
+
+    it('moves the canvas instead of opening the menu when the right button drags', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      fireEvent.mouseDown(screen.getByTestId('flow-canvas'), { button: 2, clientX: 300, clientY: 400 });
+      fireEvent.mouseMove(window, { clientX: 360, clientY: 430 });
+      fireEvent.mouseUp(window, { button: 2, clientX: 360, clientY: 430 });
+      expect(screen.queryByTestId('flow-menu')).not.toBeInTheDocument();
     });
   });
 

@@ -21,8 +21,9 @@ const matches = (option, words) => {
 };
 
 // Small floating list with a search box, used to pick a step, a request, a value or a field. "custom"
-// turns what was typed into more options, for choices that are not in the list.
-const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 'Nothing to choose from', custom, onPick, onClose }) => {
+// turns what was typed into more options, for choices that are not in the list. "tabs" splits what
+// can be picked into kinds, each with its own list.
+const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 'Nothing to choose from', custom, tabs, tab, onTab, onPick, onClose }) => {
   const ref = useRef(null);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -37,6 +38,9 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
     const isExact = (option) => option.label.toLowerCase() === wanted || inSpanish(option.label, option.translate).toLowerCase() === wanted;
     return [...all.filter(isExact), ...all.filter((option) => !isExact(option))];
   }, [options, query, custom]);
+
+  // Another tab is another list: it starts from its first option.
+  useEffect(() => setActive(0), [tab]);
 
   useEffect(() => {
     const onMouseDown = (event) => {
@@ -72,6 +76,15 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
       data-testid="flow-picker"
     >
       {title ? <div className="flow-picker-title">{title}</div> : null}
+      {tabs ? (
+        <div className="flow-picker-tabs">
+          {tabs.map((item) => (
+            <button key={item.id} type="button" className={`flow-picker-tab ${item.id === tab ? 'active' : ''}`} onClick={() => onTab(item.id)} data-testid={`flow-picker-tab-${item.id}`}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <input
         autoFocus
         className="flow-picker-search"

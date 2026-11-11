@@ -2,7 +2,7 @@ jest.mock('utils/common', () => ({ uuid: () => 'uid' }));
 
 import { HEADER_HEIGHT, PIECES, PORT_KIND, ROW_HEIGHT, describePiece, findPort } from './pieces';
 import { NODE_DEFINITIONS } from '../engine/nodes';
-import { listFieldOptions, listPieceOptions, listValueOptions, titleOf } from './pickers';
+import { ADD, listAddTabs, listFieldOptions, listPieceOptions, listValueOptions, titleOf } from './pickers';
 import { describeRequest, listFieldPaths, listRequestVariables, relativeRequestPath } from './requests';
 
 const node = (id, type, config = {}, extra = {}) => ({ id, type, x: 0, y: 0, config, ...extra });
@@ -140,19 +140,25 @@ describe('flow pieces', () => {
       return { request, description: describePiece(item, flow, request) };
     };
 
-    it('offers every step and every HTTP request when adding freely', () => {
-      const options = listPieceOptions(flow, collection, null);
-      expect(options.filter((option) => option.group === 'Steps').map((option) => option.type)).toEqual(['request', 'if', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop']);
-      expect(options.filter((option) => option.config).map((option) => option.config.pathname)).toEqual(['login.bru', 'orders/get order.bru']);
+    it('offers the steps and the requests of the collection as two separate lists', () => {
+      expect(listPieceOptions(flow, collection, null).map((option) => option.type)).toEqual(['if', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop']);
+      const requests = listPieceOptions(flow, collection, null, ADD.REQUESTS);
+      expect(requests.map((option) => option.config.pathname)).toEqual(['login.bru', 'orders/get order.bru']);
+      expect(requests.map((option) => option.group)).toEqual([undefined, 'orders']);
+      expect(listAddTabs(flow, null).map((tab) => tab.id)).toEqual(['steps', 'requests', 'blocks']);
+      expect(listAddTabs(flow, { nodeId: 'a', port: 'field:session.token', side: 'right' }).map((tab) => tab.id)).toEqual(['steps', 'requests']);
     });
 
     it('offers only what the loose end of a cable can be joined to', () => {
-      const afterStart = listPieceOptions(flow, collection, { nodeId: 'start', port: 'out', side: 'right' }).map((option) => option.label);
+      const fromStart = { nodeId: 'start', port: 'out', side: 'right' };
+      const afterStart = listPieceOptions(flow, collection, fromStart).map((option) => option.label);
       expect(afterStart).not.toContain('List');
-      expect(afterStart).toEqual(expect.arrayContaining(['Repeat', 'login', 'get order']));
+      expect(afterStart).toContain('Repeat');
+      expect(listPieceOptions(flow, collection, fromStart, ADD.REQUESTS).map((option) => option.label)).toEqual(['login', 'get order']);
 
-      const forValue = listPieceOptions(flow, collection, { nodeId: 'a', port: 'field:session.token', side: 'right' }).map((option) => option.label);
-      expect(forValue).toEqual(['Repeat', 'For each item', 'Add to list', 'Set variable', 'Wait', 'Note', 'Stop', 'login', 'get order']);
+      const fromValue = { nodeId: 'a', port: 'field:session.token', side: 'right' };
+      expect(listPieceOptions(flow, collection, fromValue).map((option) => option.label)).toEqual(['Repeat', 'For each item', 'Add to list', 'Set variable', 'Wait', 'Note', 'Stop']);
+      expect(listPieceOptions(flow, collection, fromValue, ADD.REQUESTS).map((option) => option.label)).toEqual(['login', 'get order']);
     });
 
     it('offers the fields of a response that are not on the step yet', () => {

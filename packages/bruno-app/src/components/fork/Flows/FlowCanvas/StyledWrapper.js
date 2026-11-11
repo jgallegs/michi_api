@@ -424,7 +424,51 @@ const StyledWrapper = styled.div`
     box-shadow: ${(props) => props.theme.shadow.md};
     cursor: default;
   }
+  .flow-menu {
+    position: absolute;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    min-width: 190px;
+    padding: 4px;
+    color: ${(props) => props.theme.dropdown.color};
+    background: ${(props) => props.theme.dropdown.bg};
+    border: 1px solid ${(props) => props.theme.border.border1};
+    border-radius: ${(props) => props.theme.border.radius.md};
+    box-shadow: ${(props) => props.theme.shadow.md};
+    cursor: default;
+  }
+  .flow-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: none;
+    border-radius: ${(props) => props.theme.border.radius.sm};
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover { background: ${(props) => props.theme.dropdown.hoverBg}; }
+    svg { flex-shrink: 0; color: ${(props) => props.theme.dropdown.mutedText}; }
+  }
+
   .flow-picker-title { padding: 2px 4px 6px; font-weight: 600; }
+  .flow-picker-tabs { display: flex; gap: 2px; margin-bottom: 6px; border-bottom: 1px solid ${(props) => props.theme.dropdown.separator}; }
+  .flow-picker-tab {
+    padding: 4px 10px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    font: inherit;
+    color: ${(props) => props.theme.dropdown.mutedText};
+    cursor: pointer;
+
+    &:hover { color: ${(props) => props.theme.dropdown.color}; }
+    &.active { color: ${(props) => props.theme.dropdown.color}; border-bottom-color: var(--flow-order); font-weight: 600; }
+  }
   .flow-picker-search {
     height: 26px;
     padding: 0 8px;
