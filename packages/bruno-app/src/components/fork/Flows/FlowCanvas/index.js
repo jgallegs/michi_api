@@ -4,8 +4,16 @@ import { useStore } from 'react-redux';
 import { findEnvironmentInCollection } from 'utils/collections';
 import { useIsSensitiveEnvironment } from 'components/fork/SensitiveEnvironment/store';
 import toast from 'react-hot-toast';
-import { findLoopBody, findReachedNodeIds, validateFlow } from '../engine/graph';
-import { NODE_DEFINITIONS, isLoopNode } from '../engine/nodes';
+import { findLoopBody, findReachedNodeIds, findStartNode, validateFlow } from '../engine/graph';
+import { NODE_DEFINITIONS, OUT_PORT, isLoopNode } from '../engine/nodes';
+import { say } from '../language';
+import { COLUMN, buildOwnBlock, buildReadyBlock, canFollow, insertBlock, makeOwnBlock } from '../blocks/building';
+import { closeGuide, noteGuideRun, readGuide, startGuide, tickGuidePoint, useGuide } from '../blocks/guide';
+import { deleteOwnBlock, saveOwnBlock, useOwnBlocks } from '../blocks/store';
+import Gallery from '../blocks/Gallery';
+import GuidePanel from '../blocks/GuidePanel';
+import HelpPanel from '../blocks/HelpPanel';
+import SaveBlockModal from '../blocks/SaveBlockModal';
 import { discardFlowDraft, saveFlow, useFlowDirty, useFlowStale } from '../store';
 import Cables from '../canvas/Cables';
 import Picker from '../canvas/Picker';
@@ -34,7 +42,7 @@ import {
 } from '../canvas/editing';
 import { canRedo, canUndo, editFlow, forgetHistory, redo, undo } from '../canvas/history';
 import { settle, tidy } from '../canvas/layout';
-import { listFieldOptions, listPieceOptions, listRequestOptions, listValueOptions, titleOf } from '../canvas/pickers';
+import { isNamedByUser, listFieldOptions, listPieceOptions, listRequestOptions, listTypedFieldOptions, listValueOptions, titleOf } from '../canvas/pickers';
 import { HEADER_HEIGHT, PIECE_WIDTH, PORT_KIND, describePiece, findPort } from '../canvas/pieces';
 import { describeRequest, relativeRequestPath } from '../canvas/requests';
 import { defaultBends, dragBend, grabSegment, nearestSegment, routePoints, simplifyBends } from '../canvas/routing';
@@ -44,18 +52,36 @@ import StyledWrapper from './StyledWrapper';
 
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.5;
+// The smallest zoom at which a step can still be read comfortably.
+const READABLE_ZOOM = 0.8;
 const SNAP_DISTANCE = 28;
 const CLICK_DISTANCE = 4;
 const ZONE_PADDING = 16;
 const ZONE_LABEL = 22;
 const VIEW_MARGIN = 40;
 const TOOLBAR_SPACE = 70;
+// Room the guide of a block takes on the right of the canvas.
+const GUIDE_SPACE = 330;
+// Below these widths the toolbar drops the words of its buttons: the least needed first, then all but Run.
+const COMPACT_WIDTH = 1180;
+const TIGHT_WIDTH = 900;
 const REQUEST_ITEM_TYPES = ['http-request', 'graphql-request'];
 const FIELD_PATH = /^\S+$/;
 
-// Where each flow was left on screen, and the steps copied last, while the app is open.
+const GUIDE_MARK_OFFSET = 11;
+
+// Where each flow was left on screen, the steps copied last and the flows whose opening gallery was
+// closed, while the app is open.
 const viewports = new Map();
+const startedByHand = new Set();
 let copied = null;
+
+// Only for tests.
+export const resetCanvasMemory = () => {
+  viewports.clear();
+  startedByHand.clear();
+  copied = null;
+};
 
 const portKey = (nodeId, side, port) => `${nodeId}|${side}|${port}`;
 
@@ -77,6 +103,24 @@ const makeRoom = (collection, flow, looseIds) => setNodePositions(flow, settle(b
 const makeRoomAround = (collection, flow, nodeId) =>
   makeRoom(collection, flow, flow.nodes.filter((node) => node.id !== nodeId).map((node) => node.id));
 
+// The view that shows all these boxes. When they do not fit at the smallest zoom allowed, the beginning
+// stays in sight, moved just enough to show "focus", the box that matters now.
+const frameBoxes = (boxes, root, minZoom, focus) => {
+  const left = Math.min(...boxes.map((box) => box.x));
+  const top = Math.min(...boxes.map((box) => box.y));
+  const width = Math.max(...boxes.map((box) => box.x + box.width)) - left;
+  const height = Math.max(...boxes.map((box) => box.y + box.height)) - top;
+  const zoom = clamp(Math.min((root.clientWidth - 120) / width, (root.clientHeight - 160) / height), minZoom, 1);
+  const anchor = focus || { x: left, y: top };
+  const fitsAcross = width * zoom <= root.clientWidth - 2 * VIEW_MARGIN;
+  const fitsDown = height * zoom <= root.clientHeight - TOOLBAR_SPACE - VIEW_MARGIN;
+  return {
+    zoom,
+    x: fitsAcross ? (root.clientWidth - width * zoom) / 2 - left * zoom : Math.min(VIEW_MARGIN - left * zoom, root.clientWidth * 0.3 - anchor.x * zoom),
+    y: fitsDown ? (root.clientHeight - height * zoom) / 2 - top * zoom : Math.min(TOOLBAR_SPACE + 20 - top * zoom, root.clientHeight * 0.3 - anchor.y * zoom)
+  };
+};
+
 const track = (onMove, onEnd) => {
   const finish = (event) => {
     window.removeEventListener('mousemove', onMove);
@@ -96,6 +140,14 @@ const FlowCanvas = ({ collection, flow }) => {
   const [selection, setSelection] = useState({ nodeIds: [], edgeId: null });
   const [gesture, setGestureState] = useState(null);
   const [picker, setPicker] = useState(null);
+  // gallery: where the block picked from it goes (a point, the loose end of a cable). A new flow opens with it.
+  const [gallery, setGallery] = useState(null);
+  const [startsByHand, setStartsByHand] = useState(() => startedByHand.has(flow.id));
+  const [help, setHelp] = useState(false);
+  const [namingBlock, setNamingBlock] = useState(false);
+  const [width, setWidth] = useState(Infinity);
+  const ownBlocks = useOwnBlocks(collectionPath);
+  const guide = useGuide(flow.id);
   const dirty = useFlowDirty(collectionPath, flow.id);
   const stale = useFlowStale(collectionPath, flow.id);
   const store = useStore();
@@ -103,6 +155,8 @@ const FlowCanvas = ({ collection, flow }) => {
   const environment = findEnvironmentInCollection(collection, collection.activeEnvironmentUid) || null;
   const isSensitive = useIsSensitiveEnvironment(collection, environment);
   const isRunning = session.phase === RUN_PHASE.RUNNING;
+  const isNew = flow.nodes.length === 1;
+  const showsGallery = Boolean(gallery) || (isNew && !startsByHand);
   const canContinue = session.phase === RUN_PHASE.PAUSED && Boolean(session.resume);
   viewRef.current = view || { x: 0, y: 0, zoom: 1 };
 
@@ -193,13 +247,7 @@ const FlowCanvas = ({ collection, flow }) => {
       setView({ zoom: 1, x: 80 - flow.nodes[0].x, y: root.clientHeight / 2 - flow.nodes[0].y - HEADER_HEIGHT });
       return;
     }
-    const boxes = boxesOf(collection, flow);
-    const left = Math.min(...boxes.map((box) => box.x));
-    const top = Math.min(...boxes.map((box) => box.y));
-    const width = Math.max(...boxes.map((box) => box.x + box.width)) - left;
-    const height = Math.max(...boxes.map((box) => box.y + box.height)) - top;
-    const zoom = clamp(Math.min((root.clientWidth - 120) / width, (root.clientHeight - 160) / height), MIN_ZOOM, 1);
-    setView({ zoom, x: (root.clientWidth - width * zoom) / 2 - left * zoom, y: (root.clientHeight - height * zoom) / 2 - top * zoom });
+    setView(frameBoxes(boxesOf(collection, flow), root, MIN_ZOOM));
   }, [collection, flow]);
 
   useLayoutEffect(() => {
@@ -215,8 +263,21 @@ const FlowCanvas = ({ collection, flow }) => {
   }, [flow.id, view]);
 
   useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(rootRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const root = rootRef.current;
     const onWheel = (event) => {
+      // Lists and panels on top of the canvas scroll on their own.
+      if (event.target.closest?.('.flow-overlay')) {
+        return;
+      }
       event.preventDefault();
       const point = toLocal(event);
       setView((current) => {
@@ -231,7 +292,10 @@ const FlowCanvas = ({ collection, flow }) => {
   }, []);
 
   const run = useCallback(
-    (mode) => startRun({ store, collectionUid: collection.uid, collectionPath, flowId: flow.id, mode }).catch((err) => toast.error(err.message)),
+    (mode) => {
+      noteGuideRun(flow.id);
+      return startRun({ store, collectionUid: collection.uid, collectionPath, flowId: flow.id, mode }).catch((err) => toast.error(err.message));
+    },
     [store, collection.uid, collectionPath, flow.id]
   );
 
@@ -258,7 +322,8 @@ const FlowCanvas = ({ collection, flow }) => {
     const [left, top] = [box.x * zoom + x, box.y * zoom + y];
     const [right, bottom] = [left + box.width * zoom, top + box.height * zoom];
     const shift = (near, far, min, max) => (near < min ? min - near : far > max ? Math.max(max - far, min - near) : 0);
-    const [dx, dy] = [shift(left, right, VIEW_MARGIN, root.clientWidth - VIEW_MARGIN), shift(top, bottom, TOOLBAR_SPACE, root.clientHeight - VIEW_MARGIN)];
+    const rightEdge = root.clientWidth - (guide ? GUIDE_SPACE : VIEW_MARGIN);
+    const [dx, dy] = [shift(left, right, VIEW_MARGIN, rightEdge), shift(top, bottom, TOOLBAR_SPACE, root.clientHeight - VIEW_MARGIN)];
     if (dx || dy) {
       setView({ zoom, x: x + dx, y: y + dy });
     }
@@ -278,6 +343,53 @@ const FlowCanvas = ({ collection, flow }) => {
       return settled;
     });
     setSelection({ nodeIds: [node.id], edgeId: null });
+  };
+
+  const centerOfView = () => {
+    const rect = rootRef.current.getBoundingClientRect();
+    return toWorld({ clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
+  };
+
+  const closeGallery = () => {
+    startedByHand.add(flow.id);
+    setStartsByHand(true);
+    setGallery(null);
+  };
+
+  // A block hangs from the cable it was asked from or, while nothing follows Start, from Start.
+  const placeBlock = ({ kind, block }) => {
+    const built = kind === 'own' ? buildOwnBlock(block) : buildReadyBlock(block, say);
+    const start = findStartNode(flow);
+    const startIsFree = Boolean(start) && !flow.edges.some((item) => item.source === start.id && item.sourcePort === OUT_PORT);
+    const loose = gallery?.loose && canFollow(flow, gallery.loose) ? gallery.loose : null;
+    const from = loose ? { nodeId: loose.nodeId, port: loose.port } : startIsFree ? { nodeId: start.id, port: OUT_PORT } : null;
+    const free = gallery?.world || centerOfView();
+    const origin = loose ? { x: free.x, y: free.y - HEADER_HEIGHT / 2 } : startIsFree ? { x: start.x + COLUMN, y: start.y } : free;
+    const newIds = built.nodes.map((item) => item.id);
+    // The block is shown at a size that can be read, starting at the first step there is something to do on.
+    const firstId = built.guide.find((point) => point.nodeId)?.nodeId || built.entryId || newIds[0];
+    edit((current) => {
+      const settled = makeRoom(collection, insertBlock(current, built, origin, from), newIds);
+      const boxes = boxesOf(collection, settled);
+      setView(frameBoxes(boxes, rootRef.current, READABLE_ZOOM, boxes.find((item) => item.id === firstId)));
+      return settled;
+    });
+    // Nothing is left selected: a block is to be filled in, and a stray Delete would take it all away.
+    setSelection({ nodeIds: [], edgeId: null });
+    if (built.guide.length) {
+      startGuide(flow.id, { title: built.title, translate: built.translate, points: built.guide });
+    }
+    closeGallery();
+  };
+
+  const saveBlock = (name) => {
+    const block = makeOwnBlock(flow, selection.nodeIds, name);
+    setNamingBlock(false);
+    if (block) {
+      saveOwnBlock(collectionPath, block)
+        .then(() => toast.success('Block saved'))
+        .catch((err) => toast.error(err.message));
+    }
   };
 
   const [, drop] = useDrop(
@@ -509,10 +621,19 @@ const FlowCanvas = ({ collection, flow }) => {
     }
     const command = event.ctrlKey || event.metaKey;
     const key = event.key.toLowerCase();
+    const closeOnTop = () => {
+      if (help) {
+        setHelp(false);
+      } else if (showsGallery) {
+        closeGallery();
+      } else {
+        setSelection({ nodeIds: [], edgeId: null });
+      }
+    };
     const actions = {
       delete: !command && removeSelection,
       backspace: !command && removeSelection,
-      escape: !command && (() => setSelection({ nodeIds: [], edgeId: null })),
+      escape: !command && closeOnTop,
       z: command && (() => (event.shiftKey ? redo(collectionPath, flow.id) : undo(collectionPath, flow.id))),
       y: command && (() => redo(collectionPath, flow.id)),
       s: command && save,
@@ -557,7 +678,7 @@ const FlowCanvas = ({ collection, flow }) => {
     piece: () => ({
       title: picker.loose ? 'What goes here?' : 'Add a step',
       options: listPieceOptions(flow, collection, picker.loose),
-      onPick: (option) => addPiece(option.type, option.config, picker.world, picker.loose)
+      onPick: (option) => (option.opensBlocks ? setGallery({ world: picker.world, loose: picker.loose }) : addPiece(option.type, option.config, picker.world, picker.loose))
     }),
     request: () => ({
       title: 'Which request does it send?',
@@ -567,8 +688,10 @@ const FlowCanvas = ({ collection, flow }) => {
     }),
     value: () => ({
       title: 'Take the value from',
+      placeholder: 'Search or type a field, like order.id',
       options: listValueOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id)),
       emptyText: 'No other step hands out a value yet',
+      custom: (text) => (FIELD_PATH.test(text) ? listTypedFieldOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id), text) : null),
       onPick: (option) =>
         edit((current) => {
           const shown = option.addField ? addRequestField(current, option.nodeId, option.addField) : current;
@@ -619,7 +742,13 @@ const FlowCanvas = ({ collection, flow }) => {
       .forEach((edge) => {
         const source = pieces.get(edge.source);
         const row = source.description.rows.find((candidate) => candidate.right?.port === edge.sourcePort);
-        sources.set(edge.targetPort, { title: source.title, label: row?.label || edge.sourcePort.replace(/^field:/, '') || 'value' });
+        // Names people chose (a request, a field) are shown as they are; the rest follows the interface.
+        sources.set(edge.targetPort, {
+          title: source.title,
+          label: row?.label || edge.sourcePort.replace(/^field:/, '') || 'value',
+          ownTitle: isNamedByUser(source.node, source.request),
+          ownLabel: !row || Boolean(row.removableField)
+        });
       });
     return sources;
   };
@@ -645,12 +774,29 @@ const FlowCanvas = ({ collection, flow }) => {
   const box = gesture?.type === 'box' ? gesture : null;
   const current = viewRef.current;
   const generalIssue = issues.find((item) => !item.nodeId);
+  const guideNow = readGuide(guide, flow);
+  // Each step shows the number of the first point of the guide it still has to do.
+  const guideMarks = (guideNow?.points || []).filter(
+    (point, index, points) => point.nodeId && !point.done && pieces.has(point.nodeId) && points.findIndex((other) => other.nodeId === point.nodeId && !other.done) === index
+  );
+  const canSaveBlock = selection.nodeIds.some((id) => pieces.has(id) && pieces.get(id).node.type !== 'start');
 
-  return (
+  // The canvas goes by itself to the step the guide asks for next.
+  const nextPoint = guideNow?.points.find((point) => point.current && pieces.has(point.nodeId)) || null;
+  const nextPointId = nextPoint ? nextPoint.id : null;
+  const showNextRef = useRef(null);
+  showNextRef.current = nextPoint ? () => reveal(boxOf(pieces.get(nextPoint.nodeId).node)) : null;
+  useEffect(() => {
+    if (nextPointId && showNextRef.current) {
+      showNextRef.current();
+    }
+  }, [nextPointId]);
+
+  const canvas = (
     <StyledWrapper
       ref={setRoot}
       tabIndex={0}
-      className={`flow-canvas ${cableGesture ? 'connecting' : ''}`}
+      className={`flow-canvas ${cableGesture ? 'connecting' : ''} ${width < COMPACT_WIDTH ? 'compact' : ''} ${width < TIGHT_WIDTH ? 'tight' : ''}`}
       style={{ backgroundPosition: `${current.x}px ${current.y}px`, backgroundSize: `${20 * current.zoom}px ${20 * current.zoom}px` }}
       onMouseDown={onCanvasMouseDown}
       onDoubleClick={onCanvasDoubleClick}
@@ -696,6 +842,19 @@ const FlowCanvas = ({ collection, flow }) => {
             Pull a cable out of the triangle to add the first step, or drop a request from the sidebar here.
           </div>
         ) : null}
+        {guideMarks.map((point) => {
+          const at = positionOf(pieces.get(point.nodeId).node);
+          return (
+            <span
+              key={point.id}
+              className={`flow-guide-mark fork-no-translate ${point.current ? 'current' : ''}`}
+              style={{ left: at.x - GUIDE_MARK_OFFSET, top: at.y - GUIDE_MARK_OFFSET }}
+              data-testid={`flow-guide-mark-${point.nodeId}`}
+            >
+              {point.number}
+            </span>
+          );
+        })}
         {box ? (
           <div
             className="flow-selection-box"
@@ -728,11 +887,10 @@ const FlowCanvas = ({ collection, flow }) => {
         canUndo={canUndo(flow.id)}
         canRedo={canRedo(flow.id)}
         message={generalIssue?.message}
-        onAdd={() => {
-          const root = rootRef.current;
-          const center = { clientX: root.getBoundingClientRect().left + root.clientWidth / 2, clientY: root.getBoundingClientRect().top + root.clientHeight / 2 };
-          setPicker({ kind: 'piece', position: { x: 12, y: 52 }, world: toWorld(center), loose: null });
-        }}
+        onAdd={() => setPicker({ kind: 'piece', position: { x: 12, y: 52 }, world: centerOfView(), loose: null })}
+        onBlocks={() => (showsGallery ? closeGallery() : setGallery({ world: centerOfView(), loose: null }))}
+        onSaveBlock={canSaveBlock ? () => setNamingBlock(true) : null}
+        onHelp={() => setHelp((shown) => !shown)}
         onUndo={() => undo(collectionPath, flow.id)}
         onRedo={() => redo(collectionPath, flow.id)}
         onTidy={() => {
@@ -754,7 +912,50 @@ const FlowCanvas = ({ collection, flow }) => {
           }}
         />
       ) : null}
+      {showsGallery ? (
+        <Gallery
+          ownBlocks={ownBlocks}
+          startsFlow={isNew}
+          onPick={placeBlock}
+          onDeleteOwn={(blockId) => deleteOwnBlock(collectionPath, blockId).catch((err) => toast.error(err.message))}
+          onClose={closeGallery}
+        />
+      ) : null}
+      {guideNow && !showsGallery ? (
+        <GuidePanel
+          guide={guideNow}
+          onTick={(pointId) => tickGuidePoint(flow.id, pointId)}
+          onFocus={(point) => {
+            setSelection({ nodeIds: [point.nodeId], edgeId: null });
+            reveal(boxOf(pieces.get(point.nodeId).node));
+          }}
+          onClose={() => closeGuide(flow.id)}
+        />
+      ) : null}
+      {help ? (
+        <HelpPanel
+          onClose={() => setHelp(false)}
+          onShowBlocks={() => {
+            setHelp(false);
+            setGallery({ world: centerOfView(), loose: null });
+          }}
+        />
+      ) : null}
     </StyledWrapper>
+  );
+
+  // The dialog goes next to the canvas, not inside it, so its clicks and keys are its own.
+  return (
+    <>
+      {canvas}
+      {namingBlock ? (
+        <SaveBlockModal
+          count={selection.nodeIds.filter((id) => pieces.get(id)?.node.type !== 'start').length}
+          onCancel={() => setNamingBlock(false)}
+          onSubmit={saveBlock}
+        />
+      ) : null}
+    </>
   );
 };
 

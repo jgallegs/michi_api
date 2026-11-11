@@ -1,12 +1,26 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { translatePhrase } from 'components/fork/SpanishUi';
+
+// Interface words are searched in both languages, whichever one is on screen.
+const inSpanish = (text, isInterface) => (isInterface && translatePhrase(text)) || '';
 
 const matches = (option, words) => {
-  const text = `${option.label} ${option.hint || ''} ${option.group || ''} ${option.badge || ''}`.toLowerCase();
+  const text = [
+    option.label,
+    inSpanish(option.label, option.translate),
+    option.hint,
+    option.group,
+    inSpanish(option.group, option.translateGroup),
+    option.badge
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
   return words.every((word) => text.includes(word));
 };
 
 // Small floating list with a search box, used to pick a step, a request, a value or a field. "custom"
-// turns what was typed into one more option, for choices that are not in the list.
+// turns what was typed into more options, for choices that are not in the list.
 const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 'Nothing to choose from', custom, onPick, onClose }) => {
   const ref = useRef(null);
   const [query, setQuery] = useState('');
@@ -15,8 +29,12 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
   const visible = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
     const found = options.filter((option) => matches(option, words));
-    const typed = custom && query.trim() ? custom(query.trim()) : null;
-    return typed && !found.some((option) => option.id === typed.id) ? [...found, typed] : found;
+    const typed = custom && query.trim() ? [].concat(custom(query.trim()) || []) : [];
+    const all = [...found, ...typed.filter((option) => !found.some((known) => known.id === option.id))];
+    // What is called exactly like what was typed goes first, so Enter takes it.
+    const wanted = query.trim().toLowerCase();
+    const isExact = (option) => option.label.toLowerCase() === wanted || inSpanish(option.label, option.translate).toLowerCase() === wanted;
+    return [...all.filter(isExact), ...all.filter((option) => !isExact(option))];
   }, [options, query, custom]);
 
   useEffect(() => {
@@ -45,7 +63,7 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
   return (
     <div
       ref={ref}
-      className="flow-picker"
+      className="flow-picker flow-overlay"
       style={{ left: position.x, top: position.y }}
       onKeyDown={onKeyDown}
       onMouseDown={(event) => event.stopPropagation()}

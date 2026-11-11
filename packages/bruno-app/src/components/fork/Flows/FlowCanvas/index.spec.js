@@ -16,14 +16,17 @@ import { DndProvider } from 'react-dnd';
 import { Provider } from 'react-redux';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ThemeProvider } from 'styled-components';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import lightTheme from 'themes/light/light';
 import { FLOW_VERSION } from '../model';
 import { getFlow, loadFlows, resetFlowsStore, useFlow } from '../store';
 import { resetHistory } from '../canvas/history';
 import { startRun, stopRun } from '../run/controller';
 import { RUN_PHASE, patchRunSession, resetRunSessions } from '../run/session';
-import FlowCanvas from './index';
+import { resetGuides } from '../blocks/guide';
+import { resetOwnBlocks } from '../blocks/store';
+import { FORK_SETTINGS, resetForkSettingsCache, setForkSetting } from 'components/fork/settings/store';
+import FlowCanvas, { resetCanvasMemory } from './index';
 
 const COLLECTION = '/collections/shop';
 const collection = {
@@ -68,17 +71,24 @@ const open = async (flow, shown) => {
       </Provider>
     </ThemeProvider>
   );
+  // The blocks saved in the collection arrive right after the canvas is on screen.
+  await act(async () => {});
 };
 
 const current = () => getFlow(COLLECTION, 'f1');
 const port = (nodeId, side, name) => screen.getByTestId(`flow-port-${nodeId}-${side}-${name}`);
 const pick = (text) => fireEvent.click(screen.getByText(text, { selector: '.flow-picker-label' }));
+// The chip of an input that takes its value from another step: "step · value".
+const chip = (text) => screen.getByText((content, element) => element.classList.contains('flow-chip-text') && element.textContent === text);
 
 describe('FlowCanvas', () => {
   beforeEach(() => {
     resetFlowsStore();
     resetHistory();
     resetRunSessions();
+    resetGuides();
+    resetOwnBlocks();
+    resetCanvasMemory();
     startRun.mockClear();
     stopRun.mockClear();
   });
@@ -121,10 +131,33 @@ describe('FlowCanvas', () => {
 
     expect(current().edges).toHaveLength(3);
     expect(current().edges[2]).toMatchObject({ source: 'a', sourcePort: 'field:token', target: 'b', targetPort: 'var:orderId' });
-    expect(screen.getByText('login · token')).toBeInTheDocument();
+    expect(chip('login · token')).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('Disconnect'));
     expect(current().edges).toHaveLength(2);
+  });
+
+  it('takes a field nobody has seen yet by typing its name in the value picker', async () => {
+    const flow = makeFlow(
+      [node('a', 'request', 400, 120, { pathname: 'login.bru' }), node('each', 'foreach', 720, 120), node('b', 'request', 1040, 120, { pathname: 'get order.bru' })],
+      [edge('e1', 'start', 'out', 'a'), edge('e2', 'a', 'out', 'each'), edge('e3', 'each', 'body', 'b')]
+    );
+    await open(flow);
+
+    fireEvent.click(screen.getByText('Choose the list'));
+    fireEvent.change(screen.getByPlaceholderText('Search or type a field, like order.id'), { target: { value: 'orders' } });
+    fireEvent.click(screen.getAllByText('orders', { selector: '.flow-picker-label' })[0]);
+    expect(current().edges[3]).toMatchObject({ source: 'a', sourcePort: 'field:orders', target: 'each', targetPort: 'value:list' });
+    expect(current().nodes[1].config.fields).toEqual(['orders']);
+
+    fireEvent.mouseDown(port('b', 'left', 'var:orderId'), { button: 0 });
+    fireEvent.mouseUp(window);
+    fireEvent.change(screen.getByPlaceholderText('Search or type a field, like order.id'), { target: { value: 'id' } });
+    const offered = screen.getAllByText('id', { selector: '.flow-picker-label' });
+    expect(offered).toHaveLength(2);
+    fireEvent.click(offered[1]);
+    expect(current().edges[4]).toMatchObject({ source: 'each', sourcePort: 'field:item.id', target: 'b', targetPort: 'var:orderId' });
+    expect(current().nodes[2].config.fields).toEqual(['id']);
   });
 
   it('types settings into a step and undoes them from the toolbar', async () => {
@@ -167,7 +200,7 @@ describe('FlowCanvas', () => {
     pick('orders');
 
     expect(current().edges[3]).toMatchObject({ source: 'a', sourcePort: 'field:orders', target: 'each', targetPort: 'value:list' });
-    expect(screen.getByText('login · orders')).toBeInTheDocument();
+    expect(chip('login · orders')).toBeInTheDocument();
     expect(screen.queryByTestId('flow-issue-each')).not.toBeInTheDocument();
   });
 
@@ -230,6 +263,196 @@ describe('FlowCanvas', () => {
     expect(screen.queryByTestId('flow-stale')).not.toBeInTheDocument();
     expect(screen.getByTestId('flow-piece-theirs')).toBeInTheDocument();
     expect(screen.getByTestId('flow-undo')).toBeDisabled();
+  });
+
+  describe('blocks', () => {
+    const point = (number) => screen.getByTestId(`flow-guide-point-${number}`);
+
+    it('opens a new flow asking what to do, and leaves it empty when starting from scratch', async () => {
+      await open(makeFlow());
+      expect(screen.getByTestId('flow-gallery')).toHaveTextContent('What do you want to do?');
+      expect(screen.getByTestId('flow-block-retry')).toHaveTextContent('Retry until it works');
+
+      fireEvent.click(screen.getByTestId('flow-gallery-blank'));
+      expect(screen.queryByTestId('flow-gallery')).not.toBeInTheDocument();
+      expect(current().nodes).toHaveLength(1);
+      expect(screen.queryByTestId('flow-guide')).not.toBeInTheDocument();
+    });
+
+    it('does not ask on a flow that already has steps', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      expect(screen.queryByTestId('flow-gallery')).not.toBeInTheDocument();
+    });
+
+    it('drops a ready-made block after Start and guides through what is left', async () => {
+      await open(makeFlow());
+      fireEvent.click(screen.getByTestId('flow-block-pass-value'));
+
+      const [, gives, needs] = current().nodes;
+      expect([gives.type, needs.type]).toEqual(['request', 'request']);
+      expect(current().edges).toMatchObject([
+        { source: gives.id, sourcePort: 'out', target: needs.id, targetPort: 'in' },
+        { source: 'start', sourcePort: 'out', target: gives.id, targetPort: 'in' }
+      ]);
+      expect(screen.queryByTestId('flow-gallery')).not.toBeInTheDocument();
+      expect(screen.getByTestId('flow-guide')).toHaveTextContent('Use a value from one response in the next call');
+      expect(point(1)).toHaveClass('current');
+      expect(screen.getByTestId(`flow-guide-mark-${gives.id}`)).toHaveTextContent('1');
+      expect(screen.getByTestId(`flow-guide-mark-${needs.id}`)).toHaveTextContent('2');
+
+      fireEvent.click(within(screen.getByTestId(`flow-piece-${gives.id}`)).getByText('Choose a request'));
+      pick('login');
+      expect(point(1)).toHaveClass('done');
+      expect(point(2)).toHaveClass('current');
+      expect(screen.queryByTestId(`flow-guide-mark-${gives.id}`)).not.toBeInTheDocument();
+
+      fireEvent.click(within(point(3)).getByLabelText('Mark as done'));
+      expect(point(3)).toHaveClass('done');
+
+      fireEvent.click(screen.getByTestId('flow-run'));
+      expect(point(4)).toHaveClass('done');
+
+      fireEvent.click(within(point(2)).getByText('Choose the request that needs that value'));
+      expect(screen.getByTestId(`flow-piece-${needs.id}`)).toHaveClass('selected');
+
+      fireEvent.click(screen.getByTestId('flow-guide-close'));
+      expect(screen.queryByTestId('flow-guide')).not.toBeInTheDocument();
+    });
+
+    it('undoes a whole block at once', async () => {
+      await open(makeFlow());
+      fireEvent.click(screen.getByTestId('flow-block-retry'));
+      expect(current().nodes).toHaveLength(8);
+      expect(screen.getAllByText('Repeats')).toHaveLength(1);
+
+      fireEvent.click(screen.getByTestId('flow-undo'));
+      expect(current().nodes).toHaveLength(1);
+      expect(screen.queryByTestId('flow-gallery')).not.toBeInTheDocument();
+    });
+
+    it('hangs a block from the cable it was asked from', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      fireEvent.mouseDown(port('w', 'right', 'out'), { button: 0 });
+      fireEvent.mouseUp(window);
+      pick('Choose a block…');
+      fireEvent.click(screen.getByTestId('flow-block-sequence'));
+
+      const first = current().nodes[2];
+      expect(current().nodes).toHaveLength(5);
+      expect(current().edges[current().edges.length - 1]).toMatchObject({ source: 'w', sourcePort: 'out', target: first.id, targetPort: 'in' });
+    });
+
+    it('does not offer blocks where one cannot go', async () => {
+      await open(makeFlow([node('a', 'request', 400, 120, { pathname: 'login.bru' })], [edge('e1', 'start', 'out', 'a')]));
+      fireEvent.mouseDown(port('a', 'right', 'status'), { button: 0 });
+      fireEvent.mouseUp(window);
+      expect(screen.getByText('What goes here?')).toBeInTheDocument();
+      expect(screen.queryByText('Choose a block…')).not.toBeInTheDocument();
+    });
+
+    it('keeps the selected steps as a block of the collection and offers it back', async () => {
+      const flow = makeFlow([node('w', 'wait', 400, 120, { seconds: '4' })], [edge('e1', 'start', 'out', 'w')]);
+      await open(flow);
+      expect(screen.queryByTestId('flow-save-block')).not.toBeInTheDocument();
+
+      fireEvent.keyDown(screen.getByTestId('flow-canvas'), { key: 'a', ctrlKey: true });
+      fireEvent.click(screen.getByTestId('flow-save-block'));
+      expect(screen.getByTestId('flow-block-form-submit-btn')).toBeDisabled();
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Short pause' } });
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('flow-block-form-submit-btn'));
+      });
+
+      expect(window.ipcRenderer.invoke).toHaveBeenCalledWith(
+        'fork:flows:blocks:save',
+        COLLECTION,
+        expect.objectContaining({ name: 'Short pause', nodes: [expect.objectContaining({ type: 'wait', x: 0, y: 0, config: { seconds: '4' } })], edges: [] })
+      );
+      expect(screen.queryByTestId('flow-block-form')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('flow-blocks'));
+      fireEvent.click(within(screen.getByTestId('flow-own-block')).getByText('Short pause'));
+      expect(current().nodes.map((item) => [item.type, item.config.seconds])).toEqual([['start', undefined], ['wait', '4'], ['wait', '4']]);
+      expect(screen.queryByTestId('flow-guide')).not.toBeInTheDocument();
+    });
+
+    it('deletes a block of the collection after asking once more', async () => {
+      const saved = { id: 'b1', name: 'Log in', version: FLOW_VERSION, nodes: [node('n', 'wait', 0, 0)], edges: [] };
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      window.ipcRenderer.invoke.mockImplementation(async (channel) => (channel === 'fork:flows:blocks:list' ? [saved] : undefined));
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+      });
+
+      fireEvent.click(screen.getByTestId('flow-blocks'));
+      fireEvent.click(screen.getByLabelText('Delete this block'));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('flow-own-block-delete'));
+      });
+
+      expect(window.ipcRenderer.invoke).toHaveBeenCalledWith('fork:flows:blocks:delete', COLLECTION, 'b1');
+      expect(screen.queryByTestId('flow-own-block')).not.toBeInTheDocument();
+    });
+
+    it('explains the shapes and the keys, one click away', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      fireEvent.click(screen.getByTestId('flow-help-button'));
+      expect(screen.getByTestId('flow-help')).toHaveTextContent('A square is a value a step needs.');
+      expect(port('w', 'left', 'value:seconds')).toHaveAttribute('title', 'A value it needs: click to choose where it comes from');
+
+      fireEvent.click(screen.getByTestId('flow-help-blocks'));
+      expect(screen.queryByTestId('flow-help')).not.toBeInTheDocument();
+      expect(screen.getByTestId('flow-gallery')).toBeInTheDocument();
+
+      fireEvent.keyDown(screen.getByTestId('flow-canvas'), { key: 'Escape' });
+      expect(screen.queryByTestId('flow-gallery')).not.toBeInTheDocument();
+    });
+
+    it('puts first what is called exactly like what was typed', async () => {
+      const flow = makeFlow(
+        [node('a', 'request', 400, 120, { pathname: 'get order.bru', fields: ['order'] }), node('w', 'wait', 720, 120)],
+        [edge('e1', 'start', 'out', 'a'), edge('e2', 'a', 'out', 'w')]
+      );
+      await open(flow);
+      fireEvent.mouseDown(port('w', 'left', 'value:seconds'), { button: 0 });
+      fireEvent.mouseUp(window);
+      fireEvent.change(screen.getByPlaceholderText('Search or type a field, like order.id'), { target: { value: 'order' } });
+      // "Status code" and "Whole response" also match, through the name of their request.
+      expect(screen.getAllByText(/./, { selector: '.flow-picker-label' }).map((item) => item.textContent)).toEqual(['order', 'Status code', 'Whole response']);
+      fireEvent.keyDown(screen.getByPlaceholderText('Search or type a field, like order.id'), { key: 'Enter' });
+      expect(current().edges[2]).toMatchObject({ source: 'a', sourcePort: 'field:order', target: 'w', targetPort: 'value:seconds' });
+    });
+
+    it('marks what is an interface text, so the Spanish interface can translate it, and what is a name', async () => {
+      const flow = makeFlow(
+        [node('r', 'repeat', 400, 120, { times: '2' }), node('l', 'list', 400, 400, { name: 'ids' }), node('a', 'request', 720, 120, { pathname: 'get order.bru' })],
+        [edge('e1', 'start', 'out', 'r'), edge('e2', 'r', 'body', 'a'), edge('e3', 'r', 'field:index', 'a', 'var:orderId')]
+      );
+      await open(flow);
+      const [title, , label] = chip('Repeat · Round number').children;
+      expect(title).not.toHaveClass('fork-no-translate');
+      expect(label).not.toHaveClass('fork-no-translate');
+      expect(screen.getByText('List · ids')).not.toHaveClass('fork-no-translate');
+      expect(screen.getByText('get order', { selector: '.flow-piece-title' })).toHaveClass('fork-no-translate');
+    });
+
+    it('writes the choices of a step in Spanish when the interface is in Spanish', async () => {
+      setForkSetting(FORK_SETTINGS.SPANISH_UI, true);
+      try {
+        await open(makeFlow([node('i', 'if', 400, 120, { check: 'success' })], [edge('e1', 'start', 'out', 'i')]));
+        expect(screen.getByRole('option', { name: 'La respuesta es correcta' })).toBeInTheDocument();
+      } finally {
+        localStorage.clear();
+        resetForkSettingsCache();
+      }
+    });
+
+    it('finds a step by its name in Spanish', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      fireEvent.click(screen.getByTestId('flow-add-step'));
+      fireEvent.change(screen.getByPlaceholderText('Search'), { target: { value: 'esperar' } });
+      expect(screen.getAllByText(/./, { selector: '.flow-picker-label' }).map((item) => item.textContent)).toEqual(['Wait']);
+    });
   });
 
   describe('running', () => {

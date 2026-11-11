@@ -20,9 +20,11 @@ import {
   IconVariable,
   IconX
 } from '@tabler/icons';
+import { LOOPBACK_PORT } from '../../engine/nodes';
+import { say } from '../../language';
 import { PIECE_WIDTH, PORT_KIND } from '../pieces';
 
-const ICONS = {
+export const STEP_ICONS = {
   start: IconPlayerPlay,
   request: IconSend,
   if: IconArrowsSplit2,
@@ -43,7 +45,7 @@ const getIn = (container, path) => path.reduce((current, key) => current?.[key],
 
 // Order ports are triangles, values leave through circles and arrive at squares. A port is filled only
 // while a cable is connected to it.
-const PortShape = ({ kind, side, filled }) => {
+export const PortShape = ({ kind, side, filled }) => {
   const fill = filled ? 'currentColor' : 'var(--flow-port-empty)';
   const common = { fill, stroke: 'currentColor', strokeWidth: 1.5, strokeLinejoin: 'round' };
   return (
@@ -55,10 +57,22 @@ const PortShape = ({ kind, side, filled }) => {
   );
 };
 
+// What each port is for, told when the pointer rests on it.
+const PORT_TITLES = {
+  'order:right': 'What runs next: pull a cable from here',
+  'order:left': 'The step before arrives here',
+  'value:right': 'A value that comes out: pull a cable to use it in another step',
+  'value:left': 'A value it needs: click to choose where it comes from',
+  'list:right': 'The list: join it to an Add to list step, or use it as a value',
+  'list:left': 'The list it adds to: join a List here'
+};
+const LOOPBACK_TITLE = 'End of round: the last step of the round arrives here';
+
 const Port = ({ node, port, state, onMouseDown }) => (
   <span
     className={`flow-port ${port.side} ${port.kind} ${state.filled ? 'filled' : ''} ${state.highlight || ''}`}
     style={{ top: port.y - PORT_SIZE / 2 }}
+    title={port.port === LOOPBACK_PORT ? LOOPBACK_TITLE : PORT_TITLES[`${port.kind}:${port.side}`]}
     data-testid={`flow-port-${node.id}-${port.side}-${port.port}`}
     onMouseDown={port.hidden ? undefined : (event) => onMouseDown(event, node, port)}
   >
@@ -68,7 +82,11 @@ const Port = ({ node, port, state, onMouseDown }) => (
 
 const Chip = ({ source, onRemove }) => (
   <span className="flow-chip" title={`${source.title} · ${source.label}`}>
-    <span className="flow-chip-text fork-no-translate">{source.title} · {source.label}</span>
+    <span className="flow-chip-text">
+      <span className={source.ownTitle ? 'fork-no-translate' : ''}>{source.title}</span>
+      <span className="fork-no-translate"> · </span>
+      <span className={source.ownLabel ? 'fork-no-translate' : ''}>{source.label}</span>
+    </span>
     <button type="button" className="flow-icon-button" aria-label="Disconnect" title="Disconnect" onClick={onRemove}>
       <IconX size={12} strokeWidth={2} />
     </button>
@@ -153,7 +171,7 @@ const Row = ({ node, row, request, sources, onConfig, onAction }) => {
       <div className="flow-row">
         <select className="flow-select" value={getIn(node.config, control.path) ?? control.fallback} onChange={(event) => onConfig(control.path, event.target.value)}>
           {control.options.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
+            <option key={option.value} value={option.value}>{say(option.label)}</option>
           ))}
         </select>
       </div>
@@ -203,8 +221,9 @@ const RunMark = ({ run }) => (
 );
 
 const Piece = ({ node, description, request, title, position, selected, dimmed, issues, run, portState, sources, onMouseDown, onPortMouseDown, onConfig, onAction }) => {
-  const Icon = ICONS[node.type] || IconAlertCircle;
-  const hasCustomTitle = title !== description.title;
+  const Icon = STEP_ICONS[node.type] || IconAlertCircle;
+  // Only a request step is titled with a name someone chose; "List · orders" is still an interface text.
+  const hasOwnTitle = node.type === 'request' && title !== description.title;
   return (
     <div
       className={`flow-piece type-${node.type} ${selected ? 'selected' : ''} ${dimmed ? 'dimmed' : ''} ${issues.length ? 'has-issue' : ''} ${run.state ? `run-${run.state}` : ''}`}
@@ -216,7 +235,7 @@ const Piece = ({ node, description, request, title, position, selected, dimmed, 
     >
       <div className="flow-piece-header">
         <Icon size={15} strokeWidth={1.75} className="flow-piece-icon" />
-        <span className={`flow-piece-title ${hasCustomTitle ? 'fork-no-translate' : ''}`}>{title}</span>
+        <span className={`flow-piece-title ${hasOwnTitle ? 'fork-no-translate' : ''}`}>{title}</span>
         <RunMark run={run} />
         {issues.length ? (
           <span className="flow-issue" title={issues.map((item) => item.message).join('\n')} data-testid={`flow-issue-${node.id}`}>

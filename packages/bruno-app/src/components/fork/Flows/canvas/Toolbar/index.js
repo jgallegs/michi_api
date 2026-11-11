@@ -4,13 +4,16 @@ import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconDeviceFloppy,
+  IconHelp,
   IconLayoutDistributeHorizontal,
   IconMaximize,
   IconPlayerPlay,
   IconPlayerSkipForward,
   IconPlayerStop,
   IconPlayerTrackNext,
-  IconPlus
+  IconPlus,
+  IconPuzzle,
+  IconStack
 } from '@tabler/icons';
 
 const ToolButton = ({ icon: Icon, label, onClick, disabled, children, testId, className = '' }) => (
@@ -62,29 +65,38 @@ const StaleWarning = ({ onDiscard }) => (
     <span className="flow-tool-message" title="Saving replaces the version that arrived. Discard your changes to see it." data-testid="flow-stale">
       This flow changed in the collection while you were editing it
     </span>
-    <button type="button" className="flow-tool" onClick={onDiscard} data-testid="flow-discard">
+    <button type="button" className="flow-tool wordy" onClick={onDiscard} data-testid="flow-discard">
       <span>Discard my changes</span>
     </button>
   </>
 );
 
-const Toolbar = ({ run, dirty, stale, canUndo, canRedo, message, onAdd, onUndo, onRedo, onTidy, onFit, onSave, onDiscard }) => (
+const Toolbar = ({ run, dirty, stale, canUndo, canRedo, message, onAdd, onBlocks, onSaveBlock, onHelp, onUndo, onRedo, onTidy, onFit, onSave, onDiscard }) => (
   <div className="flow-toolbar" onMouseDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
     <RunTools run={run} />
-    <ToolButton icon={IconPlus} label="Add a step" onClick={onAdd} testId="flow-add-step">
+    <ToolButton icon={IconPlus} label="Add a step" onClick={onAdd} testId="flow-add-step" className="secondary">
       <span>Add step</span>
+    </ToolButton>
+    <ToolButton icon={IconStack} label="Add steps that are already built" onClick={onBlocks} testId="flow-blocks" className="secondary">
+      <span>Blocks</span>
     </ToolButton>
     <span className="flow-tool-separator" />
     <ToolButton icon={IconArrowBackUp} label="Undo" onClick={onUndo} disabled={!canUndo} testId="flow-undo" />
     <ToolButton icon={IconArrowForwardUp} label="Redo" onClick={onRedo} disabled={!canRedo} testId="flow-redo" />
-    <ToolButton icon={IconLayoutDistributeHorizontal} label="Tidy up" onClick={onTidy} testId="flow-tidy">
+    <ToolButton icon={IconLayoutDistributeHorizontal} label="Tidy up" onClick={onTidy} testId="flow-tidy" className="secondary">
       <span>Tidy up</span>
     </ToolButton>
     <ToolButton icon={IconMaximize} label="Show the whole flow" onClick={onFit} testId="flow-fit" />
+    {onSaveBlock ? (
+      <ToolButton icon={IconPuzzle} label="Keep the selected steps as a block to use again" onClick={onSaveBlock} testId="flow-save-block" className="secondary">
+        <span>Save as block</span>
+      </ToolButton>
+    ) : null}
     <span className="flow-tool-spacer" />
     {message ? <span className="flow-tool-message">{message}</span> : null}
     {stale ? <StaleWarning onDiscard={onDiscard} /> : null}
     {dirty && !stale ? <span className="flow-tool-unsaved">Unsaved changes</span> : null}
+    <ToolButton icon={IconHelp} label="How flows work" onClick={onHelp} testId="flow-help-button" />
     <ToolButton icon={IconDeviceFloppy} label="Save" onClick={onSave} disabled={!dirty} testId="flow-save">
       <span>Save</span>
     </ToolButton>
