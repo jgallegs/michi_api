@@ -48,8 +48,9 @@ const StyledWrapper = styled.div`
   }
   .flow-cable.tone-good { --flow-order: ${(props) => props.theme.status.success.text}; }
   .flow-cable.tone-bad { --flow-order: ${(props) => props.theme.status.danger.text}; }
+  /* Stepping back waits a moment, so crossing the canvas with the pointer does not make it flicker. */
   .flow-cable { transition: opacity 0.12s ease-out; }
-  .flow-cable.dim { opacity: 0.18; }
+  .flow-cable.dim { opacity: 0.22; transition-delay: 0.15s; }
   .flow-cable.order .flow-cable-line { stroke: var(--flow-order); }
   .flow-cable.value .flow-cable-line { stroke: var(--flow-value); stroke-width: 1.5; stroke-dasharray: 5 4; }
   .flow-cable.lit .flow-cable-line,

@@ -242,14 +242,14 @@ const FlowCanvas = ({ collection, flow }) => {
     })
     .filter(Boolean);
 
-  // The cables nobody shaped make room for each other. The ones of the step under the pointer, or of the
-  // selected steps, stand out and the rest step back, which is how a busy flow is followed.
+  // The cables nobody shaped make room for each other. The ones of the selected steps stand out; resting
+  // the pointer on a step also makes the rest step back, which is how a busy flow is followed.
   const lanes = spreadCables(routed.map(({ edge, start, end, bends, fixed }) => ({ id: edge.id, net: `${edge.source}|${edge.sourcePort}`, start, end, bends, fixed })));
-  const inFocus = hovered && !gesture && !moving ? [hovered] : selection.nodeIds;
-  const hasFocus = inFocus.length > 0 || Boolean(selection.edgeId);
+  const underPointer = hovered && !gesture && !moving ? [hovered] : [];
+  const touches = (nodeIds, edge) => nodeIds.includes(edge.source) || nodeIds.includes(edge.target);
   const cables = routed.map((cable) => {
     const bends = lanes.get(cable.edge.id) || cable.bends;
-    const lit = hasFocus && (cable.selected || inFocus.includes(cable.edge.source) || inFocus.includes(cable.edge.target));
+    const lit = cable.selected || touches(underPointer, cable.edge) || touches(selection.nodeIds, cable.edge);
     return {
       ...cable,
       bends,
@@ -257,7 +257,7 @@ const FlowCanvas = ({ collection, flow }) => {
       color: cable.kind === 'value' ? valueColors.get(cable.edge.source) : undefined,
       tone: cable.kind === 'order' ? BRANCH_TONES[cable.edge.sourcePort] : undefined,
       lit,
-      dim: hasFocus && !lit
+      dim: underPointer.length > 0 && !cable.selected && !touches(underPointer, cable.edge)
     };
   });
 

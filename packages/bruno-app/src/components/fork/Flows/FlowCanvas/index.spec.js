@@ -239,7 +239,12 @@ describe('FlowCanvas', () => {
       fireEvent.mouseDown(screen.getByTestId('flow-cable-e3').querySelector('.flow-cable-grab'), { button: 0 });
       fireEvent.mouseUp(window);
       expect(cable('e3')).toHaveClass('lit');
-      expect(cable('e4')).toHaveClass('dim');
+      expect(cable('e4')).not.toHaveClass('dim');
+
+      fireEvent.mouseDown(screen.getByTestId('flow-piece-b').querySelector('.flow-piece-header'), { button: 0 });
+      fireEvent.mouseUp(window);
+      expect(cable('e5')).toHaveClass('lit');
+      expect(cable('e1')).not.toHaveClass('lit', 'dim');
     });
   });
 
