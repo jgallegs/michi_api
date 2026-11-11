@@ -1,7 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { IconCopy, IconDownload } from '@tabler/icons';
+import { IconBarcode, IconCopy, IconDownload } from '@tabler/icons';
 import Modal from 'components/Modal';
+import BarcodeModal from 'components/fork/Barcodes/BarcodeModal';
+import { barcodesOfItems, describeColumns } from 'components/fork/Barcodes/fromItems';
+import { FORK_SETTINGS, useForkSetting } from 'components/fork/settings/store';
 import { say } from '../../language';
 import { copyReport, saveAsFile, toHtmlPage } from '../export';
 import { buildReport } from '../table';
@@ -17,6 +20,16 @@ const ReportModal = ({ title, flowName, items, counted = ['item', 'items'], onCl
   const subtitle = `${flowName} · ${report.count} ${say(report.count === 1 ? counted[0] : counted[1])} · ${new Date().toLocaleString()}`;
   const reach = {};
 
+  // Barcodes of what the list holds: the columns that look like codes are drawn from the start, and
+  // the others can be added.
+  const barcodesOn = useForkSetting(FORK_SETTINGS.BARCODES);
+  const columns = useMemo(() => (barcodesOn ? describeColumns(items, report.columns) : []), [barcodesOn, items, report]);
+  const [showBarcodes, setShowBarcodes] = useState(false);
+  const [picked, setPicked] = useState(null);
+  const chosen = useMemo(() => picked || columns.filter((column) => column.code).map((column) => column.path), [picked, columns]);
+  const barcodes = useMemo(() => (showBarcodes ? barcodesOfItems(items, chosen) : []), [showBarcodes, items, chosen]);
+  const toggleColumn = (path) => setPicked(chosen.includes(path) ? chosen.filter((item) => item !== path) : columns.map((column) => column.path).filter((item) => item === path || chosen.includes(item)));
+
   const copy = () =>
     copyReport(report, numberTitle)
       .then(() => toast.success('Report copied'))
@@ -28,6 +41,19 @@ const ReportModal = ({ title, flowName, items, counted = ['item', 'items'], onCl
       .then(() => toast.success('Copied'))
       .catch(() => toast.error('The report could not be copied'));
 
+  if (showBarcodes) {
+    return (
+      <BarcodeModal
+        title="Barcodes of the list"
+        subtitle={`${title} · ${subtitle}`}
+        barcodes={barcodes}
+        columns={columns.map((column) => ({ ...column, selected: chosen.includes(column.path) }))}
+        onToggleColumn={toggleColumn}
+        onClose={() => setShowBarcodes(false)}
+      />
+    );
+  }
+
   return (
     <Modal size="xl" title="Report" hideFooter handleCancel={onClose} dataTestId="flow-report">
       <StyledWrapper>
@@ -36,6 +62,12 @@ const ReportModal = ({ title, flowName, items, counted = ['item', 'items'], onCl
             <div className="flow-report-title fork-no-translate">{title}</div>
             <div className="flow-report-subtitle fork-no-translate">{subtitle}</div>
           </div>
+          {columns.some((column) => column.code) ? (
+            <button type="button" className="flow-report-action" onClick={() => setShowBarcodes(true)} data-testid="flow-report-barcodes">
+              <IconBarcode size={15} strokeWidth={1.75} />
+              <span>Barcodes</span>
+            </button>
+          ) : null}
           <button type="button" className="flow-report-action" onClick={copy} data-testid="flow-report-copy">
             <IconCopy size={15} strokeWidth={1.75} />
             <span>Copy table</span>

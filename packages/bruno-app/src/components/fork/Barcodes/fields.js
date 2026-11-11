@@ -3,6 +3,7 @@
 //   michi.barcodes = shipmentNumber, parcels.code
 // A field inside a list gives one barcode per item; "parcels.0.code" or "parcels[0].code" gives one.
 export const BARCODE_VARIABLE = 'michi.barcodes';
+export const BARCODE_CLEAR_VARIABLE = 'michi.barcodes.clear';
 export const MAX_BARCODES = 100;
 const MAX_VALUE_LENGTH = 200;
 
@@ -100,15 +101,15 @@ export const collectBarcodes = (data, paths) => {
 
 const enabledVars = (vars) => (Array.isArray(vars) ? vars : []).filter((variable) => variable && variable.enabled !== false);
 
-const valueIn = (vars) => {
-  const found = enabledVars(vars).find((variable) => variable.name === BARCODE_VARIABLE);
+const valueIn = (vars, name) => {
+  const found = enabledVars(vars).find((variable) => variable.name === name);
   return found && typeof found.value === 'string' && found.value.trim() ? found.value : null;
 };
 
 // The variable of the request wins over the one of its folder, the nearest folder over the ones above
 // it, and all of them over the one of the collection. "path" goes from the outermost folder to the request.
-export const barcodeFieldsFor = (collection, path = []) => {
-  const levels = [...path].reverse().map((item) => {
+const readVariable = (collection, path, name) => {
+  const levels = [...(path || [])].reverse().map((item) => {
     if (!item) {
       return null;
     }
@@ -119,10 +120,23 @@ export const barcodeFieldsFor = (collection, path = []) => {
   });
   levels.push((collection?.draft?.root || collection?.root)?.request?.vars?.req);
   for (const vars of levels) {
-    const value = valueIn(vars);
+    const value = valueIn(vars, name);
     if (value !== null) {
-      return parseBarcodeFields(value);
+      return value;
     }
   }
-  return [];
+  return '';
 };
+
+export const barcodeFieldsFor = (collection, path = []) => parseBarcodeFields(readVariable(collection, path, BARCODE_VARIABLE));
+
+// Session variables (the ones scripts set with bru.setVar) to forget when the session is cleared, for a
+// collection whose scripts keep their own list of what was created.
+export const sessionVariablesFor = (collection, path = []) => [
+  ...new Set(
+    readVariable(collection, path, BARCODE_CLEAR_VARIABLE)
+      .split(/[,;\n]/)
+      .map((name) => name.trim())
+      .filter(Boolean)
+  )
+];

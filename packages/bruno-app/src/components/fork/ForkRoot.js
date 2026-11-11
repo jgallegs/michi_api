@@ -6,6 +6,7 @@ import { installSpanishUi } from 'components/fork/SpanishUi';
 import { installVisualizationsListener } from 'components/fork/Visualizations/store';
 import { installFlowsReload } from 'components/fork/Flows/store';
 import { installKnownFields } from 'components/fork/Flows/fields/watch';
+import { installBarcodeSession } from 'components/fork/Barcodes/watch';
 
 // Single mount point for the fork inside the app providers: installs the editor add-ons once and
 // renders the fork's global UI.
@@ -17,6 +18,7 @@ const ForkRoot = () => {
   useEffect(() => installVisualizationsListener(), []);
   useEffect(() => installFlowsReload(), []);
   useEffect(() => installKnownFields(store), [store]);
+  useEffect(() => installBarcodeSession(store), [store]);
   return <SensitiveEnvironmentConfirmHost />;
 };
 

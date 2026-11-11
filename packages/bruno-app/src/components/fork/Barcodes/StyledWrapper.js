@@ -13,9 +13,72 @@ const StyledWrapper = styled.div`
   }
 
   .link {
-    margin-left: auto;
     font-weight: 600;
     text-decoration: underline;
+  }
+
+  .bar-session {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-left: auto;
+  }
+
+  .barcode-columns {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .barcode-columns button {
+    padding: 0.1rem 0.55rem;
+    border: 1px solid ${(props) => props.theme.status.info.border};
+    border-radius: 999px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    opacity: 0.75;
+  }
+
+  .barcode-columns button[aria-pressed='true'] {
+    opacity: 1;
+    font-weight: 600;
+    color: ${(props) => props.theme.status.info.text};
+    background: ${(props) => props.theme.status.info.background};
+  }
+
+  .barcode-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: auto;
+  }
+
+  .barcode-caption {
+    margin: 1.75rem 0 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid ${(props) => props.theme.status.info.border};
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .barcode-caption:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .barcode-caption + .barcode {
+    margin-top: 0;
+  }
+
+  .barcode-empty {
+    padding: 2rem 0;
+    text-align: center;
+    font-size: 0.8125rem;
+    opacity: 0.7;
   }
 
   .barcode-tools {
@@ -64,10 +127,6 @@ const StyledWrapper = styled.div`
     min-width: 3.5rem;
     text-align: center;
     font-variant-numeric: tabular-nums;
-  }
-
-  .barcode-all {
-    margin-left: auto;
   }
 
   .barcode-list {
