@@ -29,7 +29,7 @@ Para empezar a usarla sin leer todo esto está la [guía rápida](flows-guia.md)
 | Repeat | Repite lo que cuelga de *On each round* las veces indicadas. Lo que repite queda dentro de un marco. La vuelta termina cuando el camino se acaba o cuando llega a *End of round* |
 | For each item | Como Repeat, pero da una vuelta por cada elemento de una lista: una lista del flow o un campo de una respuesta que sea una lista. En cada vuelta entrega el elemento (*Item*), los campos suyos que se añadan con *Add a field* y el número de vuelta |
 | Leave loop | Termina el bucle en el que está, aunque le queden vueltas, y el flow sigue por su *When finished*. Sirve para reintentar hasta que algo funcione o esperar a que un proceso termine. Fuera de un bucle lleva un aviso y el flow no se ejecuta |
-| List y Add to list | Una lista que se va llenando, con un valor o con varios campos por vuelta. Se puede usar después del bucle |
+| List y Add to list | Una lista que se va llenando, con un valor o con varios campos por vuelta. Se puede usar después del bucle. El paso **List** enseña dentro lo que va guardando y abre su informe (ver [El informe de una lista](#el-informe-de-una-lista)) |
 | Set variable | Guarda un valor con un nombre para usarlo en pasos posteriores como `{{nombre}}` |
 | Wait | Espera unos segundos |
 | Note | Escribe un mensaje en la salida y sigue |
@@ -50,6 +50,26 @@ La lista de **Add a field**, y la de valores de otros pasos, ofrece los campos d
 Lo que no aparece se puede escribir a mano, también como en los scripts: `pedidos[2].id`.
 
 **Listas.** Un campo que pasa por una lista lee, si no se dice otra cosa, el primer elemento. En su fila sale una ficha con el elemento que lee (`#1`); al pulsarla se elige **The first item**, **The last item** o se escribe una posición contando desde 1. Una lista entera se entrega tal cual (`all`) y también se puede pedir uno solo de sus elementos. Para pasar por todos está el paso **For each item**.
+
+### Texto o valor de otro paso
+
+Lo que se escribe en la caja de una entrada es texto tal cual: escribir `token` guarda la palabra, no el campo. Para usar un valor de otro paso hay que unirlo, y entonces la caja se convierte en una ficha con el paso del que viene. Como lo natural es escribir el nombre, mientras se escribe sale debajo una lista con los valores de otros pasos que se llaman así; se elige con el ratón o, si el nombre coincide entero, con `Enter`.
+
+Al cambiar un ajuste que quita entradas o salidas de un paso (pasar **Add to list** de *One value* a *Several fields*, por ejemplo), los cables que llegaban a ellas se quitan también.
+
+### El informe de una lista
+
+El paso **List** tiene dentro un recuadro con lo que guarda después de la última ejecución, una línea por elemento, que se va llenando mientras el flow se ejecuta. El texto se puede seleccionar y copiar.
+
+**View report** abre lo mismo como una tabla para leer: una fila por elemento y una columna por campo. Un campo que es a su vez una lista (los bultos de un envío) se abre en tantas filas como tenga, y los campos de alrededor las abarcan, de modo que cada elemento queda junto a lo suyo.
+
+| Botón | Qué hace |
+|---|---|
+| **Copy table** | Copia la tabla para pegarla en una hoja de cálculo, un correo o un documento |
+| **Copy as JSON** | Copia los datos tal como están en la lista |
+| **Save as HTML** | Guarda el informe como una página suelta, con su título, el flow, la fecha y la tabla |
+
+Lo que enseña es lo de la última ejecución y vive mientras la app está abierta; no se guarda en la colección.
 
 ### Los bloques
 
@@ -143,6 +163,7 @@ Todo el código está en `packages/bruno-app/src/components/fork/Flows/` y en `p
 | `fields/` | Qué campos tiene la respuesta de una petición antes de enviarla: rutas y posiciones en listas (`paths.js`), lectura de documentos OpenAPI (`spec.js`), lectura de los scripts como texto (`script.js`), lo recordado entre sesiones (`memory.js`) y el observador que anota cada respuesta que llega (`watch.js`, instalado desde `ForkRoot`) |
 | `FlowCanvas/` | El componente que junta lo anterior: selección, arrastres, zoom, teclado y soltar desde la barra lateral |
 | `blocks/` | Los bloques: el catálogo de los que trae Michi (`catalog.js`), cómo se montan, se insertan y se guardan los propios (`building.js`), la guía y cómo sabe que un punto está hecho (`guide.js`), los bloques de cada colección (`store.js`) y los componentes `Gallery`, `GuidePanel`, `HelpPanel` y `SaveBlockModal` |
+| `report/` | El informe de una lista: de los datos a filas y columnas (`table.js`), a texto, tabla y página HTML (`export.js`), y la ventana `ReportModal` |
 | `run/` | La ejecución en la app: `host.js` envía cada petición con `sendNetworkRequest`, como hace Bruno; `controller.js` pide la confirmación de entorno sensible y traduce los eventos del motor; `session.js` guarda el estado de cada ejecución y la salida; `OutputPanel/` la pinta |
 
 - Un flow es un JSON con `nodes` (tipo, posición y ajustes) y `edges` (de qué puerto a qué puerto, y los codos si se les ha dado forma).

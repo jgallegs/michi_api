@@ -93,6 +93,10 @@ Es lo que más se hace: el token del login, el id de lo que se acaba de crear.
 
 El paso enseña de dónde toma el valor en una ficha, y se quita con su aspa.
 
+> **Ojo:** lo que escribes dentro de la caja es texto tal cual. Si escribes `token`, el paso usa la palabra «token», no el campo. Mientras escribes, Michi te ofrece debajo los valores que se llaman así: elígelo ahí, o pulsa `Intro` si el nombre coincide, y la caja se convierte en ficha.
+
+![Al escribir el nombre de un campo, se ofrece conectarlo](../img/flows-sugerencia.png)
+
 ![Valores que pasan de un paso a otro](../img/flows-valores.png)
 
 ## Coger un dato concreto de la respuesta
@@ -125,6 +129,22 @@ Hay servicios que contestan 200 y dentro traen un código que dice que no se hiz
 Dentro de un **Repetir**, si de **No válido** no cuelga nada, esa vuelta se acaba ahí y empieza la siguiente: la respuesta mala no se guarda y el flow sigue.
 
 ![Una ejecución en la que Validar deja fuera la respuesta que traía un error](../img/flows-validar.png)
+
+## Ver y sacar lo que se ha generado
+
+Cuando un flow guarda cosas en una **Lista** (los envíos creados, por ejemplo), la propia caja de la Lista enseña lo que va entrando, una línea por elemento, mientras se ejecuta.
+
+Para verlo bien y llevártelo, pulsa **Ver informe** en la Lista. Sale una tabla con una fila por elemento; si un elemento tiene dentro una lista, como los bultos de un envío, salen debajo, cada uno en su fila.
+
+![El informe de una lista, con cada envío y sus bultos](../img/flows-informe.png)
+
+| Botón | Para qué |
+|---|---|
+| **Copiar tabla** | Pegarla en Excel, en un correo o en Teams |
+| **Copiar como JSON** | Llevarte los datos tal cual |
+| **Guardar como HTML** | Tener el informe en un fichero para guardarlo o enviarlo |
+
+El informe es de la última ejecución. Si cierras Michi se pierde, así que guárdalo o cópialo antes.
 
 ## Ejecutar
 
