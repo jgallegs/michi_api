@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { flowsApi } from '../api';
+import { onCollectionFileChange } from '../fileChanges';
 import { FLOW_VERSION, isValidFlowName } from '../model';
 
 // The blocks a team saved in each open collection, read from .michi.json ("flowBlocks"). They are small
@@ -7,7 +8,7 @@ import { FLOW_VERSION, isValidFlowName } from '../model';
 const NONE = [];
 const entries = new Map();
 const listeners = new Set();
-let watchesFocus = false;
+let stopWatching = null;
 
 const emit = () => listeners.forEach((listener) => listener());
 
@@ -43,6 +44,25 @@ export const loadOwnBlocks = async (collectionPath) => {
 
 const reloadAll = () => [...entries.keys()].forEach(loadOwnBlocks);
 
+const reloadIfKnown = (collectionPath) => {
+  if (entries.has(collectionPath)) {
+    loadOwnBlocks(collectionPath);
+  }
+};
+
+// A git pull can bring blocks other people saved, and the file can be written from outside the app.
+const watchChanges = () => {
+  if (stopWatching) {
+    return;
+  }
+  const stopListening = onCollectionFileChange(reloadIfKnown);
+  window.addEventListener('focus', reloadAll);
+  stopWatching = () => {
+    window.removeEventListener('focus', reloadAll);
+    stopListening();
+  };
+};
+
 export const useOwnBlocks = (collectionPath) => {
   const blocks = useSyncExternalStore(subscribe, () => getOwnBlocks(collectionPath));
 
@@ -50,11 +70,7 @@ export const useOwnBlocks = (collectionPath) => {
     if (collectionPath && !entries.has(collectionPath)) {
       loadOwnBlocks(collectionPath);
     }
-    // A git pull can bring blocks other people saved.
-    if (!watchesFocus) {
-      watchesFocus = true;
-      window.addEventListener('focus', reloadAll);
-    }
+    watchChanges();
   }, [collectionPath]);
 
   return blocks;
@@ -73,6 +89,10 @@ export const deleteOwnBlock = async (collectionPath, blockId) => {
 
 // Only for tests.
 export const resetOwnBlocks = () => {
+  if (stopWatching) {
+    stopWatching();
+    stopWatching = null;
+  }
   entries.clear();
   emit();
 };

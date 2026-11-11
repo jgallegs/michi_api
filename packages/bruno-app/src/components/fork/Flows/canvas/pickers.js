@@ -1,4 +1,5 @@
-import { fieldPort, itemFieldPort } from '../engine/nodes';
+import { FIELD_PORT_PREFIX, fieldPort, findListOf, itemFieldPort, valuePort } from '../engine/nodes';
+import { plainFieldPath } from '../fields/paths';
 import { canFollow } from '../blocks/building';
 import { canConnect, createNode, findFittingPort } from './editing';
 import { ADDABLE_PIECES, PIECES, PORT_KIND, describePiece } from './pieces';
@@ -101,7 +102,13 @@ export const listPositionOptions = (levels) =>
     positionOption(level, levels.length > 1, 'The last item', -1)
   ]);
 
+// "3" is the third item; "state=open" is the first one whose state is open.
 export const listTypedPositionOptions = (levels, text) => {
+  const where = /^([\w-]+)\s*=\s*(.+)$/.exec(text);
+  if (where) {
+    const pick = { key: where[1], value: where[2].trim() };
+    return levels.map((level) => ({ ...positionOption(level, levels.length > 1, `The one whose ${pick.key} is ${pick.value}`, pick), id: `${level.list}:where` }));
+  }
   const position = /^\d{1,6}$/.test(text) ? Number(text) : 0;
   return position > 0 ? levels.map((level) => positionOption(level, levels.length > 1, `Item number ${position}`, position - 1)) : null;
 };
@@ -116,6 +123,33 @@ export const titleOf = (node, request) => {
   const named = ['list', 'setvalue'].includes(node.type) && node.config?.name;
   return named ? `${PIECES[node.type].title} · ${node.config.name}` : PIECES[node.type]?.title || node.type;
 };
+
+// The fields the items of a "For each item" step have, as far as they can be told before running: from
+// the field of a response its list comes from, from what a List of the flow is filled with, or from the
+// columns of a table.
+export const listItemFields = (flow, node, describe) => {
+  const cable = flow.edges.find((edge) => edge.target === node.id && edge.targetPort === valuePort('list'));
+  const source = cable ? flow.nodes.find((candidate) => candidate.id === cable.source) : null;
+  if (!source) {
+    return [];
+  }
+  if (source.type === 'request') {
+    const path = plainFieldPath(String(cable.sourcePort).slice(FIELD_PORT_PREFIX.length));
+    const prefix = path ? `${path}.` : '';
+    return (describe(source)?.request?.fields || []).filter((field) => field.startsWith(prefix) && field.length > prefix.length).map((field) => field.slice(prefix.length));
+  }
+  if (source.type === 'list') {
+    const keys = flow.nodes
+      .filter((candidate) => candidate.type === 'listappend' && candidate.config?.mode === 'object' && findListOf(flow, candidate)?.id === source.id)
+      .flatMap((adder) => (adder.config.fields || []).map((field) => field.key));
+    return [...new Set(keys.filter(Boolean))];
+  }
+  return source.type === 'table' ? source.config?.columns || [] : [];
+};
+
+const notShown = (node, paths) => paths.filter((path) => !(node.config?.fields || []).includes(path));
+
+export const listItemFieldOptions = (flow, node, describe) => notShown(node, listItemFields(flow, node, describe)).map((path) => ({ id: path, label: path, path }));
 
 // A field nobody has seen yet, because its request has not been sent, can be typed by name: it is
 // offered on every step that hands out fields.
@@ -140,9 +174,14 @@ export const listValueOptions = (flow, target, describe) =>
       const group = { group: titleOf(node, request), translateGroup: !isNamedByUser(node, request) };
       const shown = description.rows
         .filter((row) => row.right && row.right.kind !== PORT_KIND.ORDER && fits(row.right.port))
-        .map((row) => ({ id: `${node.id}:${row.right.port}`, ...group, label: row.label, translate: !row.removableField, nodeId: node.id, port: row.right.port }));
+        .map((row) => ({ id: `${node.id}:${row.right.port}`, ...group, label: row.label, translate: !row.removableField && !row.own, nodeId: node.id, port: row.right.port }));
       const hidden = listFieldOptions(node, request)
         .filter(({ path }) => fits(fieldPort(path)))
         .map(({ path, hint, translateHint }) => ({ id: `${node.id}:${fieldPort(path)}`, ...group, label: path, hint, translateHint, nodeId: node.id, port: fieldPort(path), addField: path }));
-      return [...shown, ...hidden];
+      const ofItem = node.type === 'foreach'
+        ? notShown(node, listItemFields(flow, node, describe))
+            .filter((path) => fits(itemFieldPort(path)))
+            .map((path) => ({ id: `${node.id}:${itemFieldPort(path)}`, ...group, label: path, nodeId: node.id, port: itemFieldPort(path), addField: path }))
+        : [];
+      return [...shown, ...hidden, ...ofItem];
     });

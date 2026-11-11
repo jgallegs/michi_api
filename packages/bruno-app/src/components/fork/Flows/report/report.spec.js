@@ -1,5 +1,6 @@
 import { toHtmlPage, toHtmlTable, toTsv } from './export';
 import { buildReport, summarize, toGrid } from './table';
+import { buildRunItems, entriesOfRun } from './runReport';
 
 const shipments = [
   { shipment: 'E1', parcels: [{ order: '01', code: 'E1-B1' }, { order: '02', code: 'E1-B2' }] },
@@ -60,6 +61,27 @@ describe('flow report', () => {
     const page = toHtmlPage(buildReport(shipments), { title: 'List · <Final>', subtitle: '2 items', numberTitle: '#' });
     expect(page).toContain('<h1>List · &lt;Final&gt;</h1>');
     expect(page.startsWith('<!DOCTYPE html>')).toBe(true);
+  });
+
+  it('turns the output of one run into the rows of a report', () => {
+    const word = (text) => ({ text, translate: true });
+    const log = [
+      { id: 1, flowId: 'a', kind: 'header', label: { text: 'First' }, parts: ['Local'], time: 0 },
+      { id: 2, flowId: 'a', kind: 'step', label: { text: 'login' }, parts: ['200 OK', '·', '12 ms'], time: 0 },
+      { id: 3, flowId: 'b', kind: 'header', label: { text: 'Other' }, parts: [], time: 0 },
+      { id: 4, flowId: 'b', kind: 'step', label: word('Wait'), parts: ['1 s'], time: 0 },
+      { id: 5, flowId: 'a', kind: 'end', parts: [word('Finished')], time: 0 },
+      { id: 6, flowId: 'a', kind: 'header', label: { text: 'First' }, parts: ['Local'], time: 0 },
+      { id: 7, flowId: 'a', kind: 'step', label: { text: 'login' }, parts: ['500'], time: 0 }
+    ];
+    expect(entriesOfRun(log, 1).map((entry) => entry.id)).toEqual([2, 5]);
+    expect(entriesOfRun(log, 6).map((entry) => entry.id)).toEqual([7]);
+    expect(entriesOfRun(log, 99)).toEqual([]);
+
+    const spanish = (text) => ({ Finished: 'Terminado', Wait: 'Esperar' })[text] || text;
+    const names = { step: 'Paso', result: 'Resultado', time: 'Hora' };
+    expect(buildRunItems(entriesOfRun(log, 1), spanish, names).map((item) => [item.Paso, item.Resultado])).toEqual([['login', '200 OK · 12 ms'], ['', 'Terminado']]);
+    expect(buildRunItems(entriesOfRun(log, 3), spanish, names)[0]).toMatchObject({ Paso: 'Esperar', Resultado: '1 s' });
   });
 
   it('sums an item up in a line for the step', () => {

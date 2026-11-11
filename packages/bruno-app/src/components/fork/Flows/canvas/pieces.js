@@ -9,6 +9,7 @@ import {
   fieldPort,
   findListOf,
   itemFieldPort,
+  questionsOf,
   valuePort,
   variablePort
 } from '../engine/nodes';
@@ -45,6 +46,7 @@ export const OPERATOR_LABELS = {
 const CHECK_OPTIONS = [
   { value: 'success', label: 'The response is OK' },
   { value: 'status', label: 'The status code is' },
+  { value: 'tests', label: 'The tests of the response pass' },
   { value: 'compare', label: 'Two values compare' }
 ];
 
@@ -93,6 +95,52 @@ const fieldRow = (path, port, lists) => {
     removableField: path,
     ...(positions.length ? { shownLabel: plainFieldPath(path), positions } : {})
   };
+};
+
+// Start asks what the flow needs before it runs: each question is a value it hands out. "own" marks
+// a name someone wrote, which is shown as it is.
+const startRows = (node) => [
+  ...(node.config?.questions || []).map((question, index) => ({
+    id: `q:${question.id}`,
+    label: question.name || 'Question',
+    own: Boolean(question.name),
+    right: value(fieldPort(question.id)),
+    control: { type: 'question', namePath: ['questions', index, 'name'], valuePath: ['questions', index, 'value'] },
+    removableIndex: index
+  })),
+  { id: 'add-question', action: 'add-question', label: 'Ask before running' }
+];
+
+// A table of data written in the flow, to go through with "For each item".
+const tablePieceRows = (node) => [
+  { id: 'summary', label: `${(node.config?.rows || []).length} rows, ${(node.config?.columns || []).length} columns` },
+  { id: 'edit', action: 'edit-table', label: 'Edit the data', icon: 'table' },
+  { id: 'items', label: 'Rows', right: { port: fieldPort('items'), kind: PORT_KIND.LIST } },
+  { id: 'length', label: 'How many', right: value(fieldPort('length')) }
+];
+
+// What a flow leaves with a name, which is what a step that runs it can hand out.
+export const namesHandedOut = (inner) =>
+  unique([...questionsOf(inner).map((question) => question.name), ...inner.nodes.filter((node) => ['setvalue', 'list'].includes(node.type)).map((node) => node.config?.name)].filter(Boolean));
+
+// Runs another flow of the collection: its questions are the inputs and what it names, the outputs.
+const flowRows = (node, flow, request, { flows = [] } = {}) => {
+  const others = flows.filter((other) => other.id !== flow.id);
+  const inner = others.find((other) => other.id === node.config?.flowId) || null;
+  const options = [...(inner ? [] : [{ value: '', label: 'Choose a flow' }]), ...others.map((other) => ({ value: other.id, label: other.name, own: true }))];
+  return [
+    { id: 'flow', control: { type: 'select', path: ['flowId'], options, fallback: '' } },
+    ...(inner
+      ? questionsOf(inner).map((question) => ({
+          id: `value:q:${question.id}`,
+          label: question.name || 'Question',
+          own: Boolean(question.name),
+          left: value(valuePort(`q:${question.id}`)),
+          control: { type: 'text', path: ['inputs', question.id], placeholder: question.value || 'Its usual value' }
+        }))
+      : []),
+    ...(inner ? namesHandedOut(inner).map((name) => ({ id: `out:${name}`, label: name, own: true, right: value(fieldPort(name)) })) : [])
+  ];
 };
 
 const requestRows = (node, flow, request) => {
@@ -214,7 +262,7 @@ const forEachRows = (node) => [
 
 // title: what the step is called in the picker. header: whether it has an order input and a single order output.
 export const PIECES = {
-  start: { title: 'Start', headerOut: true, rows: () => [] },
+  start: { title: 'Start', headerOut: true, rows: startRows },
   request: { title: 'Request', headerIn: true, headerOut: true, rows: requestRows },
   if: { title: 'If', headerIn: true, rows: ifRows },
   validate: { title: 'Validate', headerIn: true, rows: validateRows },
@@ -246,20 +294,23 @@ export const PIECES = {
     ]
   },
   listappend: { title: 'Add to list', headerIn: true, headerOut: true, rows: listAppendRows },
+  table: { title: 'Data table', rows: tablePieceRows },
+  flow: { title: 'Run a flow', headerIn: true, headerOut: true, rows: flowRows },
   note: { title: 'Note', headerIn: true, headerOut: true, rows: () => [typed('message', 'Message', 'What to write in the output')] },
   stop: { title: 'Stop', headerIn: true, rows: () => [typed('message', 'Message', 'Why it stops')] }
 };
 
 // The steps offered when adding one; Start is always there and never added by hand.
-export const ADDABLE_PIECES = ['request', 'if', 'validate', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop'];
+export const ADDABLE_PIECES = ['request', 'if', 'validate', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'table', 'setvalue', 'flow', 'wait', 'note', 'stop'];
 
-// Everything the canvas needs to draw a step: its rows and where each port sits inside it.
-export const describePiece = (node, flow, request) => {
+// Everything the canvas needs to draw a step: its rows and where each port sits inside it. "around" is
+// what a step may need to know beyond its own flow, like the other flows of the collection.
+export const describePiece = (node, flow, request, around) => {
   const piece = PIECES[node.type];
   if (!piece) {
     return { title: node.type, unknown: true, rows: [], ports: [], height: HEADER_HEIGHT + PIECE_PADDING };
   }
-  const rows = piece.rows(node, flow, request);
+  const rows = piece.rows(node, flow, request, around);
   // A row may be as tall as several ("span"): where each one starts is counted in plain rows.
   const tops = [];
   const used = rows.reduce((total, row) => {

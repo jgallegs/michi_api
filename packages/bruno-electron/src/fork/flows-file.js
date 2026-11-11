@@ -1,5 +1,6 @@
-const { ipcMain } = require('electron');
+const { ipcMain, BrowserWindow } = require('electron');
 const { isCollectionRoot, assertCollectionRoot, readSettings, writeSettings } = require('./collection-settings-file');
+const { CHANGED_CHANNEL, watchCollection } = require('./flows-watch');
 
 // Flows live under the "flows" key of .michi.json, one entry per flow id, so they travel with the
 // collection and stay invisible to upstream Bruno. Keys are written sorted to keep git diffs stable.
@@ -99,11 +100,23 @@ const listBlocks = (collectionPath) => list(collectionPath, BLOCKS);
 const saveBlock = (collectionPath, block) => save(collectionPath, block, BLOCKS);
 const deleteBlock = (collectionPath, blockId) => remove(collectionPath, blockId, BLOCKS);
 
+const tellWindows = (collectionPath) => {
+  BrowserWindow.getAllWindows()
+    .filter((win) => !win.isDestroyed())
+    .forEach((win) => win.webContents.send(CHANGED_CHANNEL, { collectionPath }));
+};
+
+// Asking for the flows or the blocks of a collection is what starts the watch on its file.
+const watched = (read) => (_event, collectionPath) => {
+  watchCollection(collectionPath, tellWindows);
+  return read(collectionPath);
+};
+
 const register = () => {
-  ipcMain.handle('fork:flows:list', (_event, collectionPath) => listFlows(collectionPath));
+  ipcMain.handle('fork:flows:list', watched(listFlows));
   ipcMain.handle('fork:flows:save', (_event, collectionPath, flow) => saveFlow(collectionPath, flow));
   ipcMain.handle('fork:flows:delete', (_event, collectionPath, flowId) => deleteFlow(collectionPath, flowId));
-  ipcMain.handle('fork:flows:blocks:list', (_event, collectionPath) => listBlocks(collectionPath));
+  ipcMain.handle('fork:flows:blocks:list', watched(listBlocks));
   ipcMain.handle('fork:flows:blocks:save', (_event, collectionPath, block) => saveBlock(collectionPath, block));
   ipcMain.handle('fork:flows:blocks:delete', (_event, collectionPath, blockId) => deleteBlock(collectionPath, blockId));
 };

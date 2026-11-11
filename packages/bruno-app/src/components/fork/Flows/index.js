@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
-import { IconChevronDown, IconChevronRight, IconPencil, IconPlus, IconRoute, IconTrash } from '@tabler/icons';
+import { IconChevronDown, IconChevronRight, IconCopy, IconPencil, IconPlus, IconRoute, IconTrash } from '@tabler/icons';
 import ActionIcon from 'ui/ActionIcon';
 import Modal from 'components/Modal';
 import SidebarSection from 'components/Sidebar/SidebarSection';
@@ -11,16 +11,38 @@ import { FORK_SETTINGS, useForkSetting } from 'components/fork/settings/store';
 import FlowFormModal from './FlowFormModal';
 import { groupFlowsByFolder, listFolders } from './model';
 import { closeFlowTab, openFlowTab } from './selection';
-import { createFlow, deleteFlow, renameFlow, useCollectionFlows } from './store';
+import { RUN_STATUS } from './engine/run';
+import { RUN_PHASE, useRunSession } from './run/session';
+import { createFlow, deleteFlow, duplicateFlow, renameFlow, useCollectionFlows } from './store';
 import StyledWrapper from './StyledWrapper';
 
 const FLOWS_SECTION_ID = 'flows';
 
-const FlowRow = ({ flow, nested, onOpen, onRename, onDelete }) => (
-  <div className={`flow-row fork-no-translate ${nested ? 'nested' : ''}`} onClick={() => onOpen(flow)} data-testid="flow-row">
+// How the last run of a flow went, while the app is open: a dot next to its name.
+const RUN_MARKS = {
+  [RUN_STATUS.COMPLETED]: ['ok', 'Its last run finished'],
+  [RUN_STATUS.STOPPED]: ['ok', 'Its last run finished'],
+  [RUN_STATUS.FAILED]: ['bad', 'Its last run failed'],
+  [RUN_STATUS.INVALID]: ['bad', 'Its last run failed'],
+  [RUN_STATUS.CANCELLED]: ['warning', 'Its last run was stopped half way'],
+  [RUN_STATUS.PAUSED]: ['warning', 'Its last run was stopped half way']
+};
+
+const RunMark = ({ flowId }) => {
+  const session = useRunSession(flowId);
+  const [tone, title] = session.phase === RUN_PHASE.RUNNING ? ['running', 'It is running'] : RUN_MARKS[session.outcome] || [];
+  return tone ? <span className={`flow-run-mark ${tone}`} title={title} aria-label={title} data-testid="flow-run-mark" /> : null;
+};
+
+const FlowRow = ({ flow, nested, onOpen, onRename, onDuplicate, onDelete }) => (
+  <div className={`flow-row ${nested ? 'nested' : ''}`} onClick={() => onOpen(flow)} data-testid="flow-row">
     <IconRoute size={14} strokeWidth={1.5} />
-    <span className="flow-name" title={flow.name}>{flow.name}</span>
+    <span className="flow-name fork-no-translate" title={flow.name}>{flow.name}</span>
+    <RunMark flowId={flow.id} />
     <span className="flow-actions" onClick={(e) => e.stopPropagation()}>
+      <ActionIcon size="sm" label="Duplicate flow" onClick={() => onDuplicate(flow)}>
+        <IconCopy size={13} stroke={1.5} aria-hidden="true" />
+      </ActionIcon>
       <ActionIcon size="sm" label="Rename flow" onClick={() => onRename(flow)}>
         <IconPencil size={13} stroke={1.5} aria-hidden="true" />
       </ActionIcon>
@@ -38,9 +60,14 @@ const FlowsPanel = () => {
   const { saved, drafts, loaded, error } = useCollectionFlows(collectionPath);
   const [collapsedFolders, setCollapsedFolders] = useState([]);
   const [dialog, setDialog] = useState(null);
+  const [search, setSearch] = useState('');
 
   const flows = useMemo(() => Object.values({ ...saved, ...drafts }), [saved, drafts]);
-  const groups = useMemo(() => groupFlowsByFolder(flows), [flows]);
+  const wanted = search.trim().toLowerCase();
+  const groups = useMemo(
+    () => groupFlowsByFolder(flows.filter((flow) => !wanted || `${flow.folder || ''} ${flow.name}`.toLowerCase().includes(wanted))),
+    [flows, wanted]
+  );
   const folders = useMemo(() => listFolders(flows), [flows]);
 
   const closeDialog = () => setDialog(null);
@@ -70,6 +97,7 @@ const FlowsPanel = () => {
 
   const open = (flow) => openFlowTab(dispatch, collection, flow);
   const askRename = (flow) => setDialog({ kind: 'rename', flow });
+  const duplicate = (flow) => run(async () => openFlowTab(dispatch, collection, await duplicateFlow(collectionPath, flow.id)));
   const askDelete = (flow) => setDialog({ kind: 'delete', flow });
 
   const actions = (
@@ -84,6 +112,8 @@ const FlowsPanel = () => {
     if (!loaded) return <p className="muted">Loading flows...</p>;
     if (!flows.length) return <p className="muted">No flows in this collection yet.</p>;
 
+    if (!groups.length) return <p className="muted">No flow is called like that.</p>;
+
     return groups.map(({ folder, flows: items }) => {
       const collapsed = collapsedFolders.includes(folder);
       return (
@@ -97,7 +127,7 @@ const FlowsPanel = () => {
           {collapsed
             ? null
             : items.map((flow) => (
-                <FlowRow key={flow.id} flow={flow} nested={Boolean(folder)} onOpen={open} onRename={askRename} onDelete={askDelete} />
+                <FlowRow key={flow.id} flow={flow} nested={Boolean(folder)} onOpen={open} onRename={askRename} onDuplicate={duplicate} onDelete={askDelete} />
               ))}
         </div>
       );
@@ -107,7 +137,12 @@ const FlowsPanel = () => {
   return (
     <SidebarSection id={FLOWS_SECTION_ID} title="Flows" icon={IconRoute} actions={actions}>
       <CollectionPicker openCollections={openCollections} collection={collection} onChange={setChosenUid} />
-      <StyledWrapper data-testid="flows-panel">{renderBody()}</StyledWrapper>
+      <StyledWrapper data-testid="flows-panel">
+        {flows.length > 1 ? (
+          <input className="flow-search" value={search} placeholder="Search flows" onChange={(event) => setSearch(event.target.value)} data-testid="flow-search" />
+        ) : null}
+        {renderBody()}
+      </StyledWrapper>
       {dialog?.kind === 'create' ? (
         <FlowFormModal title="New flow" confirmText="Create" folders={folders} onCancel={closeDialog} onSubmit={handleCreate} />
       ) : null}

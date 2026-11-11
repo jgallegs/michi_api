@@ -9,6 +9,7 @@ export const snap = (value) => Math.round(value / GRID) * GRID;
 const DEFAULT_CONFIG = {
   if: { check: 'success' },
   validate: { operator: 'equals' },
+  table: { columns: [], rows: [] },
   repeat: { times: '3' },
   wait: { seconds: '1' },
   listappend: { mode: 'value' }
@@ -74,7 +75,7 @@ export const toggleSection = (flow, nodeId, key) =>
 
 export const sourceKind = (node, port) => {
   if (port === STATUS_PORT || String(port).startsWith(FIELD_PORT_PREFIX)) {
-    return node.type === 'list' && port === fieldPort('items') ? PORT_KIND.LIST : PORT_KIND.VALUE;
+    return ['list', 'table'].includes(node.type) && port === fieldPort('items') ? PORT_KIND.LIST : PORT_KIND.VALUE;
   }
   return PORT_KIND.ORDER;
 };
@@ -179,6 +180,24 @@ export const removeCablesWithoutPort = (flow, nodeId, ports) => {
   const has = (side, port) => ports.some((candidate) => candidate.side === side && candidate.port === port);
   const edges = flow.edges.filter((edge) => !(edge.source === nodeId && !has('right', edge.sourcePort)) && !(edge.target === nodeId && !has('left', edge.targetPort)));
   return edges.length === flow.edges.length ? flow : { ...flow, edges };
+};
+
+// A question Start asks before the flow runs, and taking one away with the cables that used its answer.
+export const addQuestion = (flow, nodeId) =>
+  mapNode(flow, nodeId, (node) => ({
+    ...node,
+    config: { ...node.config, questions: [...(node.config?.questions || []), { id: uuid(), name: '', value: '' }] }
+  }));
+
+export const removeQuestion = (flow, nodeId, index) => {
+  const question = findNode(flow, nodeId)?.config?.questions?.[index];
+  if (!question) {
+    return flow;
+  }
+  return mapNode(removePortCables(flow, nodeId, 'source', fieldPort(question.id)), nodeId, (node) => ({
+    ...node,
+    config: { ...node.config, questions: node.config.questions.filter((item) => item.id !== question.id) }
+  }));
 };
 
 export const addListField = (flow, nodeId) =>

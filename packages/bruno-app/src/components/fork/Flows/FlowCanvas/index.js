@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { IconClipboard, IconPlus, IconSend, IconStack } from '@tabler/icons';
+import { IconClipboard, IconPlayerPlay, IconPlayerSkipForward, IconPlus, IconSend, IconStack } from '@tabler/icons';
 import { useDrop } from 'react-dnd';
 import { useStore } from 'react-redux';
 import { findEnvironmentInCollection } from 'utils/collections';
 import { useIsSensitiveEnvironment } from 'components/fork/SensitiveEnvironment/store';
 import toast from 'react-hot-toast';
 import { findLoopBody, findReachedNodeIds, findStartNode, validateFlow } from '../engine/graph';
-import { NODE_DEFINITIONS, OUT_PORT, isLoopNode } from '../engine/nodes';
+import { NODE_DEFINITIONS, OUT_PORT, isLoopNode, questionsOf } from '../engine/nodes';
 import { translatePhrase } from 'components/fork/SpanishUi';
 import { say } from '../language';
 import { COLUMN, buildOwnBlock, buildReadyBlock, canFollow, insertBlock, makeOwnBlock } from '../blocks/building';
@@ -14,9 +14,13 @@ import { closeGuide, noteGuideRun, readGuide, startGuide, tickGuidePoint, useGui
 import { deleteOwnBlock, saveOwnBlock, useOwnBlocks } from '../blocks/store';
 import Gallery from '../blocks/Gallery';
 import GuidePanel from '../blocks/GuidePanel';
+import { READY_BLOCKS } from '../blocks/catalog';
 import HelpPanel from '../blocks/HelpPanel';
+import CoursePanel from '../course/CoursePanel';
 import SaveBlockModal from '../blocks/SaveBlockModal';
-import { discardFlowDraft, saveFlow, useFlowDirty, useFlowStale } from '../store';
+import { discardFlowDraft, getCollectionFlows, getFlow, saveFlow, useFlowDirty, useFlowStale } from '../store';
+import TableModal from '../data/TableModal';
+import AskModal from '../run/AskModal';
 import Cables from '../canvas/Cables';
 import { BRANCH_TONES, colorValueSources } from '../canvas/colors';
 import ContextMenu from '../canvas/ContextMenu';
@@ -27,6 +31,7 @@ import Toolbar from '../canvas/Toolbar';
 import {
   addListField,
   addNode,
+  addQuestion,
   addRequestField,
   moveRequestField,
   removeCablesWithoutPort,
@@ -40,6 +45,7 @@ import {
   removeEdges,
   removeListField,
   removeNodes,
+  removeQuestion,
   removeRequestField,
   setEdgeBends,
   setNodePositions,
@@ -54,6 +60,7 @@ import {
   isNamedByUser,
   listAddTabs,
   listFieldOptions,
+  listItemFieldOptions,
   listPieceOptions,
   listPositionOptions,
   listRequestOptions,
@@ -85,6 +92,8 @@ const VIEW_MARGIN = 40;
 const TOOLBAR_SPACE = 70;
 // Room the guide of a block takes on the right of the canvas.
 const GUIDE_SPACE = 330;
+// Room the guided course takes on its left.
+const COURSE_SPACE = 384;
 // Below these widths the toolbar drops the words of its buttons: the least needed first, then all but Run.
 const COMPACT_WIDTH = 1180;
 const TIGHT_WIDTH = 900;
@@ -102,6 +111,8 @@ const EDGE = 8;
 // Where each flow was left on screen, the steps copied last and the flows whose opening gallery was
 // closed, while the app is open.
 const viewports = new Map();
+// What was answered the last time each flow asked before running, to offer it again.
+const lastAnswers = new Map();
 const startedByHand = new Set();
 let copied = null;
 
@@ -121,7 +132,7 @@ const isTyping = (target) => Boolean(target.closest?.('input, select, textarea')
 
 const describeNode = (collection, flow, node, known) => {
   const request = node.type === 'request' ? describeRequest(collection, node, known) : null;
-  return { node, request, description: describePiece(node, flow, request), title: titleOf(node, request) };
+  return { node, request, description: describePiece(node, flow, request, { flows: getCollectionFlows(collection.pathname) }), title: titleOf(node, request) };
 };
 
 const boxesOf = (collection, flow) =>
@@ -180,6 +191,9 @@ const FlowCanvas = ({ collection, flow }) => {
   const [namingBlock, setNamingBlock] = useState(false);
   const [suggest, setSuggest] = useState(null);
   const [report, setReport] = useState(null);
+  const [asking, setAsking] = useState(null);
+  const [course, setCourse] = useState(false);
+  const [editingTable, setEditingTable] = useState(null);
   const [width, setWidth] = useState(Infinity);
   const ownBlocks = useOwnBlocks(collectionPath);
   const guide = useGuide(flow.id);
@@ -371,13 +385,23 @@ const FlowCanvas = ({ collection, flow }) => {
     return () => root.removeEventListener('wheel', onWheel);
   }, []);
 
-  const run = useCallback(
-    (mode) => {
+  const launch = useCallback(
+    (mode, extra) => {
       noteGuideRun(flow.id);
-      return startRun({ store, collectionUid: collection.uid, collectionPath, flowId: flow.id, mode }).catch((err) => toast.error(err.message));
+      return startRun({ store, collectionUid: collection.uid, collectionPath, flowId: flow.id, mode, ...extra }).catch((err) => toast.error(err.message));
     },
     [store, collection.uid, collectionPath, flow.id]
   );
+
+  // A run from Start first asks what the flow wants to know, if it asks anything.
+  const run = (mode) => {
+    const startsOver = mode === RUN_MODE.RUN || (mode === RUN_MODE.STEP && !session.resume);
+    if (startsOver && questionsOf(flow).length) {
+      setAsking({ mode });
+      return null;
+    }
+    return launch(mode);
+  };
 
   // The mark each step carries from the last run: its result, the round a Repeat is on, what a List holds.
   const runMarkOf = (node) => {
@@ -505,6 +529,20 @@ const FlowCanvas = ({ collection, flow }) => {
     );
   };
 
+  // The course sits on the left of the canvas: the flow slides right just enough not to be under it.
+  const clearOfCourse = () =>
+    setView((asked) => {
+      const from = asked || viewRef.current;
+      const nodes = getFlow(collectionPath, flow.id)?.nodes || flow.nodes;
+      const leftmost = Math.min(...nodes.map((node) => node.x)) * from.zoom + from.x;
+      return leftmost < COURSE_SPACE ? { ...from, x: from.x + COURSE_SPACE - leftmost } : from;
+    });
+
+  const openCourse = () => {
+    setCourse(true);
+    clearOfCourse();
+  };
+
   // Opens the list of what can be added, on one of its kinds; blocks have their own gallery.
   const openAdd = (what, { position, world, loose = null }) => {
     if (what === ADD.BLOCKS) {
@@ -515,9 +553,15 @@ const FlowCanvas = ({ collection, flow }) => {
     }
   };
 
-  // The right button on an empty spot offers what can be added there.
-  const openMenu = (event) => {
-    if (!event.target.closest?.('.flow-piece, .flow-toolbar, .flow-overlay')) {
+  // The right button on an empty spot offers what can be added there. What was under the pointer when
+  // the button went down decides, and where it went up is where the menu opens.
+  const openMenu = (pressed, event) => {
+    const piece = pressed.closest?.('.flow-piece');
+    const node = piece ? flow.nodes.find((candidate) => candidate.id === piece.dataset.nodeId) : null;
+    // On a step that does something: trying it without running everything before it.
+    if (node && NODE_DEFINITIONS[node.type]?.execute && node.type !== 'start') {
+      setMenu({ position: keepInside(toLocal(event), MENU_ROOM), world: toWorld(event), nodeId: node.id });
+    } else if (!pressed.closest?.('.flow-piece, .flow-toolbar, .flow-overlay')) {
       setMenu({ position: keepInside(toLocal(event), MENU_ROOM), world: toWorld(event) });
     }
   };
@@ -550,7 +594,8 @@ const FlowCanvas = ({ collection, flow }) => {
     setMenu(null);
     if (event.button === 1 || event.button === 2 || (event.button === 0 && event.altKey)) {
       event.preventDefault();
-      startPan(event, event.button === 2 ? openMenu : null);
+      const pressed = event.target;
+      startPan(event, event.button === 2 ? (up) => openMenu(pressed, up) : null);
     } else if (event.button === 0) {
       startBoxSelect(event);
     }
@@ -728,6 +773,8 @@ const FlowCanvas = ({ collection, flow }) => {
     const closeOnTop = () => {
       if (help) {
         setHelp(false);
+      } else if (course) {
+        setCourse(false);
       } else if (showsGallery) {
         closeGallery();
       } else {
@@ -793,6 +840,9 @@ const FlowCanvas = ({ collection, flow }) => {
       'remove-field': () => edit((current) => removeRequestField(current, node.id, payload)),
       'pick-position': () => setPicker({ kind: 'position', position: anchorBelow(event.currentTarget), nodeId: node.id, path: payload }),
       'add-list-field': () => grow((current) => addListField(current, node.id)),
+      'add-question': () => grow((current) => addQuestion(current, node.id)),
+      'remove-question': () => edit((current) => removeQuestion(current, node.id, payload)),
+      'edit-table': () => setEditingTable({ nodeId: node.id }),
       'remove-list-field': () => edit((current) => removeListField(current, node.id, payload)),
       'pick-request': () => setPicker({ kind: 'request', position: anchorBelow(event.currentTarget), nodeId: node.id }),
       'pick-value': () => setPicker({ kind: 'value', position: anchorBelow(event.currentTarget), nodeId: node.id, port: payload }),
@@ -838,7 +888,10 @@ const FlowCanvas = ({ collection, flow }) => {
     field: () => ({
       title: 'Which field of the response?',
       placeholder: 'Search or type a field, like order.id',
-      options: listFieldOptions(pieces.get(picker.nodeId).node, pieces.get(picker.nodeId).request),
+      options:
+        pieces.get(picker.nodeId).node.type === 'foreach'
+          ? listItemFieldOptions(flow, pieces.get(picker.nodeId).node, (node) => pieces.get(node.id))
+          : listFieldOptions(pieces.get(picker.nodeId).node, pieces.get(picker.nodeId).request),
       emptyText: 'Type the name of the field, like order.id',
       custom: (text) => (typedFieldPath(text) ? { id: typedFieldPath(text), label: typedFieldPath(text), path: typedFieldPath(text) } : null),
       onPick: (option) => edit((current) => makeRoomAround(collection, addRequestField(current, picker.nodeId, option.path), picker.nodeId))
@@ -847,7 +900,7 @@ const FlowCanvas = ({ collection, flow }) => {
       const levels = pieces.get(picker.nodeId).description.rows.find((row) => row.removableField === picker.path)?.positions || [];
       return {
         title: 'Which item of the list?',
-        placeholder: 'Type a position, like 3',
+        placeholder: 'A position, like 3, or field=value',
         options: listPositionOptions(levels),
         custom: (text) => listTypedPositionOptions(levels, text),
         onPick: (option) => edit((current) => moveRequestField(current, picker.nodeId, picker.path, withListPosition(picker.path, option.list, option.index)))
@@ -997,7 +1050,7 @@ const FlowCanvas = ({ collection, flow }) => {
           );
         })}
         {flow.nodes.length === 1 ? (
-          <div className="flow-hint" style={{ left: flow.nodes[0].x, top: flow.nodes[0].y + 56 }}>
+          <div className="flow-hint" style={{ left: flow.nodes[0].x, top: flow.nodes[0].y + 84 }}>
             Pull a cable out of the triangle to add the first step, or drop a request from the sidebar here.
           </div>
         ) : null}
@@ -1099,7 +1152,10 @@ const FlowCanvas = ({ collection, flow }) => {
         <ContextMenu
           position={menu.position}
           onClose={() => setMenu(null)}
-          items={[
+          items={menu.nodeId ? [
+            { id: 'run-from', label: 'Run from this step', icon: IconPlayerPlay, onPick: () => !isRunning && launch(RUN_MODE.RUN, { from: menu.nodeId }) },
+            { id: 'run-only', label: 'Run only this step', icon: IconPlayerSkipForward, onPick: () => !isRunning && launch(RUN_MODE.RUN, { from: menu.nodeId, only: true }) }
+          ] : [
             { id: 'steps', label: 'Add a step', icon: IconPlus, onPick: () => openAdd(ADD.STEPS, menu) },
             { id: 'requests', label: 'Add a request', icon: IconSend, onPick: () => openAdd(ADD.REQUESTS, menu) },
             { id: 'blocks', label: 'Add a block', icon: IconStack, onPick: () => openAdd(ADD.BLOCKS, menu) },
@@ -1113,6 +1169,10 @@ const FlowCanvas = ({ collection, flow }) => {
           startsFlow={isNew}
           onPick={placeBlock}
           onDeleteOwn={(blockId) => deleteOwnBlock(collectionPath, blockId).catch((err) => toast.error(err.message))}
+          onCourse={() => {
+            closeGallery();
+            openCourse();
+          }}
           onClose={closeGallery}
         />
       ) : null}
@@ -1127,9 +1187,28 @@ const FlowCanvas = ({ collection, flow }) => {
           onClose={() => closeGuide(flow.id)}
         />
       ) : null}
+      {course ? (
+        <CoursePanel
+          onClose={() => setCourse(false)}
+          // A lesson is tried on the flow that is open: its block lands with its guide, its step at the centre.
+          onPractice={(practice) => {
+            const block = practice.block ? READY_BLOCKS.find((item) => item.id === practice.block) : null;
+            if (block) {
+              placeBlock({ kind: 'ready', block });
+            } else if (practice.step) {
+              addPiece(practice.step, undefined, centerOfView(), null);
+            }
+            clearOfCourse();
+          }}
+        />
+      ) : null}
       {help ? (
         <HelpPanel
           onClose={() => setHelp(false)}
+          onCourse={() => {
+            setHelp(false);
+            openCourse();
+          }}
           onShowBlocks={() => {
             setHelp(false);
             setGallery({ world: centerOfView(), loose: null });
@@ -1145,6 +1224,28 @@ const FlowCanvas = ({ collection, flow }) => {
       {canvas}
       {report && pieces.has(report.nodeId) ? (
         <ReportModal title={say(pieces.get(report.nodeId).title)} flowName={flow.name} items={session.contents?.[report.nodeId] || []} onClose={() => setReport(null)} />
+      ) : null}
+      {asking ? (
+        <AskModal
+          questions={questionsOf(flow)}
+          answers={lastAnswers.get(flow.id)}
+          onCancel={() => setAsking(null)}
+          onSubmit={(answers) => {
+            lastAnswers.set(flow.id, answers);
+            setAsking(null);
+            launch(asking.mode, { inputs: answers });
+          }}
+        />
+      ) : null}
+      {editingTable && pieces.has(editingTable.nodeId) ? (
+        <TableModal
+          table={pieces.get(editingTable.nodeId).node.config}
+          onCancel={() => setEditingTable(null)}
+          onSubmit={({ columns, rows }) => {
+            edit((current) => updateNodeConfig(updateNodeConfig(current, editingTable.nodeId, ['columns'], columns), editingTable.nodeId, ['rows'], rows));
+            setEditingTable(null);
+          }}
+        />
       ) : null}
       {namingBlock ? (
         <SaveBlockModal

@@ -38,6 +38,28 @@ describe('own blocks store', () => {
     await waitFor(() => expect(result.current.map((block) => block.name)).toEqual(['Log in', 'retry']));
   });
 
+  it('reads the blocks again when the file of the collection changes on disk', async () => {
+    let tell;
+    const stop = jest.fn();
+    window.ipcRenderer.on = jest.fn((channel, handler) => {
+      tell = handler;
+      return stop;
+    });
+    const { result, unmount } = renderHook(() => useOwnBlocks(COLLECTION));
+    await waitFor(() => expect(window.ipcRenderer.invoke).toHaveBeenCalledTimes(1));
+    expect(window.ipcRenderer.on).toHaveBeenCalledWith('main:fork-flows-changed', expect.any(Function));
+
+    file = { b1: makeBlock('b1', 'Written from outside') };
+    tell({ collectionPath: 'C:\\collections\\other' });
+    expect(window.ipcRenderer.invoke).toHaveBeenCalledTimes(1);
+    tell({ collectionPath: COLLECTION });
+
+    await waitFor(() => expect(result.current.map((block) => block.name)).toEqual(['Written from outside']));
+    unmount();
+    resetOwnBlocks();
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
   it('saves and deletes through the collection file', async () => {
     await loadOwnBlocks(COLLECTION);
     await saveOwnBlock(COLLECTION, makeBlock('b1', 'Retry'));

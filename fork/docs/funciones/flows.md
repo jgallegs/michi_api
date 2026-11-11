@@ -22,14 +22,16 @@ Para empezar a usarla sin leer todo esto está la [guía rápida](flows-guia.md)
 
 | Paso | Qué hace |
 |---|---|
-| Start | Donde empieza el flow. Siempre hay uno y no se puede borrar |
+| Start | Donde empieza el flow. Siempre hay uno y no se puede borrar. Puede hacer preguntas antes de ejecutar (ver [Preguntar antes de ejecutar](#preguntar-antes-de-ejecutar)) |
 | Request | Envía una petición de la colección, igual que desde su pestaña: mismo entorno, mismos scripts y la respuesta queda también en la pestaña de la petición |
-| If | Elige un camino. Comprueba si la última respuesta fue correcta (2xx), si su código es uno concreto, o compara dos valores |
+| If | Elige un camino. Comprueba si la última respuesta fue correcta (2xx), si su código es uno concreto, si pasan los tests que lleva la petición, o compara dos valores |
 | Validate | Mira un valor y decide si lo que llegó vale: *Not valid if* [valor] [comparación] [otro valor]. Sigue por **Valid** o por **Not valid**. Es para las respuestas que llegan con un 200 pero traen un código de error dentro: lo que cuelga de **Valid** no las ve. Dentro de un bucle, si de **Not valid** no cuelga nada, la vuelta termina y empieza la siguiente |
 | Repeat | Repite lo que cuelga de *On each round* las veces indicadas. Lo que repite queda dentro de un marco. La vuelta termina cuando el camino se acaba o cuando llega a *End of round* |
 | For each item | Como Repeat, pero da una vuelta por cada elemento de una lista: una lista del flow o un campo de una respuesta que sea una lista. En cada vuelta entrega el elemento (*Item*), los campos suyos que se añadan con *Add a field* y el número de vuelta |
 | Leave loop | Termina el bucle en el que está, aunque le queden vueltas, y el flow sigue por su *When finished*. Sirve para reintentar hasta que algo funcione o esperar a que un proceso termine. Fuera de un bucle lleva un aviso y el flow no se ejecuta |
 | List y Add to list | Una lista que se va llenando, con un valor o con varios campos por vuelta. Se puede usar después del bucle. **Add to list** elige su lista por nombre en un desplegable; si el flow solo tiene una, ya viene elegida. El paso **List** enseña dentro lo que va guardando y abre su informe (ver [El informe de una lista](#el-informe-de-una-lista)) |
+| Data table | Una tabla de datos escrita en el flow, para recorrerla con **For each item**: cada fila es un elemento y sus columnas, sus campos (ver [Tabla de datos](#tabla-de-datos)) |
+| Run a flow | Ejecuta otro flow de la colección como un paso (ver [Flows dentro de flows](#flows-dentro-de-flows)) |
 | Set variable | Guarda un valor con un nombre para usarlo en pasos posteriores como `{{nombre}}` |
 | Wait | Espera unos segundos |
 | Note | Escribe un mensaje en la salida y sigue |
@@ -49,7 +51,7 @@ La lista de **Add a field**, y la de valores de otros pasos, ofrece los campos d
 
 Lo que no aparece se puede escribir a mano, también como en los scripts: `pedidos[2].id`.
 
-**Listas.** Un campo que pasa por una lista lee, si no se dice otra cosa, el primer elemento. En su fila sale una ficha con el elemento que lee (`#1`); al pulsarla se elige **The first item**, **The last item** o se escribe una posición contando desde 1. Una lista entera se entrega tal cual (`all`) y también se puede pedir uno solo de sus elementos. Para pasar por todos está el paso **For each item**.
+**Listas.** Un campo que pasa por una lista lee, si no se dice otra cosa, el primer elemento. En su fila sale una ficha con el elemento que lee (`#1`); al pulsarla se elige **The first item**, **The last item**, se escribe una posición contando desde 1, o se escribe `campo=valor` para leer el primer elemento que lo cumple (`estado=abierto`). A mano también vale `pedidos[estado=abierto].id`. Una lista entera se entrega tal cual (`all`) y también se puede pedir uno solo de sus elementos. Para pasar por todos está el paso **For each item**.
 
 ### Texto o valor de otro paso
 
@@ -88,12 +90,44 @@ Bloques que trae Michi:
 |---|---|
 | The basics | Llamar a varias peticiones seguidas · usar un valor de una respuesta en la siguiente llamada · esperar entre dos llamadas |
 | When something fails | Parar si una llamada falla · comprobar un valor de la respuesta · validar un campo de la respuesta · reintentar hasta que funcione · comprobar que varios servicios responden |
-| Repeating | Repetir una llamada y guardar los resultados · repetir una llamada y guardar solo las respuestas válidas · recorrer las páginas de un resultado · enviar una petición por cada elemento de una lista · esperar a que algo esté listo |
+| Repeating | Repetir una llamada y guardar los resultados · repetir una llamada y guardar solo las respuestas válidas · recorrer las páginas de un resultado · enviar una petición por cada elemento de una lista · enviar una petición por cada fila de una tabla · esperar a que algo esté listo |
 | Typical cases | Crear, comprobar y borrar · crear solo si no existe |
 
 **La guía.** Un bloque de Michi abre abajo a la izquierda la lista de lo que falta por rellenar, en orden. Cada punto se tacha solo cuando el lienzo muestra que está hecho (se eligió la petición, se conectó el valor, se pulsó **Run**), y los que no se pueden comprobar se tachan a mano pulsando su número. El paso al que se refiere cada punto lleva ese número encima; pulsar el texto de un punto lleva a su paso. La guía se cierra con su aspa y no se guarda.
 
 **Bloques propios.** Con uno o más pasos seleccionados aparece **Save as block**, que pide un nombre. El bloque guarda los pasos tal como están, con sus peticiones ya elegidas, sus ajustes y los cables entre ellos, y sale en la galería bajo **My blocks**. Se guarda en la colección, así que le llega a todo el equipo. Se borra desde la propia galería, con una segunda pulsación para confirmar. Insertar un bloque se deshace de una vez con `Ctrl+Z`.
+
+### Preguntar antes de ejecutar
+
+El paso **Start** tiene **Ask before running**: cada pregunta lleva un nombre y, si se quiere, su respuesta habitual. Al pulsar **Run**, una ventana las hace, rellenas con lo que se contestó la última vez. Cada respuesta sale de **Start** como un valor para unir a lo que la necesite, y es además una variable con el nombre de la pregunta (`{{cuantos}}`). Una pregunta que se deja en blanco y no tiene respuesta habitual no entrega nada: la petición a la que esté unida conserva su valor de siempre. **Step** pregunta igual al empezar; **Continue** no vuelve a preguntar.
+
+### Tabla de datos
+
+**Data table** guarda filas pegadas desde una hoja de cálculo (o escritas como CSV con comas o punto y coma); la primera línea son los nombres de las columnas. **Edit the data** abre la ventana donde se pegan y enseña lo que se va a guardar. Se une a **For each item**, que da una vuelta por fila y ofrece las columnas como campos. Caben 1000 filas y 30 columnas, y los datos se guardan con el flow.
+
+### Flows dentro de flows
+
+**Run a flow** ejecuta otro flow de la colección como un solo paso. Las preguntas que ese flow hace en **Start** son las entradas del paso, y lo que deja con nombre (variables de **Set variable**, listas con nombre y las propias respuestas) son sus salidas. La salida cuenta lo que pasa dentro, con el nombre del flow delante. Si el flow de dentro falla, falla el paso; continuar lo ejecuta entero otra vez. No se admiten más de cinco niveles, que es también lo que corta un flow que se llame a sí mismo.
+
+### Probar un paso
+
+Clic derecho sobre un paso: **Run only this step** lo ejecuta a él solo y **Run from this step** ejecuta desde él hasta el final. Los dos parten de lo que dejó la última ejecución (respuestas, variables y listas), así que no hay que volver a enviar lo anterior. Si no ha habido ninguna ejecución, los valores de los pasos anteriores llegan vacíos y la salida lo avisa.
+
+### Tests de las peticiones
+
+Los tests y aserciones que lleva una petición se ejecutan cuando un flow la envía. La salida dice cuántos pasan junto a su respuesta (`3/4 tests`) y, al final de la ejecución, el total. Una petición con un test que falla destaca, y al desplegar su línea se ve cuál. **If** puede ramificarse por ellos con **The tests of the response pass**.
+
+### El informe de una ejecución
+
+Cada ejecución empieza en la salida con el nombre del flow; el botón de tabla de esa línea abre su informe: cada paso con su resultado y su hora, con los mismos botones de copiar y guardar que el informe de una lista.
+
+### La sección de la barra lateral
+
+La sección **Flows** tiene un buscador por nombre o carpeta cuando hay más de un flow, un botón para duplicar un flow (la copia lleva sus pasos y un número detrás del nombre) y un punto junto a cada flow que dice cómo fue su última ejecución desde que se abrió la app.
+
+### El curso guiado
+
+**Guided course**, en la ayuda y en la galería de un flow nuevo, abre a la izquierda del lienzo un curso de 37 lecciones en seis capítulos. Cada lección que lo permite tiene **Try it on the canvas**, que deja su bloque o su paso en el flow abierto. El progreso es de cada persona. La versión escrita está en [flows-curso.md](flows-curso.md).
 
 ### La ayuda
 
@@ -147,6 +181,7 @@ El panel **Output**, a la derecha, cuenta lo que hace cada ejecución: código y
 | Campos recordados | Los nombres de los campos vistos en cada respuesta se guardan en este ordenador (no en la colección), así que cada persona los tiene al enviar la petición una vez. Con *Flows* apagado no se guarda nada ([decisiones.md](../decisiones.md), DEC-28) |
 | Bruno oficial | Ignora `.michi.json`: la colección funciona igual, sin los flows |
 | Mover o renombrar una petición | El paso la pierde y pide elegirla otra vez |
+| Cambios hechos desde fuera | La app mira el `.michi.json` de cada colección abierta una vez por segundo y lo vuelve a leer cuando cambia: un flow o un bloque que llega con un `pull`, o que otra herramienta escribe en el fichero, aparece en la lista sin cerrar la app. También se vuelve a leer al volver a la ventana |
 | Trabajo en equipo | Si un `pull` trae otra versión de un flow que se está editando, la barra lo avisa y deja descartar los cambios propios. Guardar sin descartar pisa la versión que llegó |
 | Lo que no se guarda | El zoom, la posición del lienzo, el historial de deshacer, la guía de un bloque y la salida viven solo mientras la app está abierta |
 | Peticiones admitidas | HTTP y GraphQL. gRPC y WebSocket no se pueden encadenar |
@@ -165,7 +200,9 @@ Todo el código está en `packages/bruno-app/src/components/fork/Flows/` y en `p
 | `fields/` | Qué campos tiene la respuesta de una petición antes de enviarla: rutas y posiciones en listas (`paths.js`), lectura de documentos OpenAPI (`spec.js`), lectura de los scripts como texto (`script.js`), lo recordado entre sesiones (`memory.js`) y el observador que anota cada respuesta que llega (`watch.js`, instalado desde `ForkRoot`) |
 | `FlowCanvas/` | El componente que junta lo anterior: selección, arrastres, zoom, teclado y soltar desde la barra lateral |
 | `blocks/` | Los bloques: el catálogo de los que trae Michi (`catalog.js`), cómo se montan, se insertan y se guardan los propios (`building.js`), la guía y cómo sabe que un punto está hecho (`guide.js`), los bloques de cada colección (`store.js`) y los componentes `Gallery`, `GuidePanel`, `HelpPanel` y `SaveBlockModal` |
-| `report/` | El informe de una lista: de los datos a filas y columnas (`table.js`), a texto, tabla y página HTML (`export.js`), y la ventana `ReportModal` |
+| `report/` | Los informes: de los datos a filas y columnas (`table.js`), a texto, tabla y página HTML (`export.js`), de la salida de una ejecución a filas (`runReport.js`) y la ventana `ReportModal` |
+| `data/` | La tabla de datos: de texto pegado a columnas y filas (`parse.js`) y la ventana `TableModal` |
+| `course/` | El curso guiado: las lecciones (`lessons.js`, con su español en `SpanishUi/flowsCourse.js`), el progreso de cada persona (`progress.js`) y el panel `CoursePanel` |
 | `run/` | La ejecución en la app: `host.js` envía cada petición con `sendNetworkRequest`, como hace Bruno; `controller.js` pide la confirmación de entorno sensible y traduce los eventos del motor; `session.js` guarda el estado de cada ejecución y la salida; `OutputPanel/` la pinta |
 
 - Un flow es un JSON con `nodes` (tipo, posición y ajustes) y `edges` (de qué puerto a qué puerto, y los codos si se les ha dado forma).

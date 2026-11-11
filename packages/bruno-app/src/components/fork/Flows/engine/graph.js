@@ -84,6 +84,9 @@ const validateNode = (flow, node) => {
   if (node.type === 'listappend' && !flow.edges.some((edge) => edge.target === node.id && edge.targetPort === LIST_PORT) && !findListOf(flow, node)) {
     return [issue('list-not-connected', 'Choose the list this step adds to', node.id)];
   }
+  if (node.type === 'flow' && !node.config?.flowId) {
+    return [issue('flow-not-chosen', 'Choose the flow this step runs', node.id)];
+  }
   if (node.type === 'foreach' && !flow.edges.some((edge) => edge.target === node.id && edge.targetPort === valuePort('list'))) {
     return [issue('list-not-chosen', 'Choose the list this step goes through', node.id)];
   }

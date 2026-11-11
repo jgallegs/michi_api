@@ -9,6 +9,7 @@ import { FORK_SETTINGS, resetForkSettingsCache, setForkSetting } from 'component
 import FlowsSection from './index';
 import { FLOW_VERSION } from './model';
 import { resetFlowsStore } from './store';
+import { patchRunSession, resetRunSessions } from './run/session';
 
 jest.mock('nanoid', () => ({ customAlphabet: () => () => 'generated-uid', nanoid: () => 'generated-uid' }));
 
@@ -44,6 +45,7 @@ describe('FlowsSection', () => {
     localStorage.clear();
     resetForkSettingsCache();
     resetFlowsStore();
+    resetRunSessions();
     files = {};
     window.ipcRenderer = {
       invoke: jest.fn(async (channel, _path, arg) => {
@@ -78,6 +80,44 @@ describe('FlowsSection', () => {
 
       fireEvent.click(screen.getByText('Warehouse'));
       expect(screen.queryByText('Nested flow')).not.toBeInTheDocument();
+    });
+
+    it('finds a flow by its name or its folder', async () => {
+      files = { a: makeFlow('a', 'Create shipments'), b: makeFlow('b', 'Close day', 'Warehouse'), c: makeFlow('c', 'Labels', 'Warehouse') };
+      renderSection();
+      await screen.findByText('Create shipments');
+
+      fireEvent.change(screen.getByTestId('flow-search'), { target: { value: 'ship' } });
+      expect(screen.getAllByTestId('flow-row').map((row) => row.textContent)).toEqual(['Create shipments']);
+      fireEvent.change(screen.getByTestId('flow-search'), { target: { value: 'WAREHOUSE' } });
+      expect(screen.getAllByTestId('flow-row').map((row) => row.textContent)).toEqual(['Close day', 'Labels']);
+      fireEvent.change(screen.getByTestId('flow-search'), { target: { value: 'nothing' } });
+      expect(screen.getByText('No flow is called like that.')).toBeInTheDocument();
+    });
+
+    it('duplicates a flow with its steps, under a name that is free, and opens the copy', async () => {
+      const steps = [{ id: 'start', type: 'start', x: 0, y: 0, config: {} }];
+      files = { a: { ...makeFlow('a', 'Create shipments', 'Daily'), nodes: steps }, b: makeFlow('b', 'Create shipments (2)') };
+      const store = renderSection();
+      await screen.findByText('Create shipments');
+
+      const row = screen.getAllByTestId('flow-row').find((item) => item.textContent === 'Create shipments');
+      fireEvent.click(row.querySelector('[title="Duplicate flow"]'));
+      await waitFor(() => expect(files['generated-uid']).toBeDefined());
+      expect(files['generated-uid']).toMatchObject({ name: 'Create shipments (3)', folder: 'Daily', nodes: steps });
+      await waitFor(() => expect(store.getState().tabs.activeTabUid).toBe('/collections/orders#flow:generated-uid'));
+    });
+
+    it('marks next to each flow how its last run went', async () => {
+      files = { a: makeFlow('a', 'Good one'), b: makeFlow('b', 'Bad one'), c: makeFlow('c', 'Never run') };
+      patchRunSession('a', { phase: 'done', outcome: 'completed' });
+      patchRunSession('b', { phase: 'done', outcome: 'failed' });
+      renderSection();
+      await screen.findByText('Good one');
+      expect(screen.getAllByTestId('flow-run-mark').map((mark) => [mark.className.replace('flow-run-mark ', ''), mark.title])).toEqual([
+        ['bad', 'Its last run failed'],
+        ['ok', 'Its last run finished']
+      ]);
     });
 
     it('creates a flow and opens its tab', async () => {

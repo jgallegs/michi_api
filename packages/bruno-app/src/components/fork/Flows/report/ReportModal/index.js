@@ -11,10 +11,10 @@ const fileNameOf = (title) => `${title.replace(/[^\p{L}\p{N} _-]+/gu, ' ').trim(
 
 // What a list holds after a run, laid out to be read, copied into a spreadsheet or a mail, or kept as
 // a page of its own.
-const ReportModal = ({ title, flowName, items, onClose }) => {
+const ReportModal = ({ title, flowName, items, counted = ['item', 'items'], onClose }) => {
   const report = useMemo(() => buildReport(items), [items]);
   const numberTitle = '#';
-  const subtitle = `${flowName} · ${report.count} ${say(report.count === 1 ? 'item' : 'items')} · ${new Date().toLocaleString()}`;
+  const subtitle = `${flowName} · ${report.count} ${say(report.count === 1 ? counted[0] : counted[1])} · ${new Date().toLocaleString()}`;
   const reach = {};
 
   const copy = () =>

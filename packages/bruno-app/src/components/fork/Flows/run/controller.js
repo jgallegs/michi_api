@@ -5,6 +5,7 @@ import { getFlow } from '../store';
 import { titleOf } from '../canvas/pickers';
 import { OPERATOR_LABELS } from '../canvas/pieces';
 import { describeRequest } from '../canvas/requests';
+import { say as inWords } from '../language';
 import { createRunHost } from './host';
 import { RUN_PHASE, appendRunLog, getRunSession, patchRunSession } from './session';
 
@@ -37,15 +38,23 @@ const isSuccess = (status) => status >= 200 && status < 300;
 const describeOutcome = (detail, port) => {
   switch (detail?.kind) {
     case 'response': {
-      const { status, statusText, duration, data } = detail.response;
+      const { status, statusText, duration, data, tests } = detail.response;
       const tone = isSuccess(status) ? 'ok' : 'bad';
+      // The tests the request carries are told next to its answer; one that fails stands out.
+      const tested = tests ? ['·', `${tests.passed}/${tests.passed + tests.failed}`, word('tests')] : [];
       return {
-        tag: { text: `${status} · ${duration ?? 0} ms`, tone },
-        tone,
-        parts: [`${status}${statusText ? ` ${statusText}` : ''}`, '·', `${duration ?? 0} ms`],
-        detail: detailOf(data)
+        tag: { text: `${status} · ${duration ?? 0} ms`, tone: tests?.failed ? 'bad' : tone },
+        tone: tests?.failed ? 'warning' : tone,
+        parts: [`${status}${statusText ? ` ${statusText}` : ''}`, '·', `${duration ?? 0} ms`, ...tested],
+        detail: tests?.failed ? `${tests.failures.map((failure) => `✗ ${failure}`).join('\n')}\n\n${detailOf(data) ?? ''}` : detailOf(data)
       };
     }
+    case 'start':
+      return detail.answers?.length ? { parts: detail.answers.map((answer) => `${answer.name || '?'} = ${short(answer.value)}`).flatMap((text, index) => (index ? ['·', text] : [text])) } : null;
+    case 'tests':
+      return { tag: { text: detail.result ? 'Yes' : 'No', translate: true }, parts: [`${detail.passed}/${detail.passed + detail.failed}`, word('tests'), '→', word(detail.result ? 'Yes' : 'No')] };
+    case 'flow':
+      return { parts: [word('Ran the flow'), detail.name] };
     case 'check':
       return { tag: { text: detail.result ? 'Yes' : 'No', translate: true }, parts: [`${detail.status}`, '→', word(detail.result ? 'Yes' : 'No')] };
     case 'comparison':
@@ -114,7 +123,9 @@ export const stopRun = (flowId) => {
   }
 };
 
-export const startRun = async ({ store, collectionUid, collectionPath, flowId, mode = RUN_MODE.RUN }) => {
+// "inputs" are the answers to the questions of Start. "from" starts at that step with what the last
+// run left, instead of at Start; with "only", it runs that step and waits.
+export const startRun = async ({ store, collectionUid, collectionPath, flowId, mode = RUN_MODE.RUN, inputs, from, only = false }) => {
   if (active.has(flowId)) {
     return;
   }
@@ -125,9 +136,9 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
   }
 
   const previous = getRunSession(flowId);
-  const isFresh = mode === RUN_MODE.RUN || !previous.resume;
+  const isFresh = !from && (mode === RUN_MODE.RUN || !previous.resume);
   const controller = new AbortController();
-  const host = createRunHost({ store, collectionUid, signal: controller.signal });
+  const host = createRunHost({ store, collectionUid, collectionPath, signal: controller.signal });
   active.set(flowId, { controller, host });
 
   try {
@@ -139,17 +150,53 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
     const labelOf = (nodeId) => ({ text: titles.get(nodeId), translate: flow.nodes.find((node) => node.id === nodeId)?.type !== 'request' });
     const say = (entry) => appendRunLog({ flowId, ...entry });
 
+    // Tests of the requests, counted over the whole run, the flows inside included.
+    const tally = isFresh || from ? { passed: 0, failed: 0 } : { ...(previous.tests || { passed: 0, failed: 0 }) };
+    const count = (detail) => {
+      const tests = detail?.kind === 'response' ? detail.response.tests : null;
+      if (tests) {
+        tally.passed += tests.passed;
+        tally.failed += tests.failed;
+      }
+    };
+
     if (isFresh) {
-      patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null, steps: {}, loops: {}, lists: {}, contents: {}, hop: null, resume: null });
+      patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null, steps: {}, loops: {}, lists: {}, contents: {}, tests: null, hop: null, resume: null });
       say({ kind: 'header', label: { text: flow.name }, parts: [environmentOf(collection)?.name || word('No environment')] });
+    } else if (from) {
+      patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null, tests: null, hop: null, resume: null });
+      say({ kind: 'header', label: { text: flow.name }, parts: [environmentOf(collection)?.name || word('No environment'), '·', `${inWords(only ? 'only the step' : 'from the step')} ${labelOf(from).translate ? inWords(labelOf(from).text || '') : labelOf(from).text}`] });
     } else {
       patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null });
     }
 
     let left = null;
     let hops = 0;
+    // What happens in a flow run by a step is told under that step, with the name of the flow in front.
+    const tellInside = (inner, event, prefix) => {
+      const path = `${prefix}${inner.name} › `;
+      const node = inner.nodes.find((candidate) => candidate.id === event.nodeId);
+      const title = node ? titleOf(node, node.type === 'request' ? describeRequest(collection, node) : null) : '';
+      const label = { text: `${path}${node?.type === 'request' ? title : inWords(title)}` };
+      if (event.type === 'inside') {
+        tellInside(event.flow, event.event, path);
+      } else if (event.type === 'node-finished') {
+        count(event.detail);
+        const outcome = describeOutcome(event.detail, event.port);
+        if (outcome) {
+          say({ kind: 'step', tone: outcome.tone, label, parts: outcome.parts, detail: outcome.detail });
+        }
+      } else if (event.type === 'iteration') {
+        say({ kind: 'step', label, parts: [word('Round'), `${event.index}`, word('of'), `${event.times}`] });
+      } else if (event.type === 'warning' || event.type === 'node-failed') {
+        say({ kind: 'step', tone: event.type === 'warning' ? 'warning' : 'bad', label, parts: [{ text: event.message || event.error, translate: true }] });
+      }
+    };
+
     const onEvent = (event) => {
-      if (event.type === 'node-started') {
+      if (event.type === 'inside') {
+        tellInside(event.flow, event.event, '');
+      } else if (event.type === 'node-started') {
         const between = left ? flow.edges.filter((edge) => edge.source === left.nodeId && edge.target === event.nodeId) : [];
         // A step can also follow another one through a cable that carries a value.
         const cable = between.find((edge) => edge.sourcePort === left.port) || between[0];
@@ -160,6 +207,7 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
         }));
       } else if (event.type === 'node-finished') {
         const outcome = describeOutcome(event.detail, event.port);
+        count(event.detail);
         left = { nodeId: event.nodeId, port: event.port };
         patchRunSession(flowId, (session) => ({
           steps: { ...session.steps, [event.nodeId]: { state: 'done', tag: outcome?.tag || session.steps[event.nodeId]?.tag } },
@@ -187,13 +235,19 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
       onEvent,
       signal: controller.signal,
       environment: getAllVariables(collection),
-      resume: isFresh ? undefined : previous.resume,
-      step: mode === RUN_MODE.STEP,
+      resume: isFresh || from ? undefined : previous.resume,
+      from: from ? { nodeId: from, state: previous.lastState } : undefined,
+      inputs,
+      step: mode === RUN_MODE.STEP || only,
       stepDelay: mode === RUN_MODE.STEP ? 0 : STEP_DELAY_MS
     });
 
     if (result.status === RUN_STATUS.INVALID) {
       result.issues.forEach((issue) => say({ kind: 'step', tone: 'bad', label: issue.nodeId ? labelOf(issue.nodeId) : null, parts: [{ text: issue.message, translate: true }] }));
+    }
+    const ended = result.status === RUN_STATUS.COMPLETED || result.status === RUN_STATUS.STOPPED;
+    if (ended && tally.passed + tally.failed > 0) {
+      say({ kind: 'step', tone: tally.failed ? 'bad' : 'ok', label: word('Tests'), parts: [`${tally.passed}`, word('pass'), '·', `${tally.failed}`, word('fail')] });
     }
     if (ENDINGS[result.status]) {
       say({ kind: 'end', ...ENDINGS[result.status] });
@@ -202,6 +256,9 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
     patchRunSession(flowId, (session) => ({
       phase: waiting ? RUN_PHASE.PAUSED : RUN_PHASE.DONE,
       outcome: result.status,
+      tests: { ...tally },
+      // What the run left, so a step can be tried again without running everything before it.
+      lastState: result.state || result.resume?.state || session.lastState,
       resume: waiting ? result.resume : null,
       // A step left half way is no longer running: it is the one to continue from.
       steps: Object.fromEntries(Object.entries(session.steps).map(([nodeId, step]) => [nodeId, step.state === 'running' ? { ...step, state: 'waiting' } : step]))
