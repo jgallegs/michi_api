@@ -18,7 +18,7 @@ import { READY_BLOCKS } from '../blocks/catalog';
 import HelpPanel from '../blocks/HelpPanel';
 import CoursePanel from '../course/CoursePanel';
 import SaveBlockModal from '../blocks/SaveBlockModal';
-import { discardFlowDraft, getCollectionFlows, saveFlow, useFlowDirty, useFlowStale } from '../store';
+import { discardFlowDraft, getCollectionFlows, getFlow, saveFlow, useFlowDirty, useFlowStale } from '../store';
 import TableModal from '../data/TableModal';
 import AskModal from '../run/AskModal';
 import Cables from '../canvas/Cables';
@@ -92,6 +92,8 @@ const VIEW_MARGIN = 40;
 const TOOLBAR_SPACE = 70;
 // Room the guide of a block takes on the right of the canvas.
 const GUIDE_SPACE = 330;
+// Room the guided course takes on its left.
+const COURSE_SPACE = 384;
 // Below these widths the toolbar drops the words of its buttons: the least needed first, then all but Run.
 const COMPACT_WIDTH = 1180;
 const TIGHT_WIDTH = 900;
@@ -525,6 +527,20 @@ const FlowCanvas = ({ collection, flow }) => {
         }
       }
     );
+  };
+
+  // The course sits on the left of the canvas: the flow slides right just enough not to be under it.
+  const clearOfCourse = () =>
+    setView((asked) => {
+      const from = asked || viewRef.current;
+      const nodes = getFlow(collectionPath, flow.id)?.nodes || flow.nodes;
+      const leftmost = Math.min(...nodes.map((node) => node.x)) * from.zoom + from.x;
+      return leftmost < COURSE_SPACE ? { ...from, x: from.x + COURSE_SPACE - leftmost } : from;
+    });
+
+  const openCourse = () => {
+    setCourse(true);
+    clearOfCourse();
   };
 
   // Opens the list of what can be added, on one of its kinds; blocks have their own gallery.
@@ -1155,7 +1171,7 @@ const FlowCanvas = ({ collection, flow }) => {
           onDeleteOwn={(blockId) => deleteOwnBlock(collectionPath, blockId).catch((err) => toast.error(err.message))}
           onCourse={() => {
             closeGallery();
-            setCourse(true);
+            openCourse();
           }}
           onClose={closeGallery}
         />
@@ -1182,6 +1198,7 @@ const FlowCanvas = ({ collection, flow }) => {
             } else if (practice.step) {
               addPiece(practice.step, undefined, centerOfView(), null);
             }
+            clearOfCourse();
           }}
         />
       ) : null}
@@ -1190,7 +1207,7 @@ const FlowCanvas = ({ collection, flow }) => {
           onClose={() => setHelp(false)}
           onCourse={() => {
             setHelp(false);
-            setCourse(true);
+            openCourse();
           }}
           onShowBlocks={() => {
             setHelp(false);

@@ -165,7 +165,7 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
       say({ kind: 'header', label: { text: flow.name }, parts: [environmentOf(collection)?.name || word('No environment')] });
     } else if (from) {
       patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null, tests: null, hop: null, resume: null });
-      say({ kind: 'header', label: { text: flow.name }, parts: [environmentOf(collection)?.name || word('No environment'), '·', word(only ? 'only the step' : 'from the step'), inWords(titles.get(from) || '')] });
+      say({ kind: 'header', label: { text: flow.name }, parts: [environmentOf(collection)?.name || word('No environment'), '·', `${inWords(only ? 'only the step' : 'from the step')} ${labelOf(from).translate ? inWords(labelOf(from).text || '') : labelOf(from).text}`] });
     } else {
       patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null });
     }
