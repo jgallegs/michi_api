@@ -121,6 +121,99 @@ describe('runFlow', () => {
     });
   });
 
+  describe('questions, tables and flows inside flows', () => {
+    const asking = { id: 'start', type: 'start', config: { questions: [{ id: 'q1', name: 'howMany', value: '2' }, { id: 'q2', name: 'city', value: 'Lugo' }] } };
+
+    it('hands out the answers to the questions of Start, or their usual values', async () => {
+      const flow = { nodes: [asking, repeat('r', 0), request('a')], edges: [edge('start', 'out', 'r'), edge('start', 'field:q1', 'r', 'value:times'), edge('r', 'body', 'a'), edge('start', 'field:q2', 'a', 'var:where')] };
+      const answered = makeHost();
+      await run(flow, answered, { inputs: { q1: '3', q2: '' } });
+      expect(answered.sent.map((item) => item.variables.where)).toEqual(['Lugo', 'Lugo', 'Lugo']);
+      expect(answered.sent[0].variables).toMatchObject({ howMany: '3', city: 'Lugo' });
+
+      const silent = makeHost();
+      await run(flow, silent);
+      expect(silent.sent).toHaveLength(2);
+    });
+
+    it('goes through the rows of a table, each with its columns as fields', async () => {
+      const table = { id: 't', type: 'table', config: { columns: ['ref', 'phone'], rows: [['A1', '600'], ['A2', '601'], ['A3']] } };
+      const flow = flowOf(
+        [table, { id: 'each', type: 'foreach', config: {} }, request('a')],
+        [edge('t', 'field:items', 'each', 'value:list'), edge('each', 'body', 'a'), edge('each', 'field:item.ref', 'a', 'var:ref'), edge('each', 'field:item.phone', 'a', 'var:tlf')]
+      );
+      flow.edges[0] = edge('start', 'out', 'each');
+      const host = makeHost();
+      const { result } = await run(flow, host);
+      expect(result.status).toBe(RUN_STATUS.COMPLETED);
+      expect(host.sent.map((item) => [item.variables.ref, item.variables.tlf])).toEqual([['A1', '600'], ['A2', '601'], ['A3', '']]);
+    });
+
+    it('lets If follow the tests of the last response', async () => {
+      const flow = flowOf([request('a'), { id: 'if', type: 'if', config: { check: 'tests' } }, request('good'), request('bad')], [edge('a', 'out', 'if'), edge('if', 'yes', 'good'), edge('if', 'no', 'bad')]);
+      const failing = makeHost({ a: { status: 200, data: {}, tests: { passed: 2, failed: 1 } } });
+      await run(flow, failing);
+      expect(failing.sent.map((item) => item.id)).toEqual(['a', 'bad']);
+      const passing = makeHost({ a: { status: 200, data: {}, tests: { passed: 3, failed: 0 } } });
+      await run(flow, passing);
+      expect(passing.sent.map((item) => item.id)).toEqual(['a', 'good']);
+    });
+
+    it('runs another flow as a step, with its questions as inputs and what it names as outputs', async () => {
+      const inner = {
+        id: 'login',
+        name: 'Login',
+        nodes: [{ id: 'start', type: 'start', config: { questions: [{ id: 'u', name: 'user', value: 'guest' }] } }, request('auth'), { id: 'keep', type: 'setvalue', config: { name: 'token' } }],
+        edges: [edge('start', 'out', 'auth'), edge('start', 'field:u', 'auth', 'var:user'), edge('auth', 'out', 'keep'), edge('auth', 'field:token', 'keep', 'value:value')]
+      };
+      const flow = flowOf([{ id: 'sub', type: 'flow', config: { flowId: 'login', inputs: { u: 'ana' } } }, request('after')], [edge('sub', 'out', 'after'), edge('sub', 'field:token', 'after', 'var:token')]);
+      const host = { ...makeHost({ auth: { status: 200, data: { token: 'T-9' } } }), getFlow: (id) => (id === 'login' ? inner : null) };
+      const { result, events } = await run(flow, host);
+      expect(result.status).toBe(RUN_STATUS.COMPLETED);
+      expect(host.sent).toEqual([{ id: 'auth', variables: { user: 'ana' } }, { id: 'after', variables: { token: 'T-9' } }]);
+      expect(events.filter((event) => event.type === 'inside').map((event) => [event.nodeId, event.flow.name, event.event.type])).toContainEqual(['sub', 'Login', 'node-finished']);
+
+      const missing = await run(flowOf([{ id: 'sub', type: 'flow', config: { flowId: 'gone' } }], []), host);
+      expect(missing.result).toMatchObject({ status: RUN_STATUS.FAILED, error: 'The flow of this step is no longer in the collection' });
+      expect((await run(flowOf([{ id: 'sub', type: 'flow', config: {} }], []), host)).result.status).toBe(RUN_STATUS.INVALID);
+    });
+
+    it('fails the step when the flow inside fails, and never goes deeper than it should', async () => {
+      const broken = { id: 'b', name: 'Broken', nodes: [start, request('x')], edges: [edge('start', 'out', 'x')] };
+      const flow = flowOf([{ id: 'sub', type: 'flow', config: { flowId: 'b' } }], []);
+      const host = { ...makeHost({ x: { error: 'no route' } }), getFlow: () => broken };
+      expect((await run(flow, host)).result).toMatchObject({ status: RUN_STATUS.FAILED, error: 'no route' });
+
+      const itself = { id: 'self', name: 'Self', nodes: [start, { id: 'again', type: 'flow', config: { flowId: 'self' } }], edges: [edge('start', 'out', 'again')] };
+      const looping = { ...makeHost(), getFlow: () => itself };
+      expect((await run(itself, looping)).result).toMatchObject({ status: RUN_STATUS.FAILED, error: 'Flows inside flows go too deep' });
+    });
+
+    it('runs from a step in the middle with what the last run left', async () => {
+      const flow = flowOf([request('a'), request('b'), request('c')], [edge('a', 'out', 'b'), edge('a', 'field:id', 'b', 'var:id'), edge('b', 'out', 'c')]);
+      const first = makeHost({ a: { status: 200, data: { id: 7 } } });
+      const { result } = await run(flow, first);
+      expect(result.state.outputs.a).toEqual({ id: 7 });
+
+      const again = makeHost();
+      await run(flow, again, { from: { nodeId: 'b', state: result.state } });
+      expect(again.sent).toEqual([{ id: 'b', variables: { id: 7 } }, { id: 'c', variables: {} }]);
+
+      const alone = makeHost();
+      const paused = await run(flow, alone, { from: { nodeId: 'b', state: result.state }, step: true });
+      expect(alone.sent.map((item) => item.id)).toEqual(['b']);
+      expect(paused.result.status).toBe(RUN_STATUS.PAUSED);
+    });
+
+    it('ends a run started inside a loop where its round ends', async () => {
+      const flow = flowOf([repeat('r', 3), request('a'), request('b')], [edge('r', 'body', 'a'), edge('a', 'out', 'b'), edge('b', 'out', 'r', 'loopback')]);
+      const host = makeHost();
+      const { result } = await run(flow, host, { from: { nodeId: 'a' } });
+      expect(result.status).toBe(RUN_STATUS.COMPLETED);
+      expect(host.sent.map((item) => item.id)).toEqual(['a', 'b']);
+    });
+  });
+
   describe('Validate', () => {
     const validate = (config) => ({ id: 'v', type: 'validate', config });
 

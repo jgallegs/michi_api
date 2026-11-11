@@ -59,7 +59,38 @@ const collectWiredVariables = ({ node, flow, state, warn }) => {
   return wired;
 };
 
-const executeStart = () => ({ port: OUT_PORT, detail: { kind: 'start' } });
+// How a run ends. It lives here so that a step that runs another flow can tell how that one went.
+export const RUN_STATUS = {
+  COMPLETED: 'completed',
+  STOPPED: 'stopped',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+  PAUSED: 'paused',
+  INVALID: 'invalid'
+};
+
+// The questions a flow asks before it runs. Start hands out the answers; one nobody answered keeps the
+// value written next to the question. Each answer is also a variable with the name of its question.
+export const questionsOf = (flow) => (flow?.nodes || []).find((node) => node.type === 'start')?.config?.questions || [];
+
+const executeStart = ({ node, state, inputs, text }) => {
+  const answers = {};
+  (node.config.questions || []).forEach((question) => {
+    const value = inputs && inputs[question.id] !== undefined && inputs[question.id] !== '' ? inputs[question.id] : text(question.value ?? '');
+    answers[question.id] = value;
+    if (question.name) {
+      state.variables[question.name] = value;
+    }
+  });
+  state.outputs[node.id] = answers;
+  return { port: OUT_PORT, detail: { kind: 'start', answers: (node.config.questions || []).map((question) => ({ name: question.name, value: answers[question.id] })) } };
+};
+
+// A table of data written in the flow: each row is an item with the columns as its fields.
+export const tableRows = (node) => {
+  const columns = node.config?.columns || [];
+  return (node.config?.rows || []).map((row) => Object.fromEntries(columns.map((column, index) => [column, row[index] ?? ''])));
+};
 
 // Values typed in the step for the variables of its request; an empty box leaves the usual value.
 const collectTypedVariables = ({ node, text }) =>
@@ -80,7 +111,7 @@ const executeRequest = async (context) => {
     throw new Error(response.error);
   }
   state.outputs[node.id] = response.data;
-  state.responses[node.id] = { status: response.status };
+  state.responses[node.id] = { status: response.status, tests: response.tests };
   state.lastRequestId = node.id;
   return { port: OUT_PORT, detail: { kind: 'response', response } };
 };
@@ -100,7 +131,12 @@ const checkLastResponse = ({ node, state, input }) => {
   if (!state.lastRequestId) {
     throw new Error('There is no response to check yet');
   }
-  const { status } = state.responses[state.lastRequestId];
+  const { status, tests } = state.responses[state.lastRequestId];
+  if (node.config.check === 'tests') {
+    // The tests the request itself carries; one without tests has none that fail.
+    const failed = tests?.failed || 0;
+    return { result: failed === 0, detail: { kind: 'tests', passed: tests?.passed || 0, failed, result: failed === 0 } };
+  }
   const result = node.config.check === 'status' ? status === Number(input('status', node.config.status)) : isSuccessStatus(status);
   return { result, detail: { kind: 'check', status, result } };
 };
@@ -123,6 +159,30 @@ const executeIf = (context) => {
 const executeValidate = (context) => {
   const { result, detail } = compareInputs(context);
   return { port: result ? 'invalid' : 'valid', detail: { ...detail, kind: 'validation', valid: !result } };
+};
+
+// Runs another flow of the collection as one step. Its questions are the inputs of the step, and what it
+// leaves with a name (variables, lists, the answers themselves) is what the step hands out.
+const MAX_FLOW_DEPTH = 5;
+
+const executeFlow = async ({ node, state, host, input, runInside, depth }) => {
+  const inner = node.config.flowId && host.getFlow ? host.getFlow(node.config.flowId) : null;
+  if (!inner) {
+    throw new Error('The flow of this step is no longer in the collection');
+  }
+  if (depth >= MAX_FLOW_DEPTH) {
+    throw new Error('Flows inside flows go too deep');
+  }
+  const inputs = Object.fromEntries(questionsOf(inner).map((question) => [question.id, input(`q:${question.id}`, node.config.inputs?.[question.id] || question.value || '')]));
+  const result = await runInside(inner, inputs, node.id);
+  if (result.status === RUN_STATUS.CANCELLED) {
+    throw new FlowCancelled('The run was stopped');
+  }
+  if (result.status !== RUN_STATUS.COMPLETED && result.status !== RUN_STATUS.STOPPED) {
+    throw new Error(result.error || result.issues?.[0]?.message || 'The flow inside could not run');
+  }
+  state.outputs[node.id] = { ...(result.state?.variables || {}) };
+  return { port: OUT_PORT, detail: { kind: 'flow', name: inner.name } };
 };
 
 const executeRepeat = ({ node, state, input }) => {
@@ -234,6 +294,8 @@ export const NODE_DEFINITIONS = {
   note: { outputs: [OUT_PORT], execute: executeNote },
   wait: { outputs: [OUT_PORT], execute: executeWait },
   list: { outputs: [], dataOnly: true },
+  table: { outputs: [], dataOnly: true },
+  flow: { outputs: [OUT_PORT], execute: executeFlow },
   listappend: { outputs: [OUT_PORT], execute: executeListAppend },
   stop: { outputs: [], execute: executeStop }
 };
