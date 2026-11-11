@@ -13,6 +13,7 @@ import {
   findFittingPort,
   moveNodes,
   pasteNodes,
+  moveRequestField,
   removeListField,
   removeNodes,
   removeRequestField,
@@ -137,6 +138,17 @@ describe('flow editing', () => {
     const removed = removeRequestField(joined, 'a', 'order.id');
     expect(removed.nodes[1].config.fields).toEqual([]);
     expect(removed.edges).toEqual([]);
+  });
+
+  it('changes the path of a field and keeps its cables', () => {
+    const flow = connect(addRequestField(addRequestField(flowOf([node('a', 'request'), node('b', 'request')]), 'a', 'orders.id'), 'a', 'orders.2.id'), end('a', 'field:orders.id'), end('b', 'var:id'));
+    const moved = moveRequestField(flow, 'a', 'orders.id', 'orders.-1.id');
+    expect(moved.nodes[1].config.fields).toEqual(['orders.-1.id', 'orders.2.id']);
+    expect(cable(moved)).toEqual(['a.field:orders.-1.id>b.var:id']);
+    const merged = moveRequestField(moved, 'a', 'orders.-1.id', 'orders.2.id');
+    expect(merged.nodes[1].config.fields).toEqual(['orders.2.id']);
+    expect(cable(merged)).toEqual(['a.field:orders.2.id>b.var:id']);
+    expect(moveRequestField(flow, 'a', 'orders.id', 'orders.id')).toBe(flow);
   });
 
   it('takes the cables of a field of the item away with it', () => {

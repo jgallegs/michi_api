@@ -25,6 +25,7 @@ import { startRun, stopRun } from '../run/controller';
 import { RUN_PHASE, patchRunSession, resetRunSessions } from '../run/session';
 import { resetGuides } from '../blocks/guide';
 import { resetOwnBlocks } from '../blocks/store';
+import { rememberShape, resetKnownFields, setApiDocuments } from '../fields/memory';
 import { FORK_SETTINGS, resetForkSettingsCache, setForkSetting } from 'components/fork/settings/store';
 import FlowCanvas, { resetCanvasMemory } from './index';
 
@@ -89,6 +90,7 @@ describe('FlowCanvas', () => {
     resetGuides();
     resetOwnBlocks();
     resetCanvasMemory();
+    resetKnownFields();
     startRun.mockClear();
     stopRun.mockClear();
   });
@@ -135,6 +137,48 @@ describe('FlowCanvas', () => {
 
     fireEvent.click(screen.getByLabelText('Disconnect'));
     expect(current().edges).toHaveLength(2);
+  });
+
+  it('lets a field inside a list say which item it reads', async () => {
+    const flow = makeFlow(
+      [node('a', 'request', 400, 120, { pathname: 'login.bru', fields: ['parcels.code'] }), node('b', 'request', 720, 120, { pathname: 'get order.bru' })],
+      [edge('e1', 'start', 'out', 'a'), edge('e2', 'a', 'out', 'b'), edge('e3', 'a', 'field:parcels.code', 'b', 'var:orderId')]
+    );
+    await open(flow);
+    expect(screen.queryByTestId('flow-position-a-parcels.code')).not.toBeInTheDocument();
+
+    act(() => rememberShape(COLLECTION, 'login.bru', { fields: ['parcels', 'parcels.code'], lists: ['parcels'] }));
+    expect(screen.getByTestId('flow-position-a-parcels.code')).toHaveTextContent('#1');
+
+    fireEvent.click(screen.getByTestId('flow-position-a-parcels.code'));
+    pick('The last item');
+    expect(current().nodes[1].config.fields).toEqual(['parcels.-1.code']);
+    expect(current().edges[2]).toMatchObject({ source: 'a', sourcePort: 'field:parcels.-1.code', target: 'b', targetPort: 'var:orderId' });
+    expect(screen.getByTestId('flow-position-a-parcels.-1.code')).toHaveTextContent('last');
+
+    fireEvent.click(screen.getByTestId('flow-position-a-parcels.-1.code'));
+    fireEvent.change(screen.getByPlaceholderText('Type a position, like 3'), { target: { value: '3' } });
+    pick('Item number 3');
+    expect(current().nodes[1].config.fields).toEqual(['parcels.2.code']);
+    expect(screen.getByTestId('flow-position-a-parcels.2.code')).toHaveTextContent('#3');
+    expect(chip('login · parcels.2.code')).toBeInTheDocument();
+  });
+
+  it('offers the fields an API document or a script declare, saying where they come from', async () => {
+    setApiDocuments([{ paths: { '/login': { post: { responses: { 200: { schema: { properties: { token: { type: 'string' } } } } } } } } }]);
+    const scripted = {
+      ...collection,
+      items: [{ ...collection.items[0], request: { ...collection.items[0].request, script: { res: 'bru.setVar("u", res.body.user.name);' } } }, collection.items[1]]
+    };
+    await open(makeFlow([node('a', 'request', 400, 120, { pathname: 'login.bru' })], [edge('e1', 'start', 'out', 'a')]), scripted);
+
+    fireEvent.click(screen.getByText('Add a field'));
+    const options = [...document.querySelectorAll('.flow-picker-option')].map((item) => item.textContent);
+    expect(options).toEqual(['tokenfrom the API spec', 'userfrom the script', 'user.namefrom the script']);
+    fireEvent.change(screen.getByPlaceholderText('Search or type a field, like order.id'), { target: { value: 'items[1].id' } });
+    pick('items.1.id');
+    expect(current().nodes[1].config.fields).toEqual(['items.1.id']);
+    expect(screen.getByTestId('flow-position-a-items.1.id')).toHaveTextContent('#2');
   });
 
   it('takes a field nobody has seen yet by typing its name in the value picker', async () => {

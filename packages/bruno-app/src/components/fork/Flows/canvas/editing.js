@@ -153,6 +153,25 @@ export const removeRequestField = (flow, nodeId, path) => {
   }));
 };
 
+// Changes the path of a field a step hands out, keeping the cables that hang from it. When the step
+// already hands out the new path, both become one.
+export const moveRequestField = (flow, nodeId, from, to) => {
+  const node = findNode(flow, nodeId);
+  if (!node || !to || from === to) {
+    return flow;
+  }
+  const portOf = node.type === 'foreach' ? itemFieldPort : fieldPort;
+  const moved = mapNode(flow, nodeId, (current) => {
+    const fields = current.config?.fields || [];
+    const renamed = fields.includes(from) ? fields.map((path) => (path === from ? to : path)) : [...fields, to];
+    return { ...current, config: { ...current.config, fields: [...new Set(renamed)] } };
+  });
+  return {
+    ...moved,
+    edges: moved.edges.map((edge) => (edge.source === nodeId && edge.sourcePort === portOf(from) ? { ...edge, sourcePort: portOf(to) } : edge))
+  };
+};
+
 export const addListField = (flow, nodeId) =>
   mapNode(flow, nodeId, (node) => ({
     ...node,

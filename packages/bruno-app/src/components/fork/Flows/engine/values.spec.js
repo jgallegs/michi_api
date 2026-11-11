@@ -13,6 +13,13 @@ describe('flow values', () => {
       expect(getByPath(body, 'shipments.info.id')).toBe(7);
     });
 
+    it('counts from the end with a negative index', () => {
+      expect(getByPath(body, 'shipments.-1.info.id')).toBe(8);
+      expect(getByPath(body, 'shipments.-2.info.id')).toBe(7);
+      expect(getByPath(body, 'shipments.-3.info.id')).toBeUndefined();
+      expect(getByPath(body, 'shipments.5')).toBeUndefined();
+    });
+
     it('returns the whole value without a path and undefined for missing fields', () => {
       expect(getByPath(body, '')).toBe(body);
       expect(getByPath(body, 'nope.deep')).toBeUndefined();

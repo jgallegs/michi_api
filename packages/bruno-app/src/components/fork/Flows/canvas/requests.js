@@ -1,10 +1,13 @@
 import { flattenItems } from 'utils/collections';
+import { getKnownFields } from '../fields/memory';
+import { describeShape, mergeShapes } from '../fields/paths';
+import { shapeFromScript } from '../fields/script';
+import { shapeFromSpecs } from '../fields/spec';
 
 const REQUEST_TYPES = ['http-request', 'graphql-request'];
 const PLACEHOLDER = /\{\{\s*([^{}]+?)\s*\}\}/g;
 const VARIABLE_NAME = /^[\w.-]+$/;
-const MAX_FIELDS = 300;
-const MAX_DEPTH = 8;
+const MAX_TEXT = 2000000;
 
 const normalizePath = (pathname) => String(pathname || '').replace(/\\/g, '/').replace(/\/+$/, '');
 
@@ -51,50 +54,49 @@ const parseJson = (text) => {
   }
 };
 
-const asData = (value) => {
-  if (typeof value === 'string') {
-    return parseJson(value);
+// A response as data. A text is read as JSON unless it is so long that reading it would be felt.
+export const asResponseData = (value) => {
+  const text = typeof value === 'string' ? value : value && typeof value === 'object' && typeof value.content === 'string' ? value.content : null;
+  if (text === null) {
+    return value;
   }
-  if (value && typeof value === 'object' && typeof value.content === 'string') {
-    return parseJson(value.content);
-  }
-  return value;
+  return text.length > MAX_TEXT ? undefined : parseJson(text);
 };
 
 // A response to read field names from before the flow has run: the last one received in this session,
 // or the first saved example.
 const sampleResponse = (item) => {
   const candidates = [item?.response?.data, ...(item?.examples || []).map((example) => example?.response?.body)];
-  return candidates.map(asData).find((data) => data && typeof data === 'object');
+  return candidates.map(asResponseData).find((data) => data && typeof data === 'object');
 };
 
 // Paths of every field in a value. Lists are entered through their first element, without an index,
 // which is how the engine reads them.
-export const listFieldPaths = (value) => {
-  const paths = [];
-  const visit = (current, prefix, depth) => {
-    const container = Array.isArray(current) ? current[0] : current;
-    if (!container || typeof container !== 'object' || Array.isArray(container) || depth > MAX_DEPTH) {
-      return;
-    }
-    Object.keys(container).forEach((key) => {
-      if (paths.length >= MAX_FIELDS) {
-        return;
-      }
-      const path = prefix ? `${prefix}.${key}` : key;
-      paths.push(path);
-      visit(container[key], path, depth + 1);
+export const listFieldPaths = (value) => describeShape(value).fields;
+
+// Everything known about the response of a request, most reliable first: what it answered in this
+// session or a saved example, the names remembered from earlier sessions, what an open API document
+// declares and what its scripts mention. "origins" marks the names nobody has seen in a real response.
+const knownFields = (collection, item, known) => {
+  const request = requestOf(item);
+  const seen = mergeShapes([describeShape(sampleResponse(item)), known.recall(collection.pathname, relativeRequestPath(collection, item))]);
+  const declared = item.type === 'http-request' ? shapeFromSpecs(known.documents, request?.method, request?.url) : null;
+  const mentioned = shapeFromScript(request);
+  const shape = mergeShapes([seen, declared, mentioned]);
+  const origins = {};
+  shape.fields
+    .filter((path) => !seen.fields.includes(path))
+    .forEach((path) => {
+      origins[path] = declared?.fields.includes(path) ? 'spec' : 'script';
     });
-  };
-  visit(value, '', 0);
-  return paths;
+  return { ...shape, origins };
 };
 
 // What a Request step needs to know about its request to draw itself.
-export const describeRequest = (collection, node) => {
+export const describeRequest = (collection, node, known = getKnownFields()) => {
   const item = node.config?.pathname ? findRequestItem(collection, node.config.pathname) : null;
   if (!item) {
-    return { item: null, missing: Boolean(node.config?.pathname), variables: [], fields: [] };
+    return { item: null, missing: Boolean(node.config?.pathname), variables: [], fields: [], lists: [], origins: {} };
   }
   return {
     item,
@@ -102,6 +104,6 @@ export const describeRequest = (collection, node) => {
     name: item.name,
     method: item.type === 'graphql-request' ? 'GQL' : String(requestOf(item)?.method || '').toUpperCase(),
     variables: listRequestVariables(item),
-    fields: listFieldPaths(sampleResponse(item))
+    ...knownFields(collection, item, known)
   };
 };

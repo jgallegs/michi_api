@@ -9,6 +9,7 @@ const matches = (option, words) => {
     option.label,
     inSpanish(option.label, option.translate),
     option.hint,
+    inSpanish(option.hint, option.translateHint),
     option.group,
     inSpanish(option.group, option.translateGroup),
     option.badge
@@ -94,7 +95,7 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
             >
               {option.badge ? <span className="flow-picker-badge fork-no-translate">{option.badge}</span> : null}
               <span className={`flow-picker-label ${option.translate ? '' : 'fork-no-translate'}`}>{option.label}</span>
-              {option.hint ? <span className="flow-picker-hint fork-no-translate">{option.hint}</span> : null}
+              {option.hint ? <span className={`flow-picker-hint ${option.translateHint ? '' : 'fork-no-translate'}`}>{option.hint}</span> : null}
             </button>
           </React.Fragment>
         ))}

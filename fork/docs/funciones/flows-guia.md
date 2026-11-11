@@ -76,6 +76,24 @@ El paso enseña de dónde toma el valor en una ficha, y se quita con su aspa.
 
 ![Valores que pasan de un paso a otro](../img/flows-valores.png)
 
+## Coger un dato concreto de la respuesta
+
+*Respuesta completa* es el cuerpo entero. Para un solo dato, pulsa **Añadir un campo** en la petición y elígelo: sale como una salida más.
+
+La lista ya trae los campos aunque no hayas ejecutado el flow:
+
+- Los que se vieron la última vez que se envió esa petición, **desde un flow o desde su pestaña de siempre**. Michi los recuerda de un día para otro (solo los nombres, nunca los valores).
+- Los que declara el **Swagger** del servicio, si lo tienes abierto en **API Specs**. Salen marcados *de la especificación*.
+- Los que menciona el **script** de la petición. Salen marcados *del script*.
+
+Si aun así no está, escribe su nombre: `datos.numero`.
+
+**Si el dato está dentro de una lista** (el código de un bulto dentro de la lista de bultos), el campo coge el del primer elemento y lo dice con una ficha `#1`. Púlsala para elegir **El primer elemento**, **El último elemento** o escribir la posición que quieras: `3` es el tercero.
+
+![Un campo de una lista, con la ficha que dice qué elemento lee](../img/flows-posicion.png)
+
+Para hacer algo con **todos** los elementos, usa el paso **Por cada elemento**.
+
 ## Ejecutar
 
 | Botón | Qué hace |

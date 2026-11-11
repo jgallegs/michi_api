@@ -12,6 +12,7 @@ import {
   variablePort
 } from '../engine/nodes';
 import { COMPARISON_OPERATORS, isSingleValueOperator } from '../engine/values';
+import { describePosition, listLevels, plainFieldPath } from '../fields/paths';
 
 // What travels through a port: the order of the steps, a value, or the list an "Add to list" writes to.
 export const PORT_KIND = { ORDER: 'order', VALUE: 'value', LIST: 'list' };
@@ -78,6 +79,19 @@ const section = (node, key, title, rows) => {
   return [{ ...header, hiddenLeft: rows.filter((row) => row.left).map((row) => row.left), hiddenRight: rows.filter((row) => row.right).map((row) => row.right) }];
 };
 
+// A field handed out by a step. Where its path goes through a list, the row shows the path without
+// numbers and, next to it, which item is read.
+const fieldRow = (path, port, lists) => {
+  const positions = listLevels(path, lists).map((level) => ({ ...level, ...describePosition(level) }));
+  return {
+    id: `out:${path}`,
+    label: path,
+    right: value(port),
+    removableField: path,
+    ...(positions.length ? { shownLabel: plainFieldPath(path), positions } : {})
+  };
+};
+
 const requestRows = (node, flow, request) => {
   const config = node.config || {};
   const variables = unique([
@@ -95,7 +109,7 @@ const requestRows = (node, flow, request) => {
   const outputs = [
     { id: 'out:status', label: 'Status code', right: value(STATUS_PORT) },
     { id: 'out:body', label: 'Whole response', right: value(fieldPort()) },
-    ...fields.map((path) => ({ id: `out:${path}`, label: path, right: value(fieldPort(path)), removableField: path })),
+    ...fields.map((path) => fieldRow(path, fieldPort(path), request?.lists)),
     { id: 'out:add', action: 'add-field', label: 'Add a field' }
   ];
   return [
@@ -159,7 +173,7 @@ const forEachRows = (node) => [
   { id: 'value:list', label: 'List', left: value(valuePort('list')), control: { type: 'wired', placeholder: 'Choose the list' } },
   ...loopRows,
   { id: 'item', label: 'Item', right: value(fieldPort('item')) },
-  ...(node.config?.fields || []).map((path) => ({ id: `out:${path}`, label: path, right: value(itemFieldPort(path)), removableField: path })),
+  ...(node.config?.fields || []).map((path) => fieldRow(path, itemFieldPort(path))),
   { id: 'out:add', action: 'add-field', label: 'Add a field' },
   roundNumberRow
 ];

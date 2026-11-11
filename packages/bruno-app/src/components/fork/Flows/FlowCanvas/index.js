@@ -23,6 +23,7 @@ import {
   addListField,
   addNode,
   addRequestField,
+  moveRequestField,
   canConnect,
   connect,
   copyNodes,
@@ -42,10 +43,22 @@ import {
 } from '../canvas/editing';
 import { canRedo, canUndo, editFlow, forgetHistory, redo, undo } from '../canvas/history';
 import { settle, tidy } from '../canvas/layout';
-import { isNamedByUser, listFieldOptions, listPieceOptions, listRequestOptions, listTypedFieldOptions, listValueOptions, titleOf } from '../canvas/pickers';
+import {
+  isNamedByUser,
+  listFieldOptions,
+  listPieceOptions,
+  listPositionOptions,
+  listRequestOptions,
+  listTypedFieldOptions,
+  listTypedPositionOptions,
+  listValueOptions,
+  titleOf
+} from '../canvas/pickers';
 import { HEADER_HEIGHT, PIECE_WIDTH, PORT_KIND, describePiece, findPort } from '../canvas/pieces';
 import { describeRequest, relativeRequestPath } from '../canvas/requests';
 import { defaultBends, dragBend, grabSegment, nearestSegment, routePoints, simplifyBends } from '../canvas/routing';
+import { useKnownFields } from '../fields/memory';
+import { toFieldPath, withListPosition } from '../fields/paths';
 import { RUN_MODE, startRun, stopRun } from '../run/controller';
 import { RUN_PHASE, useRunSession } from '../run/session';
 import StyledWrapper from './StyledWrapper';
@@ -67,6 +80,8 @@ const COMPACT_WIDTH = 1180;
 const TIGHT_WIDTH = 900;
 const REQUEST_ITEM_TYPES = ['http-request', 'graphql-request'];
 const FIELD_PATH = /^\S+$/;
+// What someone typed as the name of a field, as a path; "orders[2].id" is accepted too.
+const typedFieldPath = (text) => (FIELD_PATH.test(text) ? toFieldPath(text) : '');
 
 const GUIDE_MARK_OFFSET = 11;
 
@@ -89,8 +104,8 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const isTyping = (target) => Boolean(target.closest?.('input, select, textarea'));
 
-const describeNode = (collection, flow, node) => {
-  const request = node.type === 'request' ? describeRequest(collection, node) : null;
+const describeNode = (collection, flow, node, known) => {
+  const request = node.type === 'request' ? describeRequest(collection, node, known) : null;
   return { node, request, description: describePiece(node, flow, request), title: titleOf(node, request) };
 };
 
@@ -167,7 +182,9 @@ const FlowCanvas = ({ collection, flow }) => {
 
   const edit = useCallback((change, options) => editFlow(collectionPath, flow.id, change, options), [collectionPath, flow.id]);
 
-  const pieces = useMemo(() => new Map(flow.nodes.map((node) => [node.id, describeNode(collection, flow, node)])), [collection, flow]);
+  // Field names learned from a response, an API document or another session arrive on their own.
+  const knownFields = useKnownFields();
+  const pieces = useMemo(() => new Map(flow.nodes.map((node) => [node.id, describeNode(collection, flow, node, knownFields)])), [collection, flow, knownFields]);
 
   // A flow edited by hand or merged badly can hold steps and cables the canvas does not know; the rest still works.
   const isSound = useMemo(
@@ -664,6 +681,7 @@ const FlowCanvas = ({ collection, flow }) => {
       'toggle-section': () => grow((current) => toggleSection(current, node.id, payload)),
       'add-field': () => setPicker({ kind: 'field', position: anchorBelow(event.currentTarget), nodeId: node.id }),
       'remove-field': () => edit((current) => removeRequestField(current, node.id, payload)),
+      'pick-position': () => setPicker({ kind: 'position', position: anchorBelow(event.currentTarget), nodeId: node.id, path: payload }),
       'add-list-field': () => grow((current) => addListField(current, node.id)),
       'remove-list-field': () => edit((current) => removeListField(current, node.id, payload)),
       'pick-request': () => setPicker({ kind: 'request', position: anchorBelow(event.currentTarget), nodeId: node.id }),
@@ -691,7 +709,7 @@ const FlowCanvas = ({ collection, flow }) => {
       placeholder: 'Search or type a field, like order.id',
       options: listValueOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id)),
       emptyText: 'No other step hands out a value yet',
-      custom: (text) => (FIELD_PATH.test(text) ? listTypedFieldOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id), text) : null),
+      custom: (text) => (typedFieldPath(text) ? listTypedFieldOptions(flow, { nodeId: picker.nodeId, port: picker.port }, (node) => pieces.get(node.id), typedFieldPath(text)) : null),
       onPick: (option) =>
         edit((current) => {
           const shown = option.addField ? addRequestField(current, option.nodeId, option.addField) : current;
@@ -704,9 +722,19 @@ const FlowCanvas = ({ collection, flow }) => {
       placeholder: 'Search or type a field, like order.id',
       options: listFieldOptions(pieces.get(picker.nodeId).node, pieces.get(picker.nodeId).request),
       emptyText: 'Type the name of the field, like order.id',
-      custom: (text) => (FIELD_PATH.test(text) ? { id: text, label: text, path: text } : null),
+      custom: (text) => (typedFieldPath(text) ? { id: typedFieldPath(text), label: typedFieldPath(text), path: typedFieldPath(text) } : null),
       onPick: (option) => edit((current) => makeRoomAround(collection, addRequestField(current, picker.nodeId, option.path), picker.nodeId))
-    })
+    }),
+    position: () => {
+      const levels = pieces.get(picker.nodeId).description.rows.find((row) => row.removableField === picker.path)?.positions || [];
+      return {
+        title: 'Which item of the list?',
+        placeholder: 'Type a position, like 3',
+        options: listPositionOptions(levels),
+        custom: (text) => listTypedPositionOptions(levels, text),
+        onPick: (option) => edit((current) => moveRequestField(current, picker.nodeId, picker.path, withListPosition(picker.path, option.list, option.index)))
+      };
+    }
   };
   const openPicker = picker && (picker.kind === 'piece' || pieces.has(picker.nodeId)) ? pickers[picker.kind]() : null;
 

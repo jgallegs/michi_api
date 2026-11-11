@@ -41,9 +41,39 @@ export const listPieceOptions = (flow, collection, loose) => {
 export const listRequestOptions = (collection) =>
   listRequests(collection).map(({ path, name, method, folder }) => ({ id: path, label: name, hint: folder, badge: method, path }));
 
+// A field nobody has seen in a real response says where its name comes from.
+const ORIGIN_HINTS = { spec: 'from the API spec', script: 'from the script' };
+
+const originHint = (request, path) => (request?.origins?.[path] ? { hint: ORIGIN_HINTS[request.origins[path]], translateHint: true } : {});
+
 // Fields of the response that are not shown on the step yet.
 export const listFieldOptions = (node, request) =>
-  (request?.fields || []).filter((path) => !(node.config?.fields || []).includes(path)).map((path) => ({ id: path, label: path, path }));
+  (request?.fields || [])
+    .filter((path) => !(node.config?.fields || []).includes(path))
+    .map((path) => ({ id: path, label: path, path, ...originHint(request, path) }));
+
+// The items a field can read from each list on its path. A position typed as a number counts from 1,
+// the way people count; the path keeps it the way the engine reads it.
+const positionOption = (level, several, label, index) => ({
+  id: `${level.list}:${index}`,
+  label,
+  translate: true,
+  list: level.list,
+  index,
+  ...(several ? { group: level.name } : {})
+});
+
+export const listPositionOptions = (levels) =>
+  levels.flatMap((level) => [
+    ...(level.whole ? [positionOption(level, levels.length > 1, 'The whole list', null)] : []),
+    positionOption(level, levels.length > 1, 'The first item', 0),
+    positionOption(level, levels.length > 1, 'The last item', -1)
+  ]);
+
+export const listTypedPositionOptions = (levels, text) => {
+  const position = /^\d{1,6}$/.test(text) ? Number(text) : 0;
+  return position > 0 ? levels.map((level) => positionOption(level, levels.length > 1, `Item number ${position}`, position - 1)) : null;
+};
 
 // A request step is called like its request, a name someone chose; every other title is an interface text.
 export const isNamedByUser = (node, request) => node.type === 'request' && Boolean(request?.name);
@@ -82,6 +112,6 @@ export const listValueOptions = (flow, target, describe) =>
         .map((row) => ({ id: `${node.id}:${row.right.port}`, ...group, label: row.label, translate: !row.removableField, nodeId: node.id, port: row.right.port }));
       const hidden = listFieldOptions(node, request)
         .filter(({ path }) => fits(fieldPort(path)))
-        .map(({ path }) => ({ id: `${node.id}:${fieldPort(path)}`, ...group, label: path, nodeId: node.id, port: fieldPort(path), addField: path }));
+        .map(({ path, hint, translateHint }) => ({ id: `${node.id}:${fieldPort(path)}`, ...group, label: path, hint, translateHint, nodeId: node.id, port: fieldPort(path), addField: path }));
       return [...shown, ...hidden];
     });
