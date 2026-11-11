@@ -56,6 +56,11 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
     event.stopPropagation();
     if (event.key === 'Escape') {
       onClose();
+    } else if (event.key === 'Tab' && tabs) {
+      // Tab goes to the next kind of thing to pick, and back to the first after the last.
+      event.preventDefault();
+      const at = tabs.findIndex((item) => item.id === tab);
+      onTab(tabs[(at + (event.shiftKey ? tabs.length - 1 : 1)) % tabs.length].id);
     } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       const step = event.key === 'ArrowDown' ? 1 : -1;
@@ -79,7 +84,15 @@ const Picker = ({ title, options, position, placeholder = 'Search', emptyText = 
       {tabs ? (
         <div className="flow-picker-tabs">
           {tabs.map((item) => (
-            <button key={item.id} type="button" className={`flow-picker-tab ${item.id === tab ? 'active' : ''}`} onClick={() => onTab(item.id)} data-testid={`flow-picker-tab-${item.id}`}>
+            <button
+              key={item.id}
+              type="button"
+              className={`flow-picker-tab ${item.id === tab ? 'active' : ''}`}
+              // The search box keeps the keyboard, so what is typed next still filters the list.
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onTab(item.id)}
+              data-testid={`flow-picker-tab-${item.id}`}
+            >
               {item.label}
             </button>
           ))}

@@ -565,6 +565,20 @@ describe('FlowCanvas', () => {
       expect(screen.getAllByText(/./, { selector: '.flow-picker-label' }).map((item) => item.textContent)).toEqual(['Wait']);
     });
 
+    it('keeps the keyboard in the search box when changing tab, and Tab goes to the next one', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      fireEvent.click(screen.getByTestId('flow-add-step'));
+      const search = screen.getByPlaceholderText('Search a step');
+      expect(fireEvent.mouseDown(screen.getByTestId('flow-picker-tab-requests'))).toBe(false);
+
+      fireEvent.keyDown(search, { key: 'Tab' });
+      expect(screen.getByTestId('flow-picker-tab-requests')).toHaveClass('active');
+      fireEvent.change(screen.getByPlaceholderText('Search a request'), { target: { value: 'order' } });
+      fireEvent.keyDown(screen.getByPlaceholderText('Search a request'), { key: 'Enter' });
+      expect(current().nodes[2]).toMatchObject({ type: 'request', config: { pathname: 'get order.bru' } });
+      expect(screen.queryByTestId('flow-picker')).not.toBeInTheDocument();
+    });
+
     it('adds a request from its own button, without the steps in the way', async () => {
       await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
       fireEvent.click(screen.getByTestId('flow-add-request'));

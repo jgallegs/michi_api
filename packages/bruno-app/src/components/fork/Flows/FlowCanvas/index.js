@@ -89,6 +89,10 @@ const FIELD_PATH = /^\S+$/;
 const typedFieldPath = (text) => (FIELD_PATH.test(text) ? toFieldPath(text) : '');
 
 const GUIDE_MARK_OFFSET = 11;
+// Room a floating list needs, to open it where it fits inside the canvas.
+const PICKER_ROOM = { width: 260, height: 320 };
+const MENU_ROOM = { width: 200, height: 160 };
+const EDGE = 8;
 
 // Where each flow was left on screen, the steps copied last and the flows whose opening gallery was
 // closed, while the app is open.
@@ -277,10 +281,19 @@ const FlowCanvas = ({ collection, flow }) => {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
 
+  // The canvas shows nothing beyond its edges, so a list asked for near one opens a little inside.
+  const keepInside = (position, room) => {
+    const rect = rootRef.current.getBoundingClientRect();
+    return {
+      x: clamp(position.x, EDGE, Math.max(EDGE, rect.width - room.width - EDGE)),
+      y: clamp(position.y, EDGE, Math.max(EDGE, rect.height - room.height - EDGE))
+    };
+  };
+
   const anchorBelow = (element) => {
     const rect = rootRef.current.getBoundingClientRect();
     const target = element.getBoundingClientRect();
-    return { x: target.left - rect.left, y: target.bottom - rect.top + 4 };
+    return keepInside({ x: target.left - rect.left, y: target.bottom - rect.top + 4 }, PICKER_ROOM);
   };
 
   const fitView = useCallback(() => {
@@ -477,14 +490,14 @@ const FlowCanvas = ({ collection, flow }) => {
       setPicker(null);
       setGallery({ world, loose });
     } else {
-      setPicker({ kind: 'piece', what, position, world, loose });
+      setPicker({ kind: 'piece', what, position: keepInside(position, PICKER_ROOM), world, loose });
     }
   };
 
   // The right button on an empty spot offers what can be added there.
   const openMenu = (event) => {
     if (!event.target.closest?.('.flow-piece, .flow-toolbar, .flow-overlay')) {
-      setMenu({ position: toLocal(event), world: toWorld(event) });
+      setMenu({ position: keepInside(toLocal(event), MENU_ROOM), world: toWorld(event) });
     }
   };
 
