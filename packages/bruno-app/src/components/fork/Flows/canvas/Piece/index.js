@@ -17,6 +17,7 @@ import {
   IconPlug,
   IconPlus,
   IconRepeat,
+  IconRoute,
   IconSend,
   IconTable,
   IconVariable,
@@ -41,6 +42,8 @@ export const STEP_ICONS = {
   setvalue: IconVariable,
   list: IconList,
   listappend: IconPlaylistAdd,
+  table: IconTable,
+  flow: IconRoute,
   stop: IconPlayerStop
 };
 
@@ -180,7 +183,7 @@ const Contents = ({ node, row, items }) => {
   );
 };
 
-const ACTION_ICONS = { report: IconTable };
+const ACTION_ICONS = { report: IconTable, table: IconTable };
 
 const Row = ({ node, row, request, sources, contents, onConfig, onAction }) => {
   if (row.contents) {
@@ -251,10 +254,21 @@ const Row = ({ node, row, request, sources, contents, onConfig, onAction }) => {
       </div>
     );
   }
+  if (control?.type === 'question') {
+    return (
+      <div className="flow-row flow-row-out">
+        <input className="flow-input flow-key" value={getIn(node.config, control.namePath) ?? ''} placeholder="Question" onChange={(event) => onConfig(control.namePath, event.target.value)} />
+        <input className="flow-input" value={getIn(node.config, control.valuePath) ?? ''} placeholder="Usual answer" onChange={(event) => onConfig(control.valuePath, event.target.value)} />
+        <button type="button" className="flow-icon-button" aria-label="Remove question" title="Remove question" onClick={() => onAction('remove-question', row.removableIndex)}>
+          <IconX size={12} strokeWidth={2} />
+        </button>
+      </div>
+    );
+  }
   if (control?.type === 'text') {
     return (
       <div className="flow-row">
-        <span className={`flow-label ${row.left?.port.startsWith('var:') ? 'fork-no-translate' : ''}`} title={row.label}>{row.label}</span>
+        <span className={`flow-label ${row.own || row.left?.port.startsWith('var:') ? 'fork-no-translate' : ''}`} title={row.label}>{row.label}</span>
         <TypedValue node={node} row={row} source={source} onConfig={onConfig} onAction={onAction} />
       </div>
     );
@@ -266,7 +280,7 @@ const Row = ({ node, row, request, sources, contents, onConfig, onAction }) => {
           <IconX size={12} strokeWidth={2} />
         </button>
       ) : null}
-      <span className={`flow-label ${row.removableField ? 'fork-no-translate' : ''}`} title={row.label}>{row.shownLabel || row.label}</span>
+      <span className={`flow-label ${row.removableField || row.own ? 'fork-no-translate' : ''}`} title={row.label}>{row.shownLabel || row.label}</span>
       {row.positions ? (
         <button
           type="button"
@@ -310,6 +324,7 @@ const Piece = ({ node, description, request, title, position, selected, dimmed, 
       title={dimmed ? 'This step is not connected to Start, so it does not run' : undefined}
       data-testid={`flow-piece-${node.id}`}
       data-piece-type={node.type}
+      data-node-id={node.id}
       onMouseDown={(event) => onMouseDown(event, node)}
       onMouseEnter={() => onHover(node.id)}
       onMouseLeave={() => onHover(null)}

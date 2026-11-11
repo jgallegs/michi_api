@@ -174,7 +174,7 @@ export const listValueOptions = (flow, target, describe) =>
       const group = { group: titleOf(node, request), translateGroup: !isNamedByUser(node, request) };
       const shown = description.rows
         .filter((row) => row.right && row.right.kind !== PORT_KIND.ORDER && fits(row.right.port))
-        .map((row) => ({ id: `${node.id}:${row.right.port}`, ...group, label: row.label, translate: !row.removableField, nodeId: node.id, port: row.right.port }));
+        .map((row) => ({ id: `${node.id}:${row.right.port}`, ...group, label: row.label, translate: !row.removableField && !row.own, nodeId: node.id, port: row.right.port }));
       const hidden = listFieldOptions(node, request)
         .filter(({ path }) => fits(fieldPort(path)))
         .map(({ path, hint, translateHint }) => ({ id: `${node.id}:${fieldPort(path)}`, ...group, label: path, hint, translateHint, nodeId: node.id, port: fieldPort(path), addField: path }));

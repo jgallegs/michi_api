@@ -213,6 +213,61 @@ describe('FlowCanvas', () => {
     expect(screen.getByTestId('flow-position-a-items.1.id')).toHaveTextContent('#2');
   });
 
+  describe('questions, tables and trying a step', () => {
+    it('asks what the flow wants to know before running, and remembers the answers', async () => {
+      const asking = makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]);
+      asking.nodes[0] = { ...asking.nodes[0], config: { questions: [{ id: 'q1', name: 'howMany', value: '2' }] } };
+      await open(asking);
+      fireEvent.click(screen.getByTestId('flow-run'));
+      expect(startRun).not.toHaveBeenCalled();
+      expect(screen.getByLabelText('howMany')).toHaveValue('2');
+      fireEvent.change(screen.getByLabelText('howMany'), { target: { value: '5' } });
+      fireEvent.click(screen.getByTestId('flow-ask-submit-btn'));
+      expect(startRun).toHaveBeenLastCalledWith(expect.objectContaining({ flowId: 'f1', mode: 'run', inputs: { q1: '5' } }));
+      expect(screen.queryByTestId('flow-ask')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('flow-run'));
+      expect(screen.getByLabelText('howMany')).toHaveValue('5');
+    });
+
+    it('adds a question to Start from the step itself', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+      fireEvent.click(screen.getByText('Ask before running'));
+      fireEvent.change(screen.getByPlaceholderText('Question'), { target: { value: 'product' } });
+      fireEvent.change(screen.getByPlaceholderText('Usual answer'), { target: { value: '62' } });
+      expect(current().nodes[0].config.questions).toMatchObject([{ name: 'product', value: '62' }]);
+      fireEvent.click(screen.getByTitle('Remove question'));
+      expect(current().nodes[0].config.questions).toEqual([]);
+    });
+
+    it('writes the data of a table by pasting it', async () => {
+      await open(makeFlow([node('t', 'table', 400, 320, { columns: [], rows: [] })], []));
+      fireEvent.click(screen.getByText('Edit the data'));
+      fireEvent.change(screen.getByTestId('flow-table-text'), { target: { value: 'ref\tphone\nA-1\t600\nA-2\t601' } });
+      expect(screen.getByTestId('flow-table-count')).toHaveTextContent('2 rows · 2 columns');
+      expect([...screen.getByTestId('flow-table-preview').querySelectorAll('th')].map((cell) => cell.textContent)).toEqual(['ref', 'phone']);
+      fireEvent.click(screen.getByTestId('flow-table-form-submit-btn'));
+      expect(current().nodes[1].config).toEqual({ columns: ['ref', 'phone'], rows: [['A-1', '600'], ['A-2', '601']] });
+      expect(screen.getByText('2 rows, 2 columns')).toBeInTheDocument();
+    });
+
+    it('runs from a step, or only that step, from the menu of the right button', async () => {
+      await open(makeFlow([node('w', 'wait', 400, 120), node('n', 'note', 720, 120)], [edge('e1', 'start', 'out', 'w'), edge('e2', 'w', 'out', 'n')]));
+      const rightClick = (id) => {
+        fireEvent.mouseDown(screen.getByTestId(`flow-piece-${id}`).querySelector('.flow-piece-header'), { button: 2, clientX: 10, clientY: 10 });
+        fireEvent.mouseUp(window, { button: 2, clientX: 10, clientY: 10, target: screen.getByTestId(`flow-piece-${id}`) });
+      };
+      rightClick('n');
+      expect(within(screen.getByTestId('flow-menu')).getAllByRole('button').map((item) => item.textContent)).toEqual(['Run from this step', 'Run only this step']);
+      fireEvent.click(screen.getByTestId('flow-menu-run-from'));
+      expect(startRun).toHaveBeenLastCalledWith(expect.objectContaining({ flowId: 'f1', from: 'n' }));
+
+      rightClick('w');
+      fireEvent.click(screen.getByTestId('flow-menu-run-only'));
+      expect(startRun).toHaveBeenLastCalledWith(expect.objectContaining({ from: 'w', only: true }));
+    });
+  });
+
   describe('what a list holds', () => {
     const collecting = () =>
       makeFlow(

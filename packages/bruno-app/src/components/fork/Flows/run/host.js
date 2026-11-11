@@ -6,6 +6,7 @@ import { uuid } from 'utils/common';
 import { findCollectionByUid, findEnvironmentInCollection, findItemInCollection, getGlobalEnvironmentVariables } from 'utils/collections';
 import { sendNetworkRequest } from 'utils/network';
 import { findRequestItem } from '../canvas/requests';
+import { getFlow } from '../store';
 
 const withNumericTimestamps = (response) => ({
   ...response,
@@ -15,7 +16,23 @@ const withNumericTimestamps = (response) => ({
 // Sends the requests of a flow the way Bruno sends one from its own tab, with the same environment,
 // scripts and variables, so the response also shows up in the tab of the request. The values the flow
 // hands over travel as runtime variables of that one request.
-export const createRunHost = ({ store, collectionUid, signal }) => {
+
+// What the tests and assertions the request carries said about its response, as the app has just noted
+// on the request.
+const testsOf = (item) => {
+  const results = [...(item?.testResults || []), ...(item?.assertionResults || [])];
+  if (!results.length) {
+    return undefined;
+  }
+  const failures = results.filter((result) => result.status === 'fail');
+  return {
+    passed: results.filter((result) => result.status === 'pass').length,
+    failed: failures.length,
+    failures: failures.map((result) => result.description || [result.lhsExpr, result.rhsExpr].filter(Boolean).join(' ') || result.error || '')
+  };
+};
+
+export const createRunHost = ({ store, collectionUid, collectionPath, signal }) => {
   let sending = null;
 
   const readCollection = () => findCollectionByUid(store.getState().collections.collections, collectionUid);
@@ -50,7 +67,8 @@ export const createRunHost = ({ store, collectionUid, signal }) => {
       if (response.error) {
         return { error: typeof response.error === 'string' ? response.error : response.error?.message || 'The request could not be sent' };
       }
-      return { status: response.status, statusText: response.statusText, data: response.data, duration: response.duration, size: response.size };
+      const tests = testsOf(findItemInCollection(readCollection(), item.uid));
+      return { status: response.status, statusText: response.statusText, data: response.data, duration: response.duration, size: response.size, ...(tests ? { tests } : {}) };
     } catch (err) {
       return { error: err?.message || 'The request could not be sent' };
     } finally {
@@ -67,5 +85,8 @@ export const createRunHost = ({ store, collectionUid, signal }) => {
     }
   };
 
-  return { sendRequest, cancelSending };
+  // A step that runs another flow asks for it here, as it is on screen.
+  const getFlowOfCollection = (flowId) => getFlow(collectionPath, flowId);
+
+  return { sendRequest, cancelSending, getFlow: getFlowOfCollection };
 };

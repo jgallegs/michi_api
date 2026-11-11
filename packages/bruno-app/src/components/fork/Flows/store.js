@@ -62,6 +62,12 @@ export const getFlow = (collectionPath, flowId) => {
   return entry.drafts[flowId] || entry.saved[flowId] || null;
 };
 
+// Every flow of a collection as it is on screen, edits not yet saved included.
+export const getCollectionFlows = (collectionPath) => {
+  const { saved, drafts } = getEntry(collectionPath);
+  return Object.values({ ...saved, ...drafts });
+};
+
 export const useFlow = (collectionPath, flowId) => useSyncExternalStore(subscribe, () => getFlow(collectionPath, flowId));
 
 const findFlowName = (flowId) => {

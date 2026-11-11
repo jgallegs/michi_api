@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { IconClipboard, IconPlus, IconSend, IconStack } from '@tabler/icons';
+import { IconClipboard, IconPlayerPlay, IconPlayerSkipForward, IconPlus, IconSend, IconStack } from '@tabler/icons';
 import { useDrop } from 'react-dnd';
 import { useStore } from 'react-redux';
 import { findEnvironmentInCollection } from 'utils/collections';
 import { useIsSensitiveEnvironment } from 'components/fork/SensitiveEnvironment/store';
 import toast from 'react-hot-toast';
 import { findLoopBody, findReachedNodeIds, findStartNode, validateFlow } from '../engine/graph';
-import { NODE_DEFINITIONS, OUT_PORT, isLoopNode } from '../engine/nodes';
+import { NODE_DEFINITIONS, OUT_PORT, isLoopNode, questionsOf } from '../engine/nodes';
 import { translatePhrase } from 'components/fork/SpanishUi';
 import { say } from '../language';
 import { COLUMN, buildOwnBlock, buildReadyBlock, canFollow, insertBlock, makeOwnBlock } from '../blocks/building';
@@ -16,7 +16,9 @@ import Gallery from '../blocks/Gallery';
 import GuidePanel from '../blocks/GuidePanel';
 import HelpPanel from '../blocks/HelpPanel';
 import SaveBlockModal from '../blocks/SaveBlockModal';
-import { discardFlowDraft, saveFlow, useFlowDirty, useFlowStale } from '../store';
+import { discardFlowDraft, getCollectionFlows, saveFlow, useFlowDirty, useFlowStale } from '../store';
+import TableModal from '../data/TableModal';
+import AskModal from '../run/AskModal';
 import Cables from '../canvas/Cables';
 import { BRANCH_TONES, colorValueSources } from '../canvas/colors';
 import ContextMenu from '../canvas/ContextMenu';
@@ -27,6 +29,7 @@ import Toolbar from '../canvas/Toolbar';
 import {
   addListField,
   addNode,
+  addQuestion,
   addRequestField,
   moveRequestField,
   removeCablesWithoutPort,
@@ -40,6 +43,7 @@ import {
   removeEdges,
   removeListField,
   removeNodes,
+  removeQuestion,
   removeRequestField,
   setEdgeBends,
   setNodePositions,
@@ -103,6 +107,8 @@ const EDGE = 8;
 // Where each flow was left on screen, the steps copied last and the flows whose opening gallery was
 // closed, while the app is open.
 const viewports = new Map();
+// What was answered the last time each flow asked before running, to offer it again.
+const lastAnswers = new Map();
 const startedByHand = new Set();
 let copied = null;
 
@@ -122,7 +128,7 @@ const isTyping = (target) => Boolean(target.closest?.('input, select, textarea')
 
 const describeNode = (collection, flow, node, known) => {
   const request = node.type === 'request' ? describeRequest(collection, node, known) : null;
-  return { node, request, description: describePiece(node, flow, request), title: titleOf(node, request) };
+  return { node, request, description: describePiece(node, flow, request, { flows: getCollectionFlows(collection.pathname) }), title: titleOf(node, request) };
 };
 
 const boxesOf = (collection, flow) =>
@@ -181,6 +187,8 @@ const FlowCanvas = ({ collection, flow }) => {
   const [namingBlock, setNamingBlock] = useState(false);
   const [suggest, setSuggest] = useState(null);
   const [report, setReport] = useState(null);
+  const [asking, setAsking] = useState(null);
+  const [editingTable, setEditingTable] = useState(null);
   const [width, setWidth] = useState(Infinity);
   const ownBlocks = useOwnBlocks(collectionPath);
   const guide = useGuide(flow.id);
@@ -372,13 +380,23 @@ const FlowCanvas = ({ collection, flow }) => {
     return () => root.removeEventListener('wheel', onWheel);
   }, []);
 
-  const run = useCallback(
-    (mode) => {
+  const launch = useCallback(
+    (mode, extra) => {
       noteGuideRun(flow.id);
-      return startRun({ store, collectionUid: collection.uid, collectionPath, flowId: flow.id, mode }).catch((err) => toast.error(err.message));
+      return startRun({ store, collectionUid: collection.uid, collectionPath, flowId: flow.id, mode, ...extra }).catch((err) => toast.error(err.message));
     },
     [store, collection.uid, collectionPath, flow.id]
   );
+
+  // A run from Start first asks what the flow wants to know, if it asks anything.
+  const run = (mode) => {
+    const startsOver = mode === RUN_MODE.RUN || (mode === RUN_MODE.STEP && !session.resume);
+    if (startsOver && questionsOf(flow).length) {
+      setAsking({ mode });
+      return null;
+    }
+    return launch(mode);
+  };
 
   // The mark each step carries from the last run: its result, the round a Repeat is on, what a List holds.
   const runMarkOf = (node) => {
@@ -516,9 +534,15 @@ const FlowCanvas = ({ collection, flow }) => {
     }
   };
 
-  // The right button on an empty spot offers what can be added there.
-  const openMenu = (event) => {
-    if (!event.target.closest?.('.flow-piece, .flow-toolbar, .flow-overlay')) {
+  // The right button on an empty spot offers what can be added there. What was under the pointer when
+  // the button went down decides, and where it went up is where the menu opens.
+  const openMenu = (pressed, event) => {
+    const piece = pressed.closest?.('.flow-piece');
+    const node = piece ? flow.nodes.find((candidate) => candidate.id === piece.dataset.nodeId) : null;
+    // On a step that does something: trying it without running everything before it.
+    if (node && NODE_DEFINITIONS[node.type]?.execute && node.type !== 'start') {
+      setMenu({ position: keepInside(toLocal(event), MENU_ROOM), world: toWorld(event), nodeId: node.id });
+    } else if (!pressed.closest?.('.flow-piece, .flow-toolbar, .flow-overlay')) {
       setMenu({ position: keepInside(toLocal(event), MENU_ROOM), world: toWorld(event) });
     }
   };
@@ -551,7 +575,8 @@ const FlowCanvas = ({ collection, flow }) => {
     setMenu(null);
     if (event.button === 1 || event.button === 2 || (event.button === 0 && event.altKey)) {
       event.preventDefault();
-      startPan(event, event.button === 2 ? openMenu : null);
+      const pressed = event.target;
+      startPan(event, event.button === 2 ? (up) => openMenu(pressed, up) : null);
     } else if (event.button === 0) {
       startBoxSelect(event);
     }
@@ -794,6 +819,9 @@ const FlowCanvas = ({ collection, flow }) => {
       'remove-field': () => edit((current) => removeRequestField(current, node.id, payload)),
       'pick-position': () => setPicker({ kind: 'position', position: anchorBelow(event.currentTarget), nodeId: node.id, path: payload }),
       'add-list-field': () => grow((current) => addListField(current, node.id)),
+      'add-question': () => grow((current) => addQuestion(current, node.id)),
+      'remove-question': () => edit((current) => removeQuestion(current, node.id, payload)),
+      'edit-table': () => setEditingTable({ nodeId: node.id }),
       'remove-list-field': () => edit((current) => removeListField(current, node.id, payload)),
       'pick-request': () => setPicker({ kind: 'request', position: anchorBelow(event.currentTarget), nodeId: node.id }),
       'pick-value': () => setPicker({ kind: 'value', position: anchorBelow(event.currentTarget), nodeId: node.id, port: payload }),
@@ -1001,7 +1029,7 @@ const FlowCanvas = ({ collection, flow }) => {
           );
         })}
         {flow.nodes.length === 1 ? (
-          <div className="flow-hint" style={{ left: flow.nodes[0].x, top: flow.nodes[0].y + 56 }}>
+          <div className="flow-hint" style={{ left: flow.nodes[0].x, top: flow.nodes[0].y + 84 }}>
             Pull a cable out of the triangle to add the first step, or drop a request from the sidebar here.
           </div>
         ) : null}
@@ -1103,7 +1131,10 @@ const FlowCanvas = ({ collection, flow }) => {
         <ContextMenu
           position={menu.position}
           onClose={() => setMenu(null)}
-          items={[
+          items={menu.nodeId ? [
+            { id: 'run-from', label: 'Run from this step', icon: IconPlayerPlay, onPick: () => !isRunning && launch(RUN_MODE.RUN, { from: menu.nodeId }) },
+            { id: 'run-only', label: 'Run only this step', icon: IconPlayerSkipForward, onPick: () => !isRunning && launch(RUN_MODE.RUN, { from: menu.nodeId, only: true }) }
+          ] : [
             { id: 'steps', label: 'Add a step', icon: IconPlus, onPick: () => openAdd(ADD.STEPS, menu) },
             { id: 'requests', label: 'Add a request', icon: IconSend, onPick: () => openAdd(ADD.REQUESTS, menu) },
             { id: 'blocks', label: 'Add a block', icon: IconStack, onPick: () => openAdd(ADD.BLOCKS, menu) },
@@ -1149,6 +1180,28 @@ const FlowCanvas = ({ collection, flow }) => {
       {canvas}
       {report && pieces.has(report.nodeId) ? (
         <ReportModal title={say(pieces.get(report.nodeId).title)} flowName={flow.name} items={session.contents?.[report.nodeId] || []} onClose={() => setReport(null)} />
+      ) : null}
+      {asking ? (
+        <AskModal
+          questions={questionsOf(flow)}
+          answers={lastAnswers.get(flow.id)}
+          onCancel={() => setAsking(null)}
+          onSubmit={(answers) => {
+            lastAnswers.set(flow.id, answers);
+            setAsking(null);
+            launch(asking.mode, { inputs: answers });
+          }}
+        />
+      ) : null}
+      {editingTable && pieces.has(editingTable.nodeId) ? (
+        <TableModal
+          table={pieces.get(editingTable.nodeId).node.config}
+          onCancel={() => setEditingTable(null)}
+          onSubmit={({ columns, rows }) => {
+            edit((current) => updateNodeConfig(updateNodeConfig(current, editingTable.nodeId, ['columns'], columns), editingTable.nodeId, ['rows'], rows));
+            setEditingTable(null);
+          }}
+        />
       ) : null}
       {namingBlock ? (
         <SaveBlockModal

@@ -67,6 +67,18 @@ const StyledWrapper = styled.aside`
   .output-run:first-child { margin-top: 0; border-top: none; }
   .output-run-name { font-weight: 600; color: ${(props) => props.theme.text}; }
   .output-time { margin-left: auto; font-size: ${(props) => props.theme.font.size.xs}; }
+  .output-report {
+    display: inline-flex;
+    align-self: center;
+    padding: 2px;
+    border: none;
+    border-radius: ${(props) => props.theme.border.radius.sm};
+    background: none;
+    color: inherit;
+    cursor: pointer;
+
+    &:hover { color: ${(props) => props.theme.text}; background: ${(props) => props.theme.background.crust}; }
+  }
 
   .output-line {
     display: flex;

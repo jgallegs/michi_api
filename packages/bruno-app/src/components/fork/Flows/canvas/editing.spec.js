@@ -5,6 +5,7 @@ jest.mock('utils/common', () => {
 
 import {
   addListField,
+  addQuestion,
   addRequestField,
   canConnect,
   connect,
@@ -17,6 +18,7 @@ import {
   removeCablesWithoutPort,
   removeListField,
   removeNodes,
+  removeQuestion,
   removeRequestField,
   setEdgeBends,
   toggleSection,
@@ -150,6 +152,18 @@ describe('flow editing', () => {
     expect(merged.nodes[1].config.fields).toEqual(['orders.2.id']);
     expect(cable(merged)).toEqual(['a.field:orders.2.id>b.var:id']);
     expect(moveRequestField(flow, 'a', 'orders.id', 'orders.id')).toBe(flow);
+  });
+
+  it('adds questions to Start and takes one away with the cables that used its answer', () => {
+    const asked = addQuestion(addQuestion(flowOf([node('r', 'repeat')]), 'start'), 'start');
+    const [first, second] = asked.nodes[0].config.questions;
+    expect(asked.nodes[0].config.questions).toEqual([{ id: first.id, name: '', value: '' }, { id: second.id, name: '', value: '' }]);
+    const joined = connect(asked, end('start', `field:${first.id}`), end('r', 'value:times'));
+    expect(cable(joined)).toEqual([`start.field:${first.id}>r.value:times`]);
+    const removed = removeQuestion(joined, 'start', 0);
+    expect(removed.nodes[0].config.questions).toEqual([{ id: second.id, name: '', value: '' }]);
+    expect(removed.edges).toEqual([]);
+    expect(removeQuestion(removed, 'start', 5)).toBe(removed);
   });
 
   it('takes away the cables of the ports a step no longer has', () => {

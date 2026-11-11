@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { IconChevronDown, IconChevronRight, IconLayoutSidebarRightCollapse, IconListDetails, IconTrash } from '@tabler/icons';
+import { IconChevronDown, IconChevronRight, IconLayoutSidebarRightCollapse, IconListDetails, IconTable, IconTrash } from '@tabler/icons';
+import { say } from '../../language';
+import ReportModal from '../../report/ReportModal';
+import { buildRunItems, entriesOfRun } from '../../report/runReport';
 import { clearRunLog, useRunLog } from '../session';
 import StyledWrapper from './StyledWrapper';
 
@@ -13,7 +16,7 @@ const Part = ({ part }) => {
   return <span className={item.translate ? '' : 'fork-no-translate'}>{item.text}</span>;
 };
 
-const Entry = ({ entry }) => {
+const Entry = ({ entry, onReport }) => {
   const [unfolded, setUnfolded] = useState(false);
   const Caret = unfolded ? IconChevronDown : IconChevronRight;
 
@@ -23,6 +26,9 @@ const Entry = ({ entry }) => {
         <span className="output-run-name fork-no-translate">{entry.label.text}</span>
         {entry.parts.map((part, index) => <Part key={index} part={part} />)}
         <span className="output-time fork-no-translate">{timeOf(entry.time)}</span>
+        <button type="button" className="output-report" title="Report of this run" aria-label="Report of this run" onClick={() => onReport(entry)} data-testid="flow-output-report">
+          <IconTable size={13} strokeWidth={1.75} />
+        </button>
       </div>
     );
   }
@@ -52,6 +58,7 @@ const OutputPanel = () => {
   const log = useRunLog();
   const listRef = useRef(null);
   const [open, setOpen] = useState(rememberedOpen);
+  const [reported, setReported] = useState(null);
 
   const toggle = (next) => {
     rememberedOpen = next;
@@ -88,8 +95,17 @@ const OutputPanel = () => {
         </button>
       </div>
       <div className="output-list" ref={listRef}>
-        {log.length ? log.map((entry) => <Entry key={entry.id} entry={entry} />) : <p className="output-empty">What the flows do when they run shows up here.</p>}
+        {log.length ? log.map((entry) => <Entry key={entry.id} entry={entry} onReport={setReported} />) : <p className="output-empty">What the flows do when they run shows up here.</p>}
       </div>
+      {reported ? (
+        <ReportModal
+          title={reported.label.text}
+          flowName={reported.parts.map((part) => (typeof part === 'string' ? part : part.translate ? say(part.text) : part.text)).join(' ')}
+          items={buildRunItems(entriesOfRun(log, reported.id), say, { step: say('Step'), result: say('Result'), time: say('Time') })}
+          counted={['line', 'lines']}
+          onClose={() => setReported(null)}
+        />
+      ) : null}
     </StyledWrapper>
   );
 };

@@ -75,6 +75,40 @@ describe('flow pieces', () => {
     expect(inputs({ check: 'compare', operator: 'isEmpty' })).toEqual(['in', 'value:left']);
   });
 
+  it('lets Start ask questions and hand out the answers', () => {
+    const start = node('start', 'start', { questions: [{ id: 'q1', name: 'howMany', value: '3' }, { id: 'q2', name: '', value: '' }] });
+    const description = describePiece(start, { nodes: [start], edges: [] }, null);
+    expect(portsOf(description, 'right')).toEqual(['out', 'field:q1', 'field:q2']);
+    expect(description.rows.map((row) => [row.label, row.own])).toEqual([['howMany', true], ['Question', false], ['Ask before running', undefined]]);
+  });
+
+  it('shows a table of data as a list of rows to go through', () => {
+    const table = node('t', 'table', { columns: ['ref', 'phone'], rows: [['a', '1'], ['b', '2'], ['c', '3']] });
+    const description = describePiece(table, { nodes: [table], edges: [] }, null);
+    expect(description.rows[0].label).toBe('3 rows, 2 columns');
+    expect(description.ports.map((port) => [port.port, port.kind])).toEqual([['field:items', 'list'], ['field:length', 'value']]);
+  });
+
+  it('gives a step that runs another flow its questions as inputs and what it names as outputs', () => {
+    const inner = {
+      id: 'login',
+      name: 'Login',
+      nodes: [node('start', 'start', { questions: [{ id: 'u', name: 'user', value: 'guest' }] }), node('k', 'setvalue', { name: 'token' }), node('l', 'list', { name: 'seen' }), node('m', 'list', {})],
+      edges: []
+    };
+    const step = node('s', 'flow', { flowId: 'login' });
+    const flow = { id: 'main', nodes: [step], edges: [] };
+    const around = { flows: [{ id: 'main', name: 'Main', nodes: [], edges: [] }, inner] };
+    const description = describePiece(step, flow, null, around);
+    expect(description.rows[0].control.options).toEqual([{ value: 'login', label: 'Login', own: true }]);
+    expect(portsOf(description, 'left')).toEqual(['in', 'value:q:u']);
+    expect(portsOf(description, 'right')).toEqual(['out', 'field:user', 'field:token', 'field:seen']);
+
+    const unset = describePiece(node('s', 'flow', {}), flow, null, around);
+    expect(unset.rows).toHaveLength(1);
+    expect(unset.rows[0].control.options[0]).toEqual({ value: '', label: 'Choose a flow' });
+  });
+
   it('gives "Add to list" one input per field', () => {
     const fields = [{ id: 'f1', key: 'a' }, { id: 'f2', key: 'b' }];
     const description = describePiece(node('p', 'listappend', { mode: 'object', fields }), { nodes: [], edges: [] }, null);
@@ -158,7 +192,7 @@ describe('flow pieces', () => {
     };
 
     it('offers the steps and the requests of the collection as two separate lists', () => {
-      expect(listPieceOptions(flow, collection, null).map((option) => option.type)).toEqual(['if', 'validate', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop']);
+      expect(listPieceOptions(flow, collection, null).map((option) => option.type)).toEqual(['if', 'validate', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'table', 'setvalue', 'flow', 'wait', 'note', 'stop']);
       const requests = listPieceOptions(flow, collection, null, ADD.REQUESTS);
       expect(requests.map((option) => option.config.pathname)).toEqual(['login.bru', 'orders/get order.bru']);
       expect(requests.map((option) => option.group)).toEqual([undefined, 'orders']);

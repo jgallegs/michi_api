@@ -221,6 +221,53 @@ describe('running a flow', () => {
     expect(getRunSession('f1')).toMatchObject({ phase: RUN_PHASE.DONE, outcome: RUN_STATUS.COMPLETED });
   });
 
+  it('counts the tests the requests carry and tells the total at the end', async () => {
+    const store = makeStore();
+    store.collection.items[0].testResults = [{ status: 'pass', description: 'Status 200' }, { status: 'fail', description: 'code is 0' }];
+    store.collection.items[1].assertionResults = [{ status: 'pass', lhsExpr: 'res.status', rhsExpr: 'eq 200' }];
+    sendNetworkRequest.mockResolvedValueOnce(answer(200, { session: { token: 'T' } })).mockResolvedValueOnce(answer(200, {}));
+    await finish(start(store));
+    expect(lines()).toEqual(expect.arrayContaining(['login 200 OK · 12 ms · 1/2 tests', 'get order 200 OK · 12 ms · 1/1 tests', 'Tests 2 pass · 1 fail']));
+    expect(getRunSession('f1')).toMatchObject({ outcome: RUN_STATUS.COMPLETED, tests: { passed: 2, failed: 1 } });
+    expect(getRunLog().find((entry) => entry.label?.text === 'login').detail).toContain('✗ code is 0');
+  });
+
+  it('runs from a step with what the last run left, and only that step when asked', async () => {
+    const store = makeStore();
+    sendNetworkRequest.mockResolvedValue(answer(200, { session: { token: 'T-1' } }));
+    await finish(start(store));
+    sendNetworkRequest.mockClear();
+
+    await finish(startRun({ store, collectionUid: 'c1', collectionPath: COLLECTION, flowId: 'f1', from: 'b' }));
+    expect(sendNetworkRequest).toHaveBeenCalledTimes(1);
+    expect(sendNetworkRequest.mock.calls[0][3]).toMatchObject({ token: 'T-1' });
+    expect(lines()).toContain('Order walk Local · from the step get order');
+
+    sendNetworkRequest.mockClear();
+    await finish(startRun({ store, collectionUid: 'c1', collectionPath: COLLECTION, flowId: 'f1', from: 'a', only: true }));
+    expect(sendNetworkRequest).toHaveBeenCalledTimes(1);
+    expect(getRunSession('f1').phase).toBe(RUN_PHASE.PAUSED);
+  });
+
+  it('passes the answers to the questions of Start, and tells what happens inside a flow run by a step', async () => {
+    const inner = { ...flow, id: 'inner', name: 'Login flow', nodes: [node('start', 'start'), node('a', 'request', { pathname: 'login.bru' })], edges: [edge('start', 'out', 'a')] };
+    const outer = {
+      ...flow,
+      id: 'outer',
+      name: 'Outer',
+      nodes: [node('start', 'start', { questions: [{ id: 'q', name: 'who', value: 'guest' }] }), node('s', 'flow', { flowId: 'inner' }), node('b', 'request', { pathname: 'orders/get order.bru' })],
+      edges: [edge('start', 'out', 's'), edge('s', 'out', 'b'), edge('start', 'field:q', 'b', 'var:token')]
+    };
+    window.ipcRenderer.invoke = jest.fn(async () => [flow, inner, outer]);
+    await loadFlows(COLLECTION);
+    const store = makeStore();
+    sendNetworkRequest.mockResolvedValue(answer(200, {}));
+    await finish(startRun({ store, collectionUid: 'c1', collectionPath: COLLECTION, flowId: 'outer', inputs: { q: 'ana' } }));
+    expect(sendNetworkRequest).toHaveBeenCalledTimes(2);
+    expect(sendNetworkRequest.mock.calls[1][3]).toMatchObject({ token: 'ana', who: 'ana' });
+    expect(lines()).toEqual(expect.arrayContaining(['Start who = ana', 'Login flow › login 200 OK · 12 ms', 'Run a flow Ran the flow Login flow']));
+  });
+
   it('ignores a second start while a flow is running', async () => {
     const store = makeStore();
     sendNetworkRequest.mockResolvedValue(answer(200, {}));

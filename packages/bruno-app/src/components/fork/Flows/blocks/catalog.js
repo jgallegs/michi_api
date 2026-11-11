@@ -243,6 +243,19 @@ export const BLOCK_GROUPS = [
         ]
       },
       {
+        id: 'for-each-row',
+        title: 'Send a request for each row of a table',
+        description: 'Paste your data from a spreadsheet: each row is sent with its own values.',
+        steps: [step('each', 'foreach', 0, 0), step('one', 'request', 1, 0), step('table', 'table', 0, 1.3)],
+        cables: [['table', 'field:items', 'each', 'value:list'], ['each', 'body', 'one', 'in']],
+        guide: [
+          { step: 'table', text: 'On the table, press "Edit the data" and paste your rows', check: 'manual' },
+          { step: 'one', text: 'Choose the request to send for each row', check: 'request' },
+          { step: 'one', text: 'On that step, click the square of each value and choose its column', check: 'value' },
+          RUN
+        ]
+      },
+      {
         id: 'wait-until-ready',
         title: 'Wait until something is ready',
         description: 'Asks how it is going every few seconds and goes on when it is done.',
