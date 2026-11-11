@@ -203,7 +203,23 @@ const Row = ({ node, row, request, sources, onConfig, onAction }) => {
           <IconX size={12} strokeWidth={2} />
         </button>
       ) : null}
-      <span className={`flow-label ${row.removableField ? 'fork-no-translate' : ''}`} title={row.label}>{row.label}</span>
+      <span className={`flow-label ${row.removableField ? 'fork-no-translate' : ''}`} title={row.label}>{row.shownLabel || row.label}</span>
+      {row.positions ? (
+        <button
+          type="button"
+          className="flow-position"
+          title="Which item of the list is read: click to change it"
+          data-testid={`flow-position-${node.id}-${row.removableField}`}
+          onClick={(event) => onAction('pick-position', row.removableField, event)}
+        >
+          {row.positions.map((position, index) => (
+            <React.Fragment key={position.list}>
+              {index ? <span className="fork-no-translate">, </span> : null}
+              <span className={position.translate ? '' : 'fork-no-translate'}>{position.text}</span>
+            </React.Fragment>
+          ))}
+        </button>
+      ) : null}
     </div>
   );
 };

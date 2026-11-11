@@ -1,6 +1,6 @@
 const PLACEHOLDER = /\{\{\s*([^{}]+?)\s*\}\}/g;
 const WHOLE_PLACEHOLDER = /^\s*\{\{\s*([^{}]+?)\s*\}\}\s*$/;
-const INDEX_SEGMENT = /^\d+$/;
+const INDEX_SEGMENT = /^-?\d+$/;
 
 const isNil = (value) => value === undefined || value === null;
 
@@ -11,14 +11,19 @@ const readProperty = (container, key) => {
   return Object.prototype.hasOwnProperty.call(Object(container), key) ? container[key] : undefined;
 };
 
+// A number picks one item of a list, counting from the end when it is negative.
+const readItem = (list, position) => list[position < 0 ? list.length + position : position];
+
 // Response fields are offered without indexes, so a named field inside a list reads its first element.
 export const getByPath = (value, path) =>
   String(path || '')
     .split('.')
     .filter(Boolean)
     .reduce((current, segment) => {
-      const container = Array.isArray(current) && !INDEX_SEGMENT.test(segment) ? current[0] : current;
-      return readProperty(container, segment);
+      if (Array.isArray(current)) {
+        return INDEX_SEGMENT.test(segment) ? readItem(current, Number(segment)) : readProperty(current[0], segment);
+      }
+      return readProperty(current, segment);
     }, value);
 
 const toText = (value) => (typeof value === 'object' ? JSON.stringify(value) : String(value));

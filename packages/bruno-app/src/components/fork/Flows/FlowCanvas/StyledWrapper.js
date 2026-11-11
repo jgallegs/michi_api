@@ -268,6 +268,23 @@ const StyledWrapper = styled.div`
   }
   .flow-chip-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+  .flow-position {
+    flex-shrink: 0;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 9px;
+    font: inherit;
+    font-size: ${(props) => props.theme.font.size.xs};
+    line-height: 16px;
+    white-space: nowrap;
+    color: var(--flow-value);
+    border: 1px solid var(--flow-value);
+    background: ${(props) => props.theme.background.base};
+    cursor: pointer;
+
+    &:hover { background: ${(props) => props.theme.background.crust}; }
+  }
+
   .flow-icon-button {
     display: inline-flex;
     align-items: center;
