@@ -1,10 +1,12 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { flowsApi } from './api';
+import { onCollectionFileChange } from './fileChanges';
 import { MAX_FLOW_NAME_LENGTH, createFlow as buildFlow, flowSignature, normalizeFlow, normalizeFolder } from './model';
 
 // Flows of every open collection, keyed by collection path. "saved" mirrors .michi.json; "drafts" holds
 // edits not yet written, so switching tabs keeps unsaved work until the app is closed or the flow is
-// saved or discarded. The file is re-read when the window regains focus, so a git pull shows up at once.
+// saved or discarded. The file is re-read when it changes on disk and when the window regains focus, so
+// a git pull or a flow written from outside shows up at once.
 // "bases" remembers the saved version each draft started from, to tell when the file changed under it.
 const EMPTY_ENTRY = { saved: {}, drafts: {}, bases: {}, loaded: false, loading: false, error: null };
 
@@ -188,9 +190,19 @@ export const reloadLoadedCollections = () => {
   [...entries.entries()].filter(([, entry]) => entry.loaded).forEach(([collectionPath]) => loadFlows(collectionPath));
 };
 
+const reloadIfLoaded = (collectionPath) => {
+  if (getEntry(collectionPath).loaded) {
+    loadFlows(collectionPath);
+  }
+};
+
 export const installFlowsReload = () => {
   window.addEventListener('focus', reloadLoadedCollections);
-  return () => window.removeEventListener('focus', reloadLoadedCollections);
+  const stopListening = onCollectionFileChange(reloadIfLoaded);
+  return () => {
+    window.removeEventListener('focus', reloadLoadedCollections);
+    stopListening();
+  };
 };
 
 // Only for tests.

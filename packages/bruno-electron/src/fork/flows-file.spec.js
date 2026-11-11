@@ -2,10 +2,14 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-jest.mock('electron', () => ({ ipcMain: { handle: jest.fn() } }));
+jest.mock('electron', () => ({ ipcMain: { handle: jest.fn() }, BrowserWindow: { getAllWindows: jest.fn(() => []) } }));
+jest.mock('./flows-watch', () => ({ CHANGED_CHANNEL: 'main:fork-flows-changed', watchCollection: jest.fn() }));
+
+const { ipcMain, BrowserWindow } = require('electron');
+const { watchCollection } = require('./flows-watch');
 
 const { SETTINGS_FILE } = require('./collection-settings-file');
-const { FLOW_VERSION, listFlows, saveFlow, deleteFlow, listBlocks, saveBlock, deleteBlock } = require('./flows-file');
+const { FLOW_VERSION, listFlows, saveFlow, deleteFlow, listBlocks, saveBlock, deleteBlock, register } = require('./flows-file');
 
 const makeCollection = () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'flows-file-'));
@@ -137,5 +141,25 @@ describe('flows file', () => {
     expect(listFlows(notCollection)).toEqual([]);
     expect(() => saveFlow(notCollection, makeFlow('f1', 'One'))).toThrow('Not a collection folder');
     expect(() => deleteFlow(notCollection, 'f1')).toThrow('Not a collection folder');
+  });
+
+  it('starts watching the file of a collection when its flows or blocks are asked for, and tells every open window', () => {
+    const dir = makeCollection();
+    saveFlow(dir, makeFlow('a-flow', 'First'));
+    register();
+    const handlerOf = (channel) => ipcMain.handle.mock.calls.find(([name]) => name === channel)[1];
+
+    expect(handlerOf('fork:flows:list')({}, dir).map((flow) => flow.name)).toEqual(['First']);
+    expect(handlerOf('fork:flows:blocks:list')({}, dir)).toEqual([]);
+    expect(watchCollection).toHaveBeenCalledTimes(2);
+    expect(watchCollection.mock.calls[0][0]).toBe(dir);
+
+    const open = { isDestroyed: () => false, webContents: { send: jest.fn() } };
+    const closed = { isDestroyed: () => true, webContents: { send: jest.fn() } };
+    BrowserWindow.getAllWindows.mockReturnValue([open, closed]);
+    watchCollection.mock.calls[0][1](dir);
+
+    expect(open.webContents.send).toHaveBeenCalledWith('main:fork-flows-changed', { collectionPath: dir });
+    expect(closed.webContents.send).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,7 @@ import {
   deleteFlow,
   discardFlowDraft,
   getFlow,
+  installFlowsReload,
   isFlowDirty,
   isFlowStale,
   loadFlows,
@@ -150,6 +151,36 @@ describe('flows store', () => {
     window.ipcRenderer.invoke = jest.fn(() => Promise.reject(new Error(`Error invoking remote method 'fork:flows:list': Error: .michi.json cannot be read`)));
     const { result } = renderHook(() => useCollectionFlows(COLLECTION));
     await waitFor(() => expect(result.current.error).toBe('.michi.json cannot be read'));
+  });
+
+  it('reads a collection again when its file changes on disk, if it was loaded', async () => {
+    let tell;
+    const stop = jest.fn();
+    window.ipcRenderer.on = jest.fn((channel, handler) => {
+      tell = handler;
+      return stop;
+    });
+    const uninstall = installFlowsReload();
+    expect(window.ipcRenderer.on).toHaveBeenCalledWith('main:fork-flows-changed', expect.any(Function));
+
+    files[COLLECTION].f1 = makeFlow('f1', 'Mine');
+    await loadFlows(COLLECTION);
+    updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, name: 'Being edited' }));
+    files[COLLECTION].f9 = makeFlow('f9', 'Written from outside');
+    tell({ collectionPath: 'C:\\collections\\other' });
+    tell({});
+    expect(window.ipcRenderer.invoke).toHaveBeenCalledTimes(1);
+    tell({ collectionPath: COLLECTION });
+
+    await waitFor(() => expect(getFlow(COLLECTION, 'f9')?.name).toBe('Written from outside'));
+    expect(getFlow(COLLECTION, 'f1').name).toBe('Being edited');
+    uninstall();
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing about file changes outside the desktop app', () => {
+    delete window.ipcRenderer;
+    expect(() => installFlowsReload()()).not.toThrow();
   });
 
   it('records the error when the file cannot be read', async () => {

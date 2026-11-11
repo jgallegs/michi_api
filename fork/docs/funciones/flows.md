@@ -181,6 +181,7 @@ El panel **Output**, a la derecha, cuenta lo que hace cada ejecución: código y
 | Campos recordados | Los nombres de los campos vistos en cada respuesta se guardan en este ordenador (no en la colección), así que cada persona los tiene al enviar la petición una vez. Con *Flows* apagado no se guarda nada ([decisiones.md](../decisiones.md), DEC-28) |
 | Bruno oficial | Ignora `.michi.json`: la colección funciona igual, sin los flows |
 | Mover o renombrar una petición | El paso la pierde y pide elegirla otra vez |
+| Cambios hechos desde fuera | La app mira el `.michi.json` de cada colección abierta una vez por segundo y lo vuelve a leer cuando cambia: un flow o un bloque que llega con un `pull`, o que otra herramienta escribe en el fichero, aparece en la lista sin cerrar la app. También se vuelve a leer al volver a la ventana |
 | Trabajo en equipo | Si un `pull` trae otra versión de un flow que se está editando, la barra lo avisa y deja descartar los cambios propios. Guardar sin descartar pisa la versión que llegó |
 | Lo que no se guarda | El zoom, la posición del lienzo, el historial de deshacer, la guía de un bloque y la salida viven solo mientras la app está abierta |
 | Peticiones admitidas | HTTP y GraphQL. gRPC y WebSocket no se pueden encadenar |
