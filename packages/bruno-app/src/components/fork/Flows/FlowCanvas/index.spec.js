@@ -275,7 +275,7 @@ describe('FlowCanvas', () => {
       await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
       fireEvent.click(screen.getByText('Ask before running'));
       fireEvent.change(screen.getByPlaceholderText('Question'), { target: { value: 'product' } });
-      fireEvent.change(screen.getByPlaceholderText('Usual answer'), { target: { value: '62' } });
+      fireEvent.change(screen.getByPlaceholderText('Usual answer, if any'), { target: { value: '62' } });
       expect(current().nodes[0].config.questions).toMatchObject([{ name: 'product', value: '62' }]);
       fireEvent.click(screen.getByTitle('Remove question'));
       expect(current().nodes[0].config.questions).toEqual([]);

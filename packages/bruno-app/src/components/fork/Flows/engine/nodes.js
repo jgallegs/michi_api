@@ -51,7 +51,10 @@ const collectWiredVariables = ({ node, flow, state, warn }) => {
       const name = edge.targetPort.slice(VARIABLE_PORT_PREFIX.length);
       const value = readSourcePort(edge, state);
       if (value === undefined) {
-        warn(`No value arrived for "${name}"`);
+        // A question of Start left without an answer means "as usual": the request keeps its own value.
+        if (flow.nodes.find((candidate) => candidate.id === edge.source)?.type !== 'start') {
+          warn(`No value arrived for "${name}"`);
+        }
         return;
       }
       wired[name] = value;
@@ -70,20 +73,24 @@ export const RUN_STATUS = {
 };
 
 // The questions a flow asks before it runs. Start hands out the answers; one nobody answered keeps the
-// value written next to the question. Each answer is also a variable with the name of its question.
+// value written next to the question, and one with neither hands out nothing, so what would have used
+// it keeps its usual value. Each answer is also a variable with the name of its question.
 export const questionsOf = (flow) => (flow?.nodes || []).find((node) => node.type === 'start')?.config?.questions || [];
 
 const executeStart = ({ node, state, inputs, text }) => {
   const answers = {};
   (node.config.questions || []).forEach((question) => {
     const value = inputs && inputs[question.id] !== undefined && inputs[question.id] !== '' ? inputs[question.id] : text(question.value ?? '');
+    if (value === '') {
+      return;
+    }
     answers[question.id] = value;
     if (question.name) {
       state.variables[question.name] = value;
     }
   });
   state.outputs[node.id] = answers;
-  return { port: OUT_PORT, detail: { kind: 'start', answers: (node.config.questions || []).map((question) => ({ name: question.name, value: answers[question.id] })) } };
+  return { port: OUT_PORT, detail: { kind: 'start', answers: (node.config.questions || []).filter((question) => answers[question.id] !== undefined).map((question) => ({ name: question.name, value: answers[question.id] })) } };
 };
 
 // A table of data written in the flow: each row is an item with the columns as its fields.

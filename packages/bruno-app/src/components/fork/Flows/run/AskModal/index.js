@@ -16,7 +16,7 @@ const AskModal = ({ questions, answers, onCancel, onSubmit }) => {
             className="block textbox mt-2 w-full"
             autoFocus={index === 0}
             value={values[question.id]}
-            placeholder={question.value || ''}
+            placeholder={question.value || 'As usual'}
             onChange={(event) => setValues({ ...values, [question.id]: event.target.value })}
             onKeyDown={(event) => event.key === 'Enter' && onSubmit(values)}
             data-testid={`flow-ask-${index + 1}`}

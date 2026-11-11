@@ -136,6 +136,19 @@ describe('runFlow', () => {
       expect(silent.sent).toHaveLength(2);
     });
 
+    it('leaves a request with its usual value when the question that feeds it is not answered', async () => {
+      const blank = { id: 'start', type: 'start', config: { questions: [{ id: 'q1', name: 'product', value: '' }, { id: 'q2', name: 'phone', value: '600' }] } };
+      const flow = { nodes: [blank, request('a')], edges: [edge('start', 'out', 'a'), edge('start', 'field:q1', 'a', 'var:codProducto'), edge('start', 'field:q2', 'a', 'var:tlf')] };
+      const host = makeHost();
+      const { events } = await run(flow, host, { inputs: { q1: '', q2: '' } });
+      expect(host.sent[0].variables).toEqual({ phone: '600', tlf: '600' });
+      expect(events.filter((event) => event.type === 'warning')).toEqual([]);
+
+      const answered = makeHost();
+      await run(flow, answered, { inputs: { q1: '62' } });
+      expect(answered.sent[0].variables).toEqual({ product: '62', phone: '600', codProducto: '62', tlf: '600' });
+    });
+
     it('goes through the rows of a table, each with its columns as fields', async () => {
       const table = { id: 't', type: 'table', config: { columns: ['ref', 'phone'], rows: [['A1', '600'], ['A2', '601'], ['A3']] } };
       const flow = flowOf(

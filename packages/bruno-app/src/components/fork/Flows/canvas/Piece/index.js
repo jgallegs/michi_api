@@ -258,7 +258,7 @@ const Row = ({ node, row, request, sources, contents, onConfig, onAction }) => {
     return (
       <div className="flow-row flow-row-out">
         <input className="flow-input flow-key" value={getIn(node.config, control.namePath) ?? ''} placeholder="Question" onChange={(event) => onConfig(control.namePath, event.target.value)} />
-        <input className="flow-input" value={getIn(node.config, control.valuePath) ?? ''} placeholder="Usual answer" onChange={(event) => onConfig(control.valuePath, event.target.value)} />
+        <input className="flow-input" value={getIn(node.config, control.valuePath) ?? ''} placeholder="Usual answer, if any" onChange={(event) => onConfig(control.valuePath, event.target.value)} />
         <button type="button" className="flow-icon-button" aria-label="Remove question" title="Remove question" onClick={() => onAction('remove-question', row.removableIndex)}>
           <IconX size={12} strokeWidth={2} />
         </button>
