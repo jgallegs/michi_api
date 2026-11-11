@@ -30,6 +30,21 @@ Un flow encadena peticiones que ya tienes en la colección. Si la petición toda
 
 Si prefieres empezar sin bloque, pulsa **Empezar en blanco**. La galería vuelve cuando quieras con el botón **Bloques**.
 
+## Añadir cosas al flow
+
+Hay tres clases de cosas, y cada una tiene su lista:
+
+| Qué | Dónde |
+|---|---|
+| **Pasos** (Si, Validar, Repetir, Esperar…) | Botón **Añadir paso** |
+| **Peticiones** de la colección, por carpetas | Botón **Añadir petición** |
+| **Bloques** ya montados | Botón **Bloques** |
+
+- **Clic derecho** en un hueco del lienzo ofrece las tres, y lo que elijas cae donde estaba el puntero.
+- Si tiras de un **triángulo** y sueltas el cable en vacío sale la misma lista, con sus tres pestañas, y lo que elijas queda ya unido.
+
+![La lista de añadir, con sus pestañas](../img/flows-anadir.png)
+
 ## Qué bloque elijo
 
 | Quiero… | Bloque | Lo que relleno |
@@ -39,9 +54,11 @@ Si prefieres empezar sin bloque, pulsa **Empezar en blanco**. La galería vuelve
 | Dar tiempo al servidor entre dos llamadas | Esperar entre dos llamadas | Las dos peticiones y los segundos |
 | Que el flow no siga si algo responde mal | Parar si una llamada falla | La petición |
 | Asegurarme de que un valor es el que espero | Comprobar un valor de la respuesta | La petición, el valor y lo que debería valer |
+| Dejar fuera las respuestas que llegan bien pero traen un error dentro | Validar un campo de la respuesta | La petición, el campo que hay que mirar y el valor que significa que no vale |
 | Insistir hasta que una llamada funcione | Reintentar hasta que funcione | La petición, cuántos intentos y cuánto espera |
 | Ver que varios servicios están vivos | Comprobar que varios servicios responden | Una petición por servicio |
 | Hacer la misma llamada varias veces y quedarme con todo | Repetir una llamada y guardar los resultados | La petición y cuántas veces |
+| Repetir una llamada y quedarme solo con las que salieron bien | Repetir una llamada y guardar solo las respuestas válidas | La petición, el campo que hay que mirar, el valor que no vale y cuántas veces |
 | Traer todas las páginas de un listado | Recorrer las páginas de un resultado | La petición y de dónde sale el número de página |
 | Hacer una llamada por cada elemento de un listado | Enviar una petición por cada elemento de una lista | La petición que da la lista, dónde está la lista y la petición que se repite |
 | Esperar a que un proceso termine | Esperar a que algo esté listo | La petición que dice cómo va y el valor que significa "listo" |
@@ -59,6 +76,8 @@ Un bloque es un punto de partida: después puedes añadir, quitar o cambiar paso
 - Un paso **atenuado** no está unido a **Inicio** y no se ejecuta. Sirve para dejar piezas de reserva.
 - Un paso con **aviso naranja** dice debajo lo que le falta. Mientras haya avisos, **Ejecutar** no envía nada.
 - Lo que un **Repetir** repite queda dentro de un marco.
+- **Colores de los cables:** naranja es el orden; **verde** lo que sale de *Sí* o *Válido* y **rojo** lo que sale de *No* o *No válido*. Los valores llevan el color del paso del que salen, y ese mismo color lo tienen la entrada y la ficha a las que llegan.
+- Deja el ratón sobre un paso y sus cables se resaltan mientras los demás se apagan: es la forma rápida de seguir un flow con muchos cables.
 
 El botón **?** de la barra abre este mismo resumen dentro de la app, con las teclas.
 
@@ -93,6 +112,19 @@ Si aun así no está, escribe su nombre: `datos.numero`.
 ![Un campo de una lista, con la ficha que dice qué elemento lee](../img/flows-posicion.png)
 
 Para hacer algo con **todos** los elementos, usa el paso **Por cada elemento**.
+
+## Cuando llega un 200 con un error dentro
+
+Hay servicios que contestan 200 y dentro traen un código que dice que no se hizo nada. Para que el flow no trate esa respuesta como buena está el paso **Validar**:
+
+1. Ponlo detrás de la petición.
+2. Pulsa el cuadrado de **No válido si** y elige el campo que hay que mirar, por ejemplo el código de retorno.
+3. Elige la comparación y escribe el valor: *no es igual a* `0`.
+4. De **Válido** saca lo que usa la respuesta (guardarla en una lista, la llamada siguiente). De **No válido**, lo que quieras que pase en ese caso, o nada.
+
+Dentro de un **Repetir**, si de **No válido** no cuelga nada, esa vuelta se acaba ahí y empieza la siguiente: la respuesta mala no se guarda y el flow sigue.
+
+![Una ejecución en la que Validar deja fuera la respuesta que traía un error](../img/flows-validar.png)
 
 ## Ejecutar
 

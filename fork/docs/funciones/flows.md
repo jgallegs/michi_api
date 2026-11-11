@@ -10,9 +10,10 @@ Para empezar a usarla sin leer todo esto está la [guía rápida](flows-guia.md)
 
 1. En la sección **Flows**, el botón **+** pide un nombre y, si se quiere, una carpeta. El flow se abre en una pestaña con su pieza **Start** y pregunta **What do you want to do?**: una galería de bloques ya montados (ver [Los bloques](#los-bloques)). **Start from scratch** la cierra y deja el lienzo vacío.
 2. Añadir pasos, de cualquiera de estas formas:
-   - Tirar de un triángulo y soltar el cable en vacío: sale un selector con los pasos que encajan y las peticiones de la colección. El paso elegido nace ya conectado.
+   - Tirar de un triángulo y soltar el cable en vacío: sale la lista de lo que encaja ahí, y lo elegido nace ya conectado. La lista tiene tres pestañas, para no mezclar cosas distintas: **Steps** (los pasos), **Requests** (las peticiones de la colección, agrupadas por carpeta) y **Blocks** (abre la galería).
    - Arrastrar una petición desde la barra lateral al lienzo.
-   - Doble clic en vacío, o el botón **Add step**.
+   - Doble clic en vacío, o los botones **Add step** y **Add request** de la barra, que abren la misma lista en su pestaña.
+   - Clic con el botón derecho en vacío: un menú ofrece añadir un paso, una petición o un bloque donde está el puntero, y pegar si hay algo copiado.
 3. Conectar valores: cada petición enseña a la izquierda las variables que usa (`{{token}}`) y a la derecha lo que devuelve. Se une una salida con una entrada tirando un cable, o pulsando el cuadrado de la entrada y eligiendo el valor de la lista. En esa lista también se puede escribir el nombre de un campo que todavía no se ha visto (`envios.info.id`): se ofrece en cada paso que entrega campos y, al elegirlo, queda añadido. Con **Add a field** se añade un campo de la respuesta, también anidado, sin haber ejecutado antes (ver [Los campos de una respuesta](#los-campos-de-una-respuesta)).
 4. **Run** ejecuta el flow contra el entorno que se ve al lado del botón. **Step** ejecuta un paso y espera. Si una petición no se puede enviar, la ejecución se queda en ese paso y se retoma con **Continue** o con el botón del propio paso.
 5. **Save** guarda el flow en la colección. Mientras no se guarde, los cambios se conservan al cambiar de pestaña, hasta que se cierre la app.
@@ -24,6 +25,7 @@ Para empezar a usarla sin leer todo esto está la [guía rápida](flows-guia.md)
 | Start | Donde empieza el flow. Siempre hay uno y no se puede borrar |
 | Request | Envía una petición de la colección, igual que desde su pestaña: mismo entorno, mismos scripts y la respuesta queda también en la pestaña de la petición |
 | If | Elige un camino. Comprueba si la última respuesta fue correcta (2xx), si su código es uno concreto, o compara dos valores |
+| Validate | Mira un valor y decide si lo que llegó vale: *Not valid if* [valor] [comparación] [otro valor]. Sigue por **Valid** o por **Not valid**. Es para las respuestas que llegan con un 200 pero traen un código de error dentro: lo que cuelga de **Valid** no las ve. Dentro de un bucle, si de **Not valid** no cuelga nada, la vuelta termina y empieza la siguiente |
 | Repeat | Repite lo que cuelga de *On each round* las veces indicadas. Lo que repite queda dentro de un marco. La vuelta termina cuando el camino se acaba o cuando llega a *End of round* |
 | For each item | Como Repeat, pero da una vuelta por cada elemento de una lista: una lista del flow o un campo de una respuesta que sea una lista. En cada vuelta entrega el elemento (*Item*), los campos suyos que se añadan con *Add a field* y el número de vuelta |
 | Leave loop | Termina el bucle en el que está, aunque le queden vueltas, y el flow sigue por su *When finished*. Sirve para reintentar hasta que algo funcione o esperar a que un proceso termine. Fuera de un bucle lleva un aviso y el flow no se ejecuta |
@@ -57,15 +59,16 @@ Un bloque son varios pasos ya unidos que resuelven algo que se hace a menudo. Se
 |---|---|
 | Al abrir un flow vacío | La galería sale sola |
 | Botón **Blocks** de la barra | Abre y cierra la galería |
-| Selector de pasos | La entrada **Choose a block…** abre la galería, y el bloque elegido queda unido al cable que se había soltado |
+| Lista de añadir | La pestaña **Blocks** abre la galería, y el bloque elegido queda unido al cable que se había soltado |
+| Botón derecho en vacío | **Add a block** abre la galería y el bloque cae donde estaba el puntero |
 
 Bloques que trae Michi:
 
 | Grupo | Bloques |
 |---|---|
 | The basics | Llamar a varias peticiones seguidas · usar un valor de una respuesta en la siguiente llamada · esperar entre dos llamadas |
-| When something fails | Parar si una llamada falla · comprobar un valor de la respuesta · reintentar hasta que funcione · comprobar que varios servicios responden |
-| Repeating | Repetir una llamada y guardar los resultados · recorrer las páginas de un resultado · enviar una petición por cada elemento de una lista · esperar a que algo esté listo |
+| When something fails | Parar si una llamada falla · comprobar un valor de la respuesta · validar un campo de la respuesta · reintentar hasta que funcione · comprobar que varios servicios responden |
+| Repeating | Repetir una llamada y guardar los resultados · repetir una llamada y guardar solo las respuestas válidas · recorrer las páginas de un resultado · enviar una petición por cada elemento de una lista · esperar a que algo esté listo |
 | Typical cases | Crear, comprobar y borrar · crear solo si no existe |
 
 **La guía.** Un bloque de Michi abre abajo a la izquierda la lista de lo que falta por rellenar, en orden. Cada punto se tacha solo cuando el lienzo muestra que está hecho (se eligió la petición, se conectó el valor, se pulsó **Run**), y los que no se pueden comprobar se tachan a mano pulsando su número. El paso al que se refiere cada punto lleva ese número encima; pulsar el texto de un punto lleva a su paso. La guía se cierra con su aspa y no se guarda.
@@ -82,6 +85,9 @@ El botón **?** de la barra abre un panel con lo necesario para leer un flow: qu
 - Mientras se arrastra un cable solo se iluminan los puertos donde encaja.
 - Conectar un valor a un paso que no tiene orden propio ya hace que se ejecute después: no hace falta unir además los triángulos.
 - Los cables van siempre en ángulo recto. Se les da forma arrastrando cualquier tramo; tirar del primero o del último crea un codo nuevo. Doble clic en un cable lo devuelve a su forma normal.
+- Los cables a los que nadie ha dado forma se reparten solos: no van unos encima de otros y giran donde menos se cruzan. Donde dos se cruzan, uno se ve pasar por encima del otro.
+- **Colores.** Los cables de orden llevan el color principal; los que salen de **Yes** o **Valid** van en verde y los de **No** o **Not valid** en rojo. Cada paso que entrega valores tiene un color propio, que llevan sus cables, sus salidas y las entradas y fichas a las que llegan: así se ve de dónde viene un valor sin seguir la línea.
+- Al dejar el ratón sobre un paso sus cables se resaltan y los demás se atenúan. Seleccionar un paso o un cable también resalta los suyos.
 
 ### Moverse por el lienzo
 
@@ -89,6 +95,7 @@ El botón **?** de la barra abre un panel con lo necesario para leer un flow: qu
 |---|---|
 | Seleccionar varios pasos | Arrastrar sobre el fondo, o `Ctrl` + clic |
 | Mover el lienzo | Arrastrar con el botón derecho o central, o `Alt` + arrastrar |
+| Añadir donde está el puntero | Clic con el botón derecho, sin arrastrar |
 | Acercar y alejar | Rueda del ratón |
 | Borrar | `Supr` con pasos o un cable seleccionados |
 | Deshacer y rehacer | `Ctrl+Z`, `Ctrl+Y` |
@@ -132,7 +139,7 @@ Todo el código está en `packages/bruno-app/src/components/fork/Flows/` y en `p
 | Carpeta | Qué contiene |
 |---|---|
 | `engine/` | El motor: en qué orden van los pasos (`graph.js`), qué hace cada uno (`nodes.js`) y la ejecución con pausa, paso a paso y reanudación (`run.js`). No sabe nada de la app: las peticiones salen por un `host` que se le pasa |
-| `canvas/` | El lienzo sin React: descripción de cada pieza y sus puertos (`pieces.js`), edición del flow (`editing.js`), trazado de cables (`routing.js`), colocación sin solapes y ordenar (`layout.js`), deshacer (`history.js`), lectura de las peticiones de la colección (`requests.js`) y contenido de los selectores (`pickers.js`). Más los componentes `Piece`, `Cables`, `Picker` y `Toolbar` |
+| `canvas/` | El lienzo sin React: descripción de cada pieza y sus puertos (`pieces.js`), edición del flow (`editing.js`), trazado de cables (`routing.js`), colocación sin solapes y ordenar (`layout.js`), deshacer (`history.js`), lectura de las peticiones de la colección (`requests.js`) contenido de los selectores (`pickers.js`) y colores de los cables (`colors.js`). Más los componentes `Piece`, `Cables`, `Picker`, `ContextMenu` y `Toolbar` |
 | `fields/` | Qué campos tiene la respuesta de una petición antes de enviarla: rutas y posiciones en listas (`paths.js`), lectura de documentos OpenAPI (`spec.js`), lectura de los scripts como texto (`script.js`), lo recordado entre sesiones (`memory.js`) y el observador que anota cada respuesta que llega (`watch.js`, instalado desde `ForkRoot`) |
 | `FlowCanvas/` | El componente que junta lo anterior: selección, arrastres, zoom, teclado y soltar desde la barra lateral |
 | `blocks/` | Los bloques: el catálogo de los que trae Michi (`catalog.js`), cómo se montan, se insertan y se guardan los propios (`building.js`), la guía y cómo sabe que un punto está hecho (`guide.js`), los bloques de cada colección (`store.js`) y los componentes `Gallery`, `GuidePanel`, `HelpPanel` y `SaveBlockModal` |
