@@ -99,7 +99,7 @@ Bloques que trae Michi:
 
 ### Preguntar antes de ejecutar
 
-El paso **Start** tiene **Ask before running**: cada pregunta lleva un nombre y, si se quiere, su respuesta habitual. Al pulsar **Run**, una ventana las hace, rellenas con lo que se contestó la última vez. Cada respuesta sale de **Start** como un valor para unir a lo que la necesite, y es además una variable con el nombre de la pregunta (`{{cuantos}}`). **Step** pregunta igual al empezar; **Continue** no vuelve a preguntar.
+El paso **Start** tiene **Ask before running**: cada pregunta lleva un nombre y, si se quiere, su respuesta habitual. Al pulsar **Run**, una ventana las hace, rellenas con lo que se contestó la última vez. Cada respuesta sale de **Start** como un valor para unir a lo que la necesite, y es además una variable con el nombre de la pregunta (`{{cuantos}}`). Una pregunta que se deja en blanco y no tiene respuesta habitual no entrega nada: la petición a la que esté unida conserva su valor de siempre. **Step** pregunta igual al empezar; **Continue** no vuelve a preguntar.
 
 ### Tabla de datos
 

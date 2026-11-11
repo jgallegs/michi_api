@@ -149,7 +149,7 @@ Para enviar la misma petición muchas veces con datos distintos, añade un paso 
 
 ## Que el flow pregunte antes de ejecutarse
 
-En el paso **Inicio**, pulsa **Preguntar antes de ejecutar** y escribe la pregunta y su respuesta habitual: cuántos envíos, qué producto. Une la respuesta a lo que la necesite. Al pulsar **Ejecutar** sale una ventana con las preguntas, así cualquiera puede usar el flow sin tocar el lienzo.
+En el paso **Inicio**, pulsa **Preguntar antes de ejecutar** y escribe la pregunta y su respuesta habitual: cuántos envíos, qué producto. Une la respuesta a lo que la necesite. Al pulsar **Ejecutar** sale una ventana con las preguntas, así cualquiera puede usar el flow sin tocar el lienzo. Si dejas una en blanco, la petición usa su valor de siempre.
 
 ![El flow pregunta antes de ejecutarse](../img/flows-preguntas.png)
 
