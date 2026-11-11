@@ -7,6 +7,7 @@ import {
   STATUS_PORT,
   VARIABLE_PORT_PREFIX,
   fieldPort,
+  itemFieldPort,
   valuePort,
   variablePort
 } from '../engine/nodes';
@@ -146,6 +147,23 @@ const listAppendRows = (node) => {
   ];
 };
 
+const loopRows = [
+  { id: 'body', label: 'On each round', right: order('body') },
+  { id: 'loopback', label: 'End of round', left: order(LOOPBACK_PORT) },
+  { id: 'exit', label: 'When finished', right: order('exit') }
+];
+
+const roundNumberRow = { id: 'index', label: 'Round number', right: value(fieldPort('index')) };
+
+const forEachRows = (node) => [
+  { id: 'value:list', label: 'List', left: value(valuePort('list')), control: { type: 'wired', placeholder: 'Choose the list' } },
+  ...loopRows,
+  { id: 'item', label: 'Item', right: value(fieldPort('item')) },
+  ...(node.config?.fields || []).map((path) => ({ id: `out:${path}`, label: path, right: value(itemFieldPort(path)), removableField: path })),
+  { id: 'out:add', action: 'add-field', label: 'Add a field' },
+  roundNumberRow
+];
+
 // title: what the step is called in the picker. header: whether it has an order input and a single order output.
 export const PIECES = {
   start: { title: 'Start', headerOut: true, rows: () => [] },
@@ -154,14 +172,10 @@ export const PIECES = {
   repeat: {
     title: 'Repeat',
     headerIn: true,
-    rows: () => [
-      typed('times', 'Times', '3'),
-      { id: 'body', label: 'On each round', right: order('body') },
-      { id: 'loopback', label: 'End of round', left: order(LOOPBACK_PORT) },
-      { id: 'exit', label: 'When finished', right: order('exit') },
-      { id: 'index', label: 'Round number', right: value(fieldPort('index')) }
-    ]
+    rows: () => [typed('times', 'Times', '3'), ...loopRows, roundNumberRow]
   },
+  foreach: { title: 'For each item', headerIn: true, rows: forEachRows },
+  leave: { title: 'Leave loop', headerIn: true, rows: () => [] },
   wait: { title: 'Wait', headerIn: true, headerOut: true, rows: () => [typed('seconds', 'Seconds', '1')] },
   setvalue: {
     title: 'Set variable',
@@ -181,11 +195,12 @@ export const PIECES = {
     ]
   },
   listappend: { title: 'Add to list', headerIn: true, headerOut: true, rows: listAppendRows },
+  note: { title: 'Note', headerIn: true, headerOut: true, rows: () => [typed('message', 'Message', 'What to write in the output')] },
   stop: { title: 'Stop', headerIn: true, rows: () => [typed('message', 'Message', 'Why it stops')] }
 };
 
 // The steps offered when adding one; Start is always there and never added by hand.
-export const ADDABLE_PIECES = ['request', 'if', 'repeat', 'list', 'listappend', 'setvalue', 'wait', 'stop'];
+export const ADDABLE_PIECES = ['request', 'if', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop'];
 
 // Everything the canvas needs to draw a step: its rows and where each port sits inside it.
 export const describePiece = (node, flow, request) => {

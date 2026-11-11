@@ -1,4 +1,4 @@
-import { IN_PORT, LIST_PORT, LOOPBACK_PORT, NODE_DEFINITIONS, OUT_PORT, isValueTargetPort } from './nodes';
+import { IN_PORT, LIST_PORT, LOOPBACK_PORT, NODE_DEFINITIONS, OUT_PORT, isLoopNode, isValueTargetPort, valuePort } from './nodes';
 
 const definitionOf = (node) => NODE_DEFINITIONS[node.type];
 
@@ -66,9 +66,8 @@ export const findReachedNodeIds = (flow, originId = findStartNode(flow)?.id) => 
   return new Set([originId, ...reachableFrom(flow, indexFlow(flow), [originId], { throughLoopback: true })]);
 };
 
-// The steps a Repeat runs on every iteration: what hangs from "body" and is not what comes after "exit".
-export const findLoopBody = (flow, repeatNode) => {
-  const index = indexFlow(flow);
+// The steps a loop runs on every iteration: what hangs from "body" and is not what comes after "exit".
+export const findLoopBody = (flow, repeatNode, index = indexFlow(flow)) => {
   const targetsOf = (port) => edgesLeaving(flow, repeatNode, port, index).filter((edge) => edge.targetPort !== LOOPBACK_PORT).map((edge) => edge.target);
   const reach = (startIds) => new Set([...startIds, ...reachableFrom(flow, index, startIds)]);
   const after = reach(targetsOf('exit'));
@@ -84,7 +83,19 @@ const validateNode = (flow, node) => {
   if (node.type === 'listappend' && !flow.edges.some((edge) => edge.target === node.id && edge.targetPort === LIST_PORT)) {
     return [issue('list-not-connected', 'Connect this step to the list it adds to', node.id)];
   }
+  if (node.type === 'foreach' && !flow.edges.some((edge) => edge.target === node.id && edge.targetPort === valuePort('list'))) {
+    return [issue('list-not-chosen', 'Choose the list this step goes through', node.id)];
+  }
   return [];
+};
+
+const validateLeaving = (flow, reached, index) => {
+  const leaving = reached.filter((node) => node.type === 'leave');
+  if (!leaving.length) {
+    return [];
+  }
+  const inside = new Set(flow.nodes.filter(isLoopNode).flatMap((loop) => [...findLoopBody(flow, loop, index)]));
+  return leaving.filter((node) => !inside.has(node.id)).map((node) => issue('leave-outside-loop', 'Leave loop only works inside a loop', node.id));
 };
 
 const validateEdge = (edge, byId) => {
@@ -96,8 +107,8 @@ const validateEdge = (edge, byId) => {
   if (target.type === 'start') {
     return [issue('invalid-start-cable', 'Nothing can go before Start', target.id)];
   }
-  if (edge.targetPort === LOOPBACK_PORT && target.type !== 'repeat') {
-    return [issue('invalid-loopback', 'Only a Repeat step has an end of iteration input', target.id)];
+  if (edge.targetPort === LOOPBACK_PORT && !isLoopNode(target)) {
+    return [issue('invalid-loopback', 'Only a step that repeats has an end of round input', target.id)];
   }
   if (edge.targetPort === LIST_PORT && (target.type !== 'listappend' || source.type !== 'list')) {
     return [issue('invalid-list-cable', 'Only a List can be connected to the list input', target.id)];
@@ -164,9 +175,12 @@ export const validateFlow = (flow, { startNodeId } = {}) => {
   if (!startNodeId && reached.length === 1) {
     return [issue('start-not-connected', 'Connect Start to the first step', originId)];
   }
-  const nodeIssues = reached.flatMap((node) => [...validateNode(flow, node), ...validateNextSteps(flow, node, index)]);
+  const nodeIssues = [
+    ...reached.flatMap((node) => [...validateNode(flow, node), ...validateNextSteps(flow, node, index)]),
+    ...validateLeaving(flow, reached, index)
+  ];
   const cycleNodeId = findCycleNode(flow, index, originId);
   return cycleNodeId
-    ? [...nodeIssues, issue('cycle', 'These steps form a loop; use a Repeat step and its end of iteration input', cycleNodeId)]
+    ? [...nodeIssues, issue('cycle', 'These steps form a loop; use a Repeat step and its end of round input', cycleNodeId)]
     : nodeIssues;
 };

@@ -205,6 +205,22 @@ describe('running a flow', () => {
     expect(getRunSession('f1')).toMatchObject({ phase: RUN_PHASE.DONE, outcome: RUN_STATUS.INVALID });
   });
 
+  it('tells in the output when a loop is left and what a note says', async () => {
+    const loop = {
+      ...flow,
+      nodes: [node('start', 'start'), node('r', 'repeat', { times: '4' }), node('n', 'note', { message: 'trying' }), node('out', 'leave')],
+      edges: [edge('start', 'out', 'r'), edge('r', 'body', 'n'), edge('n', 'out', 'out')]
+    };
+    resetFlowsStore();
+    window.ipcRenderer.invoke.mockResolvedValue([loop]);
+    await loadFlows(COLLECTION);
+
+    await finish(start(makeStore()));
+
+    expect(lines()).toEqual(['Order walk Local', 'Repeat Round 1 of 4', 'Note trying', 'Leave loop Leaves the loop on round 1 of 4', 'Finished']);
+    expect(getRunSession('f1')).toMatchObject({ phase: RUN_PHASE.DONE, outcome: RUN_STATUS.COMPLETED });
+  });
+
   it('ignores a second start while a flow is running', async () => {
     const store = makeStore();
     sendNetworkRequest.mockResolvedValue(answer(200, {}));

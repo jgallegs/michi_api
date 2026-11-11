@@ -1,5 +1,5 @@
 import { uuid } from 'utils/common';
-import { FIELD_PORT_PREFIX, LIST_PORT, LOOPBACK_PORT, STATUS_PORT, fieldPort, isValueTargetPort, valuePort } from '../engine/nodes';
+import { FIELD_PORT_PREFIX, LIST_PORT, LOOPBACK_PORT, STATUS_PORT, fieldPort, isLoopNode, isValueTargetPort, itemFieldPort, valuePort } from '../engine/nodes';
 import { PORT_KIND } from './pieces';
 
 export const GRID = 10;
@@ -94,7 +94,7 @@ export const canConnect = (flow, source, target) => {
   if (!sourceNode || !targetNode || sourceNode.id === targetNode.id || targetNode.type === 'start') {
     return false;
   }
-  if (target.port === LOOPBACK_PORT && targetNode.type !== 'repeat') {
+  if (target.port === LOOPBACK_PORT && !isLoopNode(targetNode)) {
     return false;
   }
   return kindsFit(sourceKind(sourceNode, source.port), targetKind(target.port));
@@ -144,11 +144,14 @@ export const addRequestField = (flow, nodeId, path) =>
     return fields.includes(path) ? node : { ...node, config: { ...node.config, fields: [...fields, path] } };
   });
 
-export const removeRequestField = (flow, nodeId, path) =>
-  mapNode(removePortCables(flow, nodeId, 'source', fieldPort(path)), nodeId, (node) => ({
+// A request hands out fields of its response; a "For each item" step, fields of the item it is on.
+export const removeRequestField = (flow, nodeId, path) => {
+  const port = findNode(flow, nodeId)?.type === 'foreach' ? itemFieldPort(path) : fieldPort(path);
+  return mapNode(removePortCables(flow, nodeId, 'source', port), nodeId, (node) => ({
     ...node,
     config: { ...node.config, fields: (node.config?.fields || []).filter((field) => field !== path) }
   }));
+};
 
 export const addListField = (flow, nodeId) =>
   mapNode(flow, nodeId, (node) => ({
