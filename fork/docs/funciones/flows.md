@@ -29,7 +29,7 @@ Para empezar a usarla sin leer todo esto está la [guía rápida](flows-guia.md)
 | Repeat | Repite lo que cuelga de *On each round* las veces indicadas. Lo que repite queda dentro de un marco. La vuelta termina cuando el camino se acaba o cuando llega a *End of round* |
 | For each item | Como Repeat, pero da una vuelta por cada elemento de una lista: una lista del flow o un campo de una respuesta que sea una lista. En cada vuelta entrega el elemento (*Item*), los campos suyos que se añadan con *Add a field* y el número de vuelta |
 | Leave loop | Termina el bucle en el que está, aunque le queden vueltas, y el flow sigue por su *When finished*. Sirve para reintentar hasta que algo funcione o esperar a que un proceso termine. Fuera de un bucle lleva un aviso y el flow no se ejecuta |
-| List y Add to list | Una lista que se va llenando, con un valor o con varios campos por vuelta. Se puede usar después del bucle. El paso **List** enseña dentro lo que va guardando y abre su informe (ver [El informe de una lista](#el-informe-de-una-lista)) |
+| List y Add to list | Una lista que se va llenando, con un valor o con varios campos por vuelta. Se puede usar después del bucle. **Add to list** elige su lista por nombre en un desplegable; si el flow solo tiene una, ya viene elegida. El paso **List** enseña dentro lo que va guardando y abre su informe (ver [El informe de una lista](#el-informe-de-una-lista)) |
 | Set variable | Guarda un valor con un nombre para usarlo en pasos posteriores como `{{nombre}}` |
 | Wait | Espera unos segundos |
 | Note | Escribe un mensaje en la salida y sigue |
@@ -106,8 +106,10 @@ El botón **?** de la barra abre un panel con lo necesario para leer un flow: qu
 - Conectar un valor a un paso que no tiene orden propio ya hace que se ejecute después: no hace falta unir además los triángulos.
 - Los cables van siempre en ángulo recto. Se les da forma arrastrando cualquier tramo; tirar del primero o del último crea un codo nuevo. Doble clic en un cable lo devuelve a su forma normal.
 - Los cables a los que nadie ha dado forma se reparten solos: no van unos encima de otros y giran donde menos se cruzan. Donde dos se cruzan, uno se ve pasar por encima del otro.
+- **Qué cables se ven.** Los de orden, siempre: son más gruesos y llevan una marca que dice hacia dónde van. Los de valores, finos, solo se dibujan para el paso sobre el que está el ratón o que está seleccionado, porque cada entrada ya dice en su ficha de dónde toma el valor. El botón del ojo, en la barra, los enseña todos; la elección se recuerda en el ordenador de cada persona.
 - **Colores.** Los cables de orden llevan el color principal; los que salen de **Yes** o **Valid** van en verde y los de **No** o **Not valid** en rojo. Cada paso que entrega valores tiene un color propio, que llevan sus cables, sus salidas y las entradas y fichas a las que llegan: así se ve de dónde viene un valor sin seguir la línea.
 - Al dejar el ratón sobre un paso sus cables se resaltan y los demás se atenúan. Seleccionar un paso o un cable también resalta los suyos.
+- Un flow hecho cuando la lista se unía a **Add to list** con un cable lo conserva y sigue funcionando; al elegir una lista en el desplegable, ese cable se quita.
 
 ### Moverse por el lienzo
 

@@ -76,8 +76,10 @@ Un bloque es un punto de partida: después puedes añadir, quitar o cambiar paso
 - Un paso **atenuado** no está unido a **Inicio** y no se ejecuta. Sirve para dejar piezas de reserva.
 - Un paso con **aviso naranja** dice debajo lo que le falta. Mientras haya avisos, **Ejecutar** no envía nada.
 - Lo que un **Repetir** repite queda dentro de un marco.
-- **Colores de los cables:** naranja es el orden; **verde** lo que sale de *Sí* o *Válido* y **rojo** lo que sale de *No* o *No válido*. Los valores llevan el color del paso del que salen, y ese mismo color lo tienen la entrada y la ficha a las que llegan.
-- Deja el ratón sobre un paso y sus cables se resaltan mientras los demás se apagan: es la forma rápida de seguir un flow con muchos cables.
+- **Los cables gruesos son el orden**, y llevan una flecha que dice hacia dónde van: naranja lo normal, **verde** lo que sale de *Sí* o *Válido* y **rojo** lo que sale de *No* o *No válido*.
+- **Los cables de los valores no se ven** hasta que dejas el ratón sobre un paso o lo seleccionas: entonces salen los suyos, finos y del color del paso del que viene el valor. No hacen falta para leer el flow, porque cada entrada ya lo dice en su ficha. Si quieres verlos todos, pulsa el **ojo** de la barra.
+
+![Un flow con solo el orden a la vista](../img/flows-cables.png)
 
 El botón **?** de la barra abre este mismo resumen dentro de la app, con las teclas.
 
