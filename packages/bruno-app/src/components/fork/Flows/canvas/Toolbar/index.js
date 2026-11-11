@@ -4,6 +4,8 @@ import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconDeviceFloppy,
+  IconEye,
+  IconEyeOff,
   IconHelp,
   IconLayoutDistributeHorizontal,
   IconMaximize,
@@ -72,7 +74,7 @@ const StaleWarning = ({ onDiscard }) => (
   </>
 );
 
-const Toolbar = ({ run, dirty, stale, canUndo, canRedo, message, onAdd, onAddRequest, onBlocks, onSaveBlock, onHelp, onUndo, onRedo, onTidy, onFit, onSave, onDiscard }) => (
+const Toolbar = ({ run, dirty, stale, canUndo, canRedo, message, valueCablesShown, onValueCables, onAdd, onAddRequest, onBlocks, onSaveBlock, onHelp, onUndo, onRedo, onTidy, onFit, onSave, onDiscard }) => (
   <div className="flow-toolbar" onMouseDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
     <RunTools run={run} />
     <ToolButton icon={IconPlus} label="Add a step" onClick={onAdd} testId="flow-add-step" className="secondary">
@@ -91,6 +93,12 @@ const Toolbar = ({ run, dirty, stale, canUndo, canRedo, message, onAdd, onAddReq
       <span>Tidy up</span>
     </ToolButton>
     <ToolButton icon={IconMaximize} label="Show the whole flow" onClick={onFit} testId="flow-fit" />
+    <ToolButton
+      icon={valueCablesShown ? IconEye : IconEyeOff}
+      label={valueCablesShown ? 'Value cables: all in sight. Click to see only the ones of the step you point at' : 'Value cables: only the ones of the step you point at. Click to see them all'}
+      onClick={onValueCables}
+      testId="flow-value-cables"
+    />
     {onSaveBlock ? (
       <ToolButton icon={IconPuzzle} label="Keep the selected steps as a block to use again" onClick={onSaveBlock} testId="flow-save-block" className="secondary">
         <span>Save as block</span>

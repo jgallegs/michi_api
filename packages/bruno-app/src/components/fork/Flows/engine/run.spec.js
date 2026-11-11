@@ -261,6 +261,22 @@ describe('runFlow', () => {
     expect(events.some((event) => event.type === 'warning' && event.message.includes('"second"'))).toBe(true);
   });
 
+  it('adds to the list chosen in the step, without a cable between them', async () => {
+    const flow = flowOf(
+      [
+        { id: 'one', type: 'list', config: {} },
+        { id: 'two', type: 'list', config: {} },
+        request('a'),
+        { id: 'add', type: 'listappend', config: { list: 'two' } }
+      ],
+      [edge('a', 'out', 'add'), edge('a', 'field:id', 'add', 'value:value')]
+    );
+    const { listOf, result } = await run(flow, makeHost({ a: { status: 200, data: { id: 7 } } }));
+    expect(result.status).toBe(RUN_STATUS.COMPLETED);
+    expect(listOf('two')).toEqual([7]);
+    expect(listOf('one')).toBeUndefined();
+  });
+
   it('starts every run with an empty list', async () => {
     const flow = flowOf(
       [{ id: 'list', type: 'list', config: {} }, { id: 'add', type: 'listappend', config: { value: 'x' } }],

@@ -153,6 +153,22 @@ export const spreadCables = (cables, boxes = []) => {
   return moved;
 };
 
+// Where to mark which way a cable runs: the middle of its longest stretch, when it is long enough for
+// the mark to fit without touching a turn.
+const MIN_STRETCH_FOR_MARK = 56;
+
+export const directionMark = (points) => {
+  let best = null;
+  for (let index = 1; index < points.length; index += 1) {
+    const [from, to] = [points[index - 1], points[index]];
+    const length = Math.hypot(to.x - from.x, to.y - from.y);
+    if (length >= MIN_STRETCH_FOR_MARK && (!best || length > best.length)) {
+      best = { length, x: (from.x + to.x) / 2, y: (from.y + to.y) / 2, angle: (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI };
+    }
+  }
+  return best ? { x: best.x, y: best.y, angle: Math.round(best.angle) } : null;
+};
+
 const towards = (from, to, distance) => {
   const length = Math.hypot(to.x - from.x, to.y - from.y);
   const ratio = length === 0 ? 0 : Math.min(distance, length / 2) / length;

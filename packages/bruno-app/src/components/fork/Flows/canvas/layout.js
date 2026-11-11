@@ -1,5 +1,5 @@
 import { findNextEdge, findStartNode } from '../engine/graph';
-import { LIST_PORT, LOOPBACK_PORT, NODE_DEFINITIONS } from '../engine/nodes';
+import { LOOPBACK_PORT, NODE_DEFINITIONS, findListOf } from '../engine/nodes';
 import { snap } from './editing';
 import { PIECE_WIDTH } from './pieces';
 
@@ -94,9 +94,9 @@ export const tidy = (flow, heightOf) => {
   known
     .filter((node) => node.type === 'list')
     .forEach((list) => {
-      const filler = flow.edges.find((edge) => edge.source === list.id && edge.targetPort === LIST_PORT && columns.has(edge.target));
+      const filler = known.find((node) => node.type === 'listappend' && columns.has(node.id) && findListOf(flow, node)?.id === list.id);
       if (filler) {
-        place(list, columns.get(filler.target));
+        place(list, columns.get(filler.id));
       }
     });
 

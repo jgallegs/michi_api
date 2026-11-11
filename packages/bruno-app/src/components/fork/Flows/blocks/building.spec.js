@@ -17,11 +17,16 @@ const find = (id) => READY_BLOCKS.find((block) => block.id === id);
 describe('ready-made blocks', () => {
   it.each(READY_BLOCKS.map((block) => [block.id, block]))('%s lands with every cable and only what is left to fill in is missing', (id, block) => {
     const built = buildReadyBlock(block);
-    expect(built.edges).toHaveLength(block.cables.length);
+    // The cable to a list becomes the list chosen inside the step.
+    const drawn = block.cables.filter(([, , , port]) => port !== 'list');
+    expect(built.edges).toHaveLength(drawn.length);
+    built.nodes
+      .filter((node) => node.type === 'listappend')
+      .forEach((node) => expect(built.nodes.find((other) => other.id === node.config.list)).toMatchObject({ type: 'list' }));
     expect(built.guide.filter((point) => point.check !== 'run').every((point) => Boolean(point.nodeId))).toBe(true);
 
     const flow = insertBlock(emptyFlow(), built, { x: 420, y: 120 }, fromStart);
-    expect(flow.edges).toHaveLength(block.cables.length + 1);
+    expect(flow.edges).toHaveLength(drawn.length + 1);
     const unexpected = validateFlow(flow).filter((issue) => !['request-not-set', 'list-not-chosen'].includes(issue.code));
     expect(unexpected).toEqual([]);
   });

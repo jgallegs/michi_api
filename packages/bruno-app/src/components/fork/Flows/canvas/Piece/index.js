@@ -230,9 +230,11 @@ const Row = ({ node, row, request, sources, contents, onConfig, onAction }) => {
   if (control?.type === 'select') {
     return (
       <div className="flow-row">
+        {row.label ? <span className="flow-label" title={row.label}>{row.label}</span> : null}
         <select className="flow-select" value={getIn(node.config, control.path) ?? control.fallback} onChange={(event) => onConfig(control.path, event.target.value)}>
           {control.options.map((option) => (
-            <option key={option.value} value={option.value}>{say(option.label)}</option>
+            // A name someone gave is shown as it is; the rest follows the interface.
+            <option key={option.value} value={option.value}>{option.own ? option.label : say(option.label)}</option>
           ))}
         </select>
       </div>

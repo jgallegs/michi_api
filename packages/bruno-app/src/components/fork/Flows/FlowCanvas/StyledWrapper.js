@@ -51,11 +51,16 @@ const StyledWrapper = styled.div`
   /* Stepping back waits a moment, so crossing the canvas with the pointer does not make it flicker. */
   .flow-cable { transition: opacity 0.12s ease-out; }
   .flow-cable.dim { opacity: 0.22; transition-delay: 0.15s; }
-  .flow-cable.order .flow-cable-line { stroke: var(--flow-order); }
-  .flow-cable.value .flow-cable-line { stroke: var(--flow-value); stroke-width: 1.5; stroke-dasharray: 5 4; }
-  .flow-cable.lit .flow-cable-line,
-  .flow-cable:hover .flow-cable-line { stroke-width: 3; }
-  .flow-cable.selected .flow-cable-line { stroke-width: 3.5; }
+  .flow-cable.order .flow-cable-line { stroke: var(--flow-order); stroke-width: 2.5; }
+  .flow-cable-mark { fill: var(--flow-order); stroke: ${(props) => props.theme.background.mantle}; stroke-width: 1; }
+  .flow-cable.value .flow-cable-line { stroke: var(--flow-value); stroke-width: 1.25; }
+  .flow-cable.draft.value .flow-cable-line { stroke-dasharray: 5 4; }
+  .flow-cable.value.lit .flow-cable-line,
+  .flow-cable.value:hover .flow-cable-line { stroke-width: 2; }
+  .flow-cable.order.lit .flow-cable-line,
+  .flow-cable.order:hover .flow-cable-line { stroke-width: 3.5; }
+  .flow-cable.selected .flow-cable-line { stroke-width: 4; }
+  .flow-cable.value.selected .flow-cable-line { stroke-width: 2.5; }
   .flow-cable.draft .flow-cable-line { opacity: 0.7; }
   .flow-cable-pulse {
     fill: none;

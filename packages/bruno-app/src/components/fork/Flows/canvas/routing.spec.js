@@ -1,6 +1,6 @@
 jest.mock('utils/common', () => ({ uuid: () => 'uid' }));
 
-import { spreadCables, STUB, defaultBends, dragBend, grabSegment, nearestSegment, pathThrough, routePoints, simplifyBends } from './routing';
+import { directionMark, spreadCables, STUB, defaultBends, dragBend, grabSegment, nearestSegment, pathThrough, routePoints, simplifyBends } from './routing';
 
 const box = (x, y, width = 240, height = 100) => ({ x, y, width, height });
 const isOrthogonal = (points) => points.every((point, index) => index === 0 || point.x === points[index - 1].x || point.y === points[index - 1].y);
@@ -67,6 +67,12 @@ describe('cable routing', () => {
       expect(simplifyBends([60, 40, 60, 70, 150], start, end)).toEqual([60, 70, 150]);
       expect(simplifyBends([60, 40, 150], start, end)).toEqual([60, 40, 150]);
     });
+  });
+
+  it('marks which way a cable runs on its longest stretch, when there is room', () => {
+    expect(directionMark([{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 20, y: 200 }, { x: 60, y: 200 }])).toEqual({ x: 20, y: 100, angle: 90 });
+    expect(directionMark([{ x: 300, y: 50 }, { x: 100, y: 50 }])).toEqual({ x: 200, y: 50, angle: 180 });
+    expect(directionMark([{ x: 0, y: 0 }, { x: 40, y: 0 }])).toBeNull();
   });
 
   describe('cables side by side', () => {

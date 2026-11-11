@@ -7,6 +7,7 @@ import {
   STATUS_PORT,
   VARIABLE_PORT_PREFIX,
   fieldPort,
+  findListOf,
   itemFieldPort,
   valuePort,
   variablePort
@@ -154,7 +155,25 @@ const validateRows = (node) => {
   ];
 };
 
-const listAppendRows = (node) => {
+// The list is chosen by name inside the step. A flow built when it was joined by a cable keeps its
+// cable, and its port, until another list is chosen here.
+const listChoiceRow = (node, flow) => {
+  const lists = flow.nodes.filter((candidate) => candidate.type === 'list');
+  const chosen = findListOf(flow, node);
+  const cabled = !node.config?.list && flow.edges.some((edge) => edge.target === node.id && edge.targetPort === LIST_PORT);
+  const options = [
+    ...(chosen ? [] : [{ value: '', label: 'Choose a list' }]),
+    ...lists.map((list, index) => ({ value: list.id, label: list.config?.name || (lists.length > 1 ? `List ${index + 1}` : 'List'), own: Boolean(list.config?.name) }))
+  ];
+  return {
+    id: 'list',
+    label: 'List',
+    ...(cabled ? { left: { port: LIST_PORT, kind: PORT_KIND.LIST } } : {}),
+    control: { type: 'select', path: ['list'], options, fallback: chosen?.id || '' }
+  };
+};
+
+const listAppendRows = (node, flow) => {
   const config = node.config || {};
   const fields = config.fields || [];
   const valueRows
@@ -170,7 +189,7 @@ const listAppendRows = (node) => {
         ]
       : [typed('value', 'Value', 'What to add')];
   return [
-    { id: 'list', label: 'List', left: { port: LIST_PORT, kind: PORT_KIND.LIST } },
+    listChoiceRow(node, flow),
     { id: 'mode', control: { type: 'select', path: ['mode'], options: APPEND_MODES, fallback: 'value' } },
     ...valueRows
   ];

@@ -207,7 +207,9 @@ export const copyNodes = (flow, nodeIds) => {
 
 export const pasteNodes = (flow, copied, offset = { x: 40, y: 40 }) => {
   const newIds = new Map(copied.nodes.map((node) => [node.id, uuid()]));
-  const nodes = copied.nodes.map((node) => ({ ...node, id: newIds.get(node.id), x: node.x + offset.x, y: node.y + offset.y }));
+  // An "Add to list" pasted with its list goes on adding to the copy; pasted alone, to the original.
+  const configOf = (node) => (newIds.has(node.config?.list) ? { ...node.config, list: newIds.get(node.config.list) } : node.config);
+  const nodes = copied.nodes.map((node) => ({ ...node, id: newIds.get(node.id), x: node.x + offset.x, y: node.y + offset.y, config: configOf(node) }));
   const edges = copied.edges.map(({ bends, ...edge }) => ({ ...edge, id: uuid(), source: newIds.get(edge.source), target: newIds.get(edge.target) }));
   return { flow: { ...flow, nodes: [...flow.nodes, ...nodes], edges: [...flow.edges, ...edges] }, newIds: nodes.map((node) => node.id) };
 };

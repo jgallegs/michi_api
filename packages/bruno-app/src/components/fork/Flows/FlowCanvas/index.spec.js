@@ -27,6 +27,7 @@ import { resetGuides } from '../blocks/guide';
 import { resetOwnBlocks } from '../blocks/store';
 import { rememberShape, resetKnownFields, setApiDocuments } from '../fields/memory';
 import { FORK_SETTINGS, resetForkSettingsCache, setForkSetting } from 'components/fork/settings/store';
+import { VALUE_CABLES, setValueCables } from '../canvas/view';
 import FlowCanvas, { resetCanvasMemory } from './index';
 
 const COLLECTION = '/collections/shop';
@@ -90,6 +91,8 @@ describe('FlowCanvas', () => {
     resetGuides();
     resetOwnBlocks();
     resetCanvasMemory();
+    // Most of what follows looks at the cables of the values, which are only all in sight when asked.
+    setValueCables(VALUE_CABLES.ALWAYS);
     resetKnownFields();
     startRun.mockClear();
     stopRun.mockClear();
@@ -220,7 +223,7 @@ describe('FlowCanvas', () => {
 
     it('offers to join a value when its name is typed in a box, and Enter takes it', async () => {
       await open(collecting());
-      fireEvent.change(within(screen.getByTestId('flow-piece-add')).getByRole('combobox'), { target: { value: 'object' } });
+      fireEvent.change(within(screen.getByTestId('flow-piece-add')).getAllByRole('combobox')[1], { target: { value: 'object' } });
       expect(current().edges.map((item) => item.id)).toEqual(['e1', 'e2', 'e4']);
 
       fireEvent.click(within(screen.getByTestId('flow-piece-add')).getByText('Add a field'));
@@ -237,6 +240,19 @@ describe('FlowCanvas', () => {
       expect(current().edges[3]).toMatchObject({ source: 'a', sourcePort: 'field:code', target: 'add', targetPort: `value:${field.id}` });
       expect(screen.queryByTestId('flow-suggest')).not.toBeInTheDocument();
       expect(chip('login · code')).toBeInTheDocument();
+    });
+
+    it('chooses the list inside the step, and the cable that joined them goes away', async () => {
+      const flow = collecting();
+      await open({ ...flow, nodes: [...flow.nodes, node('m', 'list', 720, 700, {})] });
+      const [choice] = within(screen.getByTestId('flow-piece-add')).getAllByRole('combobox');
+      expect(choice).toHaveValue('l');
+      expect([...choice.options].map((option) => option.textContent)).toEqual(['Final', 'List 2']);
+
+      fireEvent.change(choice, { target: { value: 'm' } });
+      expect(current().nodes[2].config.list).toBe('m');
+      expect(current().edges.map((item) => item.id)).toEqual(['e1', 'e2', 'e3']);
+      expect(screen.queryByTestId('flow-port-add-left-list')).not.toBeInTheDocument();
     });
 
     it('offers nothing for a text no other step hands out', async () => {
@@ -275,6 +291,37 @@ describe('FlowCanvas', () => {
       expect(chip('login · token').closest('.flow-chip').style.getPropertyValue('--flow-value')).toBe(colour);
       expect(port('a', 'right', 'field:token').style.getPropertyValue('--flow-value')).toBe(colour);
       expect(port('b', 'left', 'var:orderId').style.getPropertyValue('--flow-value')).toBe(colour);
+    });
+
+    it('draws the cables of the values only for the step that is pointed at or selected, unless asked for all', async () => {
+      setValueCables(VALUE_CABLES.POINTED);
+      await open(busy());
+      const shown = () => ['e1', 'e2', 'e3', 'e4', 'e5', 'e6'].filter((id) => screen.queryByTestId(`flow-cable-${id}`));
+      expect(shown()).toEqual(['e1', 'e2', 'e3', 'e4']);
+      expect(chip('login · token')).toBeInTheDocument();
+
+      fireEvent.mouseEnter(screen.getByTestId('flow-piece-b'));
+      expect(shown()).toEqual(['e1', 'e2', 'e3', 'e4', 'e5']);
+      fireEvent.mouseLeave(screen.getByTestId('flow-piece-b'));
+      expect(shown()).toEqual(['e1', 'e2', 'e3', 'e4']);
+
+      fireEvent.mouseDown(screen.getByTestId('flow-piece-a').querySelector('.flow-piece-header'), { button: 0 });
+      fireEvent.mouseUp(window);
+      expect(shown()).toEqual(['e1', 'e2', 'e3', 'e4', 'e5', 'e6']);
+      fireEvent.mouseDown(screen.getByTestId('flow-canvas'), { button: 0, clientX: 5, clientY: 700 });
+      fireEvent.mouseUp(window, { clientX: 5, clientY: 700 });
+      expect(shown()).toEqual(['e1', 'e2', 'e3', 'e4']);
+
+      fireEvent.click(screen.getByTestId('flow-value-cables'));
+      expect(shown()).toEqual(['e1', 'e2', 'e3', 'e4', 'e5', 'e6']);
+      fireEvent.click(screen.getByTestId('flow-value-cables'));
+      expect(shown()).toEqual(['e1', 'e2', 'e3', 'e4']);
+    });
+
+    it('marks which way the order runs on the cables long enough for it', async () => {
+      await open(busy());
+      expect(cable('e4').querySelector('.flow-cable-mark')).toBeInTheDocument();
+      expect(cable('e5').querySelector('.flow-cable-mark')).not.toBeInTheDocument();
     });
 
     it('tells the good way from the other one', async () => {

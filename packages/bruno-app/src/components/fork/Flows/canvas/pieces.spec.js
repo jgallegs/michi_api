@@ -78,7 +78,24 @@ describe('flow pieces', () => {
   it('gives "Add to list" one input per field', () => {
     const fields = [{ id: 'f1', key: 'a' }, { id: 'f2', key: 'b' }];
     const description = describePiece(node('p', 'listappend', { mode: 'object', fields }), { nodes: [], edges: [] }, null);
-    expect(portsOf(description, 'left')).toEqual(['in', 'list', 'value:f1', 'value:f2']);
+    expect(portsOf(description, 'left')).toEqual(['in', 'value:f1', 'value:f2']);
+  });
+
+  it('lets "Add to list" choose its list by name, and keeps the port of a flow that joined it by cable', () => {
+    const add = node('p', 'listappend', {});
+    const lists = [node('l1', 'list', { name: 'Final' }), node('l2', 'list', {})];
+    const choice = (flow, step = add) => describePiece(step, flow, null).rows.find((row) => row.id === 'list');
+
+    expect(choice({ nodes: [add, lists[0]], edges: [] }).control).toMatchObject({ fallback: 'l1', options: [{ value: 'l1', label: 'Final', own: true }] });
+    expect(choice({ nodes: [add, ...lists], edges: [] }).control).toMatchObject({
+      fallback: '',
+      options: [{ value: '', label: 'Choose a list' }, { value: 'l1', label: 'Final', own: true }, { value: 'l2', label: 'List 2', own: false }]
+    });
+
+    const cabled = { nodes: [add, ...lists], edges: [edge('l2', 'field:items', 'p', 'list')] };
+    expect(choice(cabled)).toMatchObject({ left: { port: 'list' }, control: { fallback: 'l2' } });
+    const chosen = node('p', 'listappend', { list: 'l1' });
+    expect(choice({ ...cabled, nodes: [chosen, ...lists] }, chosen).left).toBeUndefined();
   });
 
   describe('request', () => {

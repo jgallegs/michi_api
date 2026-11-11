@@ -18,7 +18,7 @@ const BUILDING = [
   'Faded steps are not connected to Start and do not run.',
   'Drag any stretch of a cable to shape it. Double click puts it back.',
   'A value wears the colour of the step it comes from, on its cable and where it arrives.',
-  'Rest the pointer on a step to bring its cables forward.'
+  'The cables of the values show when you rest the pointer on a step or select it. The eye in the bar shows them all.'
 ];
 
 const RUNNING = [

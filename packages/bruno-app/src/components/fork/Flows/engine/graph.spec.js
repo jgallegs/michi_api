@@ -114,6 +114,12 @@ describe('flow graph', () => {
     const append = { id: 'p', type: 'listappend', config: { value: 'x' } };
     const toAppend = edge('start', 'out', 'p');
     expect(codes(flowOf([append], [toAppend]))).toEqual(['list-not-connected']);
+    // Without a cable: the only list of the flow, or the one chosen in the step.
+    const other = { id: 'm', type: 'list', config: {} };
+    expect(codes(flowOf([list, append], [toAppend]))).toEqual([]);
+    expect(codes(flowOf([list, other, append], [toAppend]))).toEqual(['list-not-connected']);
+    expect(codes(flowOf([list, other, { ...append, config: { list: 'm' } }], [toAppend]))).toEqual([]);
+    expect(codes(flowOf([list, other, { ...append, config: { list: 'gone' } }], [toAppend]))).toEqual(['list-not-connected']);
     expect(codes(flowOf([list, append], [toAppend, edge('l', 'field:items', 'p', 'list')]))).toEqual([]);
     expect(codes(flowOf([request('a'), append], [toAppend, edge('a', 'out', 'p', 'list')]))).toEqual(['invalid-list-cable']);
   });

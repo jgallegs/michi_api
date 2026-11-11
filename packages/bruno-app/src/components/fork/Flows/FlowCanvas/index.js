@@ -20,6 +20,7 @@ import { discardFlowDraft, saveFlow, useFlowDirty, useFlowStale } from '../store
 import Cables from '../canvas/Cables';
 import { BRANCH_TONES, colorValueSources } from '../canvas/colors';
 import ContextMenu from '../canvas/ContextMenu';
+import { VALUE_CABLES, resetView, setValueCables, useValueCables } from '../canvas/view';
 import Picker from '../canvas/Picker';
 import Piece from '../canvas/Piece';
 import Toolbar from '../canvas/Toolbar';
@@ -109,6 +110,7 @@ export const resetCanvasMemory = () => {
   viewports.clear();
   startedByHand.clear();
   copied = null;
+  resetView();
 };
 
 const portKey = (nodeId, side, port) => `${nodeId}|${side}|${port}`;
@@ -172,6 +174,7 @@ const FlowCanvas = ({ collection, flow }) => {
   const [gallery, setGallery] = useState(null);
   const [menu, setMenu] = useState(null);
   const [hovered, setHovered] = useState(null);
+  const valueCables = useValueCables();
   const [startsByHand, setStartsByHand] = useState(() => startedByHand.has(flow.id));
   const [help, setHelp] = useState(false);
   const [namingBlock, setNamingBlock] = useState(false);
@@ -260,7 +263,14 @@ const FlowCanvas = ({ collection, flow }) => {
   );
   const underPointer = hovered && !gesture && !moving ? [hovered] : [];
   const touches = (nodeIds, edge) => nodeIds.includes(edge.source) || nodeIds.includes(edge.target);
-  const cables = routed.map((cable) => {
+  // Unless asked to show them all, a cable that carries a value is only drawn while it matters: for the
+  // step under the pointer, for the selected ones, or while it is being shaped.
+  const allValuesInSight = valueCables === VALUE_CABLES.ALWAYS;
+  const inSight = routed.filter((cable) => {
+    const matters = cable.selected || touches(underPointer, cable.edge) || touches(selection.nodeIds, cable.edge) || (gesture?.type === 'bend' && gesture.edgeId === cable.edge.id);
+    return cable.kind !== 'value' || allValuesInSight || matters;
+  });
+  const cables = inSight.map((cable) => {
     const bends = lanes.get(cable.edge.id) || cable.bends;
     const lit = cable.selected || touches(underPointer, cable.edge) || touches(selection.nodeIds, cable.edge);
     return {
@@ -1048,6 +1058,8 @@ const FlowCanvas = ({ collection, flow }) => {
           setView(null);
         }}
         onFit={fitView}
+        valueCablesShown={valueCables === VALUE_CABLES.ALWAYS}
+        onValueCables={() => setValueCables(valueCables === VALUE_CABLES.ALWAYS ? VALUE_CABLES.POINTED : VALUE_CABLES.ALWAYS)}
         onSave={save}
       />
       {openPicker ? (

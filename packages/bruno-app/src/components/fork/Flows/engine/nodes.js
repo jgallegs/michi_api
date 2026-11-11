@@ -175,6 +175,20 @@ const executeWait = async ({ node, input, sleep, signal }) => {
   return { port: OUT_PORT, detail: { kind: 'wait', seconds } };
 };
 
+// The list an "Add to list" writes to: the one joined to it by a cable, which is how flows were first
+// built; the one chosen inside the step; or the only one the flow has.
+export const findListOf = (flow, node) => {
+  const lists = flow.nodes.filter((candidate) => candidate.type === 'list');
+  const cable = flow.edges.find((edge) => edge.target === node.id && edge.targetPort === LIST_PORT);
+  if (cable) {
+    return lists.find((list) => list.id === cable.source) || null;
+  }
+  if (node.config?.list) {
+    return lists.find((list) => list.id === node.config.list) || null;
+  }
+  return lists.length === 1 ? lists[0] : null;
+};
+
 const buildAppendedValue = ({ node, input, warn }) => {
   const readOrNull = (key, typed, label) => {
     const value = input(key, typed);
@@ -192,8 +206,10 @@ const buildAppendedValue = ({ node, input, warn }) => {
 
 const executeListAppend = (context) => {
   const { node, flow, state } = context;
-  const listEdge = flow.edges.find((edge) => edge.target === node.id && edge.targetPort === LIST_PORT);
-  const listNode = flow.nodes.find((candidate) => candidate.id === listEdge.source);
+  const listNode = findListOf(flow, node);
+  if (!listNode) {
+    throw new Error('Choose the list this step adds to');
+  }
   const items = [...state.outputs[listNode.id].items, buildAppendedValue(context)];
   state.outputs[listNode.id] = { items, length: items.length };
   if (listNode.config?.name) {
