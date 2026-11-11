@@ -40,8 +40,20 @@ const StyledWrapper = styled.div`
     stroke-width: 2;
     stroke-linecap: round;
   }
+  .flow-cable-rim {
+    fill: none;
+    stroke: ${(props) => props.theme.background.mantle};
+    stroke-width: 6;
+    stroke-linecap: round;
+  }
+  .flow-cable.tone-good { --flow-order: ${(props) => props.theme.status.success.text}; }
+  .flow-cable.tone-bad { --flow-order: ${(props) => props.theme.status.danger.text}; }
+  .flow-cable { transition: opacity 0.12s ease-out; }
+  .flow-cable.dim { opacity: 0.18; }
   .flow-cable.order .flow-cable-line { stroke: var(--flow-order); }
   .flow-cable.value .flow-cable-line { stroke: var(--flow-value); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .flow-cable.lit .flow-cable-line,
+  .flow-cable:hover .flow-cable-line { stroke-width: 3; }
   .flow-cable.selected .flow-cable-line { stroke-width: 3.5; }
   .flow-cable.draft .flow-cable-line { opacity: 0.7; }
   .flow-cable-pulse {
@@ -313,6 +325,8 @@ const StyledWrapper = styled.div`
     &.left { left: -7px; }
     &.right { right: -7px; }
     &.order { color: var(--flow-order); }
+    &.order.tone-good { color: ${(props) => props.theme.status.success.text}; }
+    &.order.tone-bad { color: ${(props) => props.theme.status.danger.text}; }
     &.value,
     &.list { color: var(--flow-value); }
     &:hover,

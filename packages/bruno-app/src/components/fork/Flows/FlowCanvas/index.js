@@ -17,6 +17,7 @@ import HelpPanel from '../blocks/HelpPanel';
 import SaveBlockModal from '../blocks/SaveBlockModal';
 import { discardFlowDraft, saveFlow, useFlowDirty, useFlowStale } from '../store';
 import Cables from '../canvas/Cables';
+import { BRANCH_TONES, colorValueSources } from '../canvas/colors';
 import ContextMenu from '../canvas/ContextMenu';
 import Picker from '../canvas/Picker';
 import Piece from '../canvas/Piece';
@@ -60,7 +61,7 @@ import {
 } from '../canvas/pickers';
 import { HEADER_HEIGHT, PIECE_WIDTH, PORT_KIND, describePiece, findPort } from '../canvas/pieces';
 import { describeRequest, relativeRequestPath } from '../canvas/requests';
-import { defaultBends, dragBend, grabSegment, nearestSegment, routePoints, simplifyBends } from '../canvas/routing';
+import { defaultBends, dragBend, grabSegment, nearestSegment, routePoints, simplifyBends, spreadCables } from '../canvas/routing';
 import { useKnownFields } from '../fields/memory';
 import { toFieldPath, withListPosition } from '../fields/paths';
 import { RUN_MODE, startRun, stopRun } from '../run/controller';
@@ -162,6 +163,7 @@ const FlowCanvas = ({ collection, flow }) => {
   // gallery: where the block picked from it goes (a point, the loose end of a cable). A new flow opens with it.
   const [gallery, setGallery] = useState(null);
   const [menu, setMenu] = useState(null);
+  const [hovered, setHovered] = useState(null);
   const [startsByHand, setStartsByHand] = useState(() => startedByHand.has(flow.id));
   const [help, setHelp] = useState(false);
   const [namingBlock, setNamingBlock] = useState(false);
@@ -214,7 +216,10 @@ const FlowCanvas = ({ collection, flow }) => {
     return { x: side === 'left' ? box.x : box.x + PIECE_WIDTH, y: box.y + (found ? found.y : HEADER_HEIGHT / 2) };
   };
 
-  const cables = flow.edges
+  const isValueCable = (edge) => targetKind(edge.targetPort) !== PORT_KIND.ORDER;
+  const valueColors = useMemo(() => colorValueSources(flow, isValueCable), [flow]);
+
+  const routed = flow.edges
     .map((edge) => {
       const start = portPoint(edge.source, edge.sourcePort, 'right');
       const end = portPoint(edge.target, edge.targetPort, 'left');
@@ -230,12 +235,31 @@ const FlowCanvas = ({ collection, flow }) => {
         start,
         end,
         bends,
-        points: routePoints(start, end, bends),
-        kind: targetKind(edge.targetPort) === PORT_KIND.ORDER ? 'order' : 'value',
+        fixed: Boolean(shaping || stored),
+        kind: isValueCable(edge) ? 'value' : 'order',
         selected: selection.edgeId === edge.id
       };
     })
     .filter(Boolean);
+
+  // The cables nobody shaped make room for each other. The ones of the step under the pointer, or of the
+  // selected steps, stand out and the rest step back, which is how a busy flow is followed.
+  const lanes = spreadCables(routed.map(({ edge, start, end, bends, fixed }) => ({ id: edge.id, net: `${edge.source}|${edge.sourcePort}`, start, end, bends, fixed })));
+  const inFocus = hovered && !gesture && !moving ? [hovered] : selection.nodeIds;
+  const hasFocus = inFocus.length > 0 || Boolean(selection.edgeId);
+  const cables = routed.map((cable) => {
+    const bends = lanes.get(cable.edge.id) || cable.bends;
+    const lit = hasFocus && (cable.selected || inFocus.includes(cable.edge.source) || inFocus.includes(cable.edge.target));
+    return {
+      ...cable,
+      bends,
+      points: routePoints(cable.start, cable.end, bends),
+      color: cable.kind === 'value' ? valueColors.get(cable.edge.source) : undefined,
+      tone: cable.kind === 'order' ? BRANCH_TONES[cable.edge.sourcePort] : undefined,
+      lit,
+      dim: hasFocus && !lit
+    };
+  });
 
   const connectedPorts = useMemo(
     () => new Set(flow.edges.flatMap((edge) => [portKey(edge.source, 'right', edge.sourcePort), portKey(edge.target, 'left', edge.targetPort)])),
@@ -808,10 +832,20 @@ const FlowCanvas = ({ collection, flow }) => {
           title: source.title,
           label: row?.label || edge.sourcePort.replace(/^field:/, '') || 'value',
           ownTitle: isNamedByUser(source.node, source.request),
-          ownLabel: !row || Boolean(row.removableField)
+          ownLabel: !row || Boolean(row.removableField),
+          color: valueColors.get(edge.source)
         });
       });
     return sources;
+  };
+
+  // An output wears the colour of its step; an input, the one of the step its value comes from.
+  const valueColorOfPort = (nodeId, port) => {
+    if (port.side === 'right') {
+      return valueColors.get(nodeId);
+    }
+    const incoming = flow.edges.find((edge) => edge.target === nodeId && edge.targetPort === port.port);
+    return incoming ? valueColors.get(incoming.source) : undefined;
   };
 
   const cableGesture = gesture?.type === 'cable' ? gesture : null;
@@ -820,7 +854,8 @@ const FlowCanvas = ({ collection, flow }) => {
     const isOrigin = cableGesture && portKey(cableGesture.from.nodeId, cableGesture.from.side, cableGesture.from.port) === key;
     const isSnap = cableGesture?.snap && portKey(cableGesture.snap.nodeId, cableGesture.snap.side, cableGesture.snap.port) === key;
     const highlight = !cableGesture ? '' : isSnap ? 'snap' : isOrigin || cableGesture.valid.has(key) ? 'valid' : 'faded';
-    return { filled: connectedPorts.has(key) || Boolean(isOrigin) || Boolean(isSnap), highlight };
+    const filled = connectedPorts.has(key) || Boolean(isOrigin) || Boolean(isSnap);
+    return { filled, highlight, color: filled && port.kind !== PORT_KIND.ORDER ? valueColorOfPort(nodeId, port) : undefined };
   };
 
   const draftCable = cableGesture
@@ -892,6 +927,7 @@ const FlowCanvas = ({ collection, flow }) => {
               portState={portStateOf(node.id)}
               sources={sourcesOf(node.id)}
               onMouseDown={onPieceMouseDown}
+              onHover={setHovered}
               onPortMouseDown={onPortMouseDown}
               onConfig={(path, value) => onConfig(node, path, value)}
               onAction={(action, payload, event) => onAction(node, action, payload, event)}

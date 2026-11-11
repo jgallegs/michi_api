@@ -34,6 +34,89 @@ export const routePoints = (start, end, bends) => {
   return points;
 };
 
+// Room between two cables that run side by side, and how far a cable may be pushed off its middle.
+export const LANE = 10;
+const LANES_EACH_SIDE = 8;
+const CROSSING_COST = 100;
+const OVERLAP_COST = 1000;
+const MAX_CABLES_TO_SPREAD = 200;
+
+const stretchesOf = (points) => points.slice(1).map((to, index) => ({ from: points[index], to }));
+const isUpright = (stretch) => stretch.from.x === stretch.to.x;
+const span = (a, b) => [Math.min(a, b), Math.max(a, b)];
+
+const crosses = (a, b) => {
+  if (isUpright(a) === isUpright(b)) {
+    return false;
+  }
+  const [upright, flat] = isUpright(a) ? [a, b] : [b, a];
+  const [top, bottom] = span(upright.from.y, upright.to.y);
+  const [left, right] = span(flat.from.x, flat.to.x);
+  return upright.from.x > left && upright.from.x < right && flat.from.y > top && flat.from.y < bottom;
+};
+
+// Two upright stretches so close that they read as one line.
+const runsOver = (a, b) => {
+  if (!isUpright(a) || !isUpright(b) || Math.abs(a.from.x - b.from.x) >= LANE) {
+    return false;
+  }
+  const [topA, bottomA] = span(a.from.y, a.to.y);
+  const [topB, bottomB] = span(b.from.y, b.to.y);
+  return Math.min(bottomA, bottomB) > Math.max(topA, topB);
+};
+
+// Cables nobody has shaped all turn in the middle of the gap they cross, so several of them end up on
+// top of each other and cross more than they need. This moves the turn of each one sideways, in steps
+// of a lane, to where it runs over no other cable and crosses the fewest. Cables that leave the same
+// output ("net") belong together and may share a line. Returns the new turns of the cables that move.
+export const spreadCables = (cables) => {
+  const moved = new Map();
+  if (cables.length > MAX_CABLES_TO_SPREAD) {
+    return moved;
+  }
+  const isFree = (cable) => !cable.fixed && cable.bends.length === 1 && cable.start.y !== cable.end.y;
+  const placed = cables.filter((cable) => !isFree(cable)).map((cable) => ({ net: cable.net, stretches: stretchesOf(routePoints(cable.start, cable.end, cable.bends)) }));
+  cables
+    .filter(isFree)
+    .sort((a, b) => a.bends[0] - b.bends[0] || a.start.y - b.start.y || a.end.y - b.end.y)
+    .forEach((cable) => {
+      const middle = cable.bends[0];
+      let best = null;
+      for (let attempt = 0; attempt <= 2 * LANES_EACH_SIDE; attempt += 1) {
+        const offset = (attempt % 2 ? 1 : -1) * Math.ceil(attempt / 2) * LANE;
+        const x = middle + offset;
+        if (x < cable.start.x + STUB || x > cable.end.x - STUB) {
+          continue;
+        }
+        const stretches = stretchesOf(routePoints(cable.start, cable.end, [x]));
+        let cost = Math.abs(offset) / LANE;
+        placed
+          .filter((other) => other.net !== cable.net)
+          .forEach((other) => {
+            stretches.forEach((mine) => {
+              other.stretches.forEach((theirs) => {
+                cost += (crosses(mine, theirs) ? CROSSING_COST : 0) + (runsOver(mine, theirs) ? OVERLAP_COST : 0);
+              });
+            });
+          });
+        if (!best || cost < best.cost) {
+          best = { x, cost, stretches };
+        }
+        if (cost === 0) {
+          break;
+        }
+      }
+      if (!best) {
+        return;
+      }
+      placed.push({ net: cable.net, stretches: best.stretches });
+      if (best.x !== middle) {
+        moved.set(cable.id, [best.x]);
+      }
+    });
+  return moved;
+};
+
 const towards = (from, to, distance) => {
   const length = Math.hypot(to.x - from.x, to.y - from.y);
   const ratio = length === 0 ? 0 : Math.min(distance, length / 2) / length;

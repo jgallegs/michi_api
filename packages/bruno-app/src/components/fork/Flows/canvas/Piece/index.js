@@ -23,6 +23,7 @@ import {
 } from '@tabler/icons';
 import { LOOPBACK_PORT } from '../../engine/nodes';
 import { say } from '../../language';
+import { BRANCH_TONES } from '../colors';
 import { PIECE_WIDTH, PORT_KIND } from '../pieces';
 
 export const STEP_ICONS = {
@@ -72,8 +73,8 @@ const LOOPBACK_TITLE = 'End of round: the last step of the round arrives here';
 
 const Port = ({ node, port, state, onMouseDown }) => (
   <span
-    className={`flow-port ${port.side} ${port.kind} ${state.filled ? 'filled' : ''} ${state.highlight || ''}`}
-    style={{ top: port.y - PORT_SIZE / 2 }}
+    className={`flow-port ${port.side} ${port.kind} ${state.filled ? 'filled' : ''} ${state.highlight || ''} ${BRANCH_TONES[port.port] ? `tone-${BRANCH_TONES[port.port]}` : ''}`}
+    style={{ top: port.y - PORT_SIZE / 2, ...(state.color ? { '--flow-value': state.color } : {}) }}
     title={port.port === LOOPBACK_PORT ? LOOPBACK_TITLE : PORT_TITLES[`${port.kind}:${port.side}`]}
     data-testid={`flow-port-${node.id}-${port.side}-${port.port}`}
     onMouseDown={port.hidden ? undefined : (event) => onMouseDown(event, node, port)}
@@ -83,7 +84,7 @@ const Port = ({ node, port, state, onMouseDown }) => (
 );
 
 const Chip = ({ source, onRemove }) => (
-  <span className="flow-chip" title={`${source.title} · ${source.label}`}>
+  <span className="flow-chip" title={`${source.title} · ${source.label}`} style={source.color ? { '--flow-value': source.color } : undefined}>
     <span className="flow-chip-text">
       <span className={source.ownTitle ? 'fork-no-translate' : ''}>{source.title}</span>
       <span className="fork-no-translate"> · </span>
@@ -238,7 +239,7 @@ const RunMark = ({ run }) => (
   </>
 );
 
-const Piece = ({ node, description, request, title, position, selected, dimmed, issues, run, portState, sources, onMouseDown, onPortMouseDown, onConfig, onAction }) => {
+const Piece = ({ node, description, request, title, position, selected, dimmed, issues, run, portState, sources, onMouseDown, onPortMouseDown, onConfig, onAction, onHover }) => {
   const Icon = STEP_ICONS[node.type] || IconAlertCircle;
   // Only a request step is titled with a name someone chose; "List · orders" is still an interface text.
   const hasOwnTitle = node.type === 'request' && title !== description.title;
@@ -250,6 +251,8 @@ const Piece = ({ node, description, request, title, position, selected, dimmed, 
       data-testid={`flow-piece-${node.id}`}
       data-piece-type={node.type}
       onMouseDown={(event) => onMouseDown(event, node)}
+      onMouseEnter={() => onHover(node.id)}
+      onMouseLeave={() => onHover(null)}
     >
       <div className="flow-piece-header">
         <Icon size={15} strokeWidth={1.75} className="flow-piece-icon" />

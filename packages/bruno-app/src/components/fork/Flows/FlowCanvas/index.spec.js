@@ -184,6 +184,65 @@ describe('FlowCanvas', () => {
     expect(screen.getByTestId('flow-position-a-items.1.id')).toHaveTextContent('#2');
   });
 
+  describe('cables that can be followed', () => {
+    const busy = () =>
+      makeFlow(
+        [
+          node('a', 'request', 400, 120, { pathname: 'login.bru', fields: ['token'] }),
+          node('if', 'if', 720, 120, { check: 'success' }),
+          node('b', 'request', 1040, 60, { pathname: 'get order.bru' }),
+          node('s', 'stop', 1040, 400)
+        ],
+        [
+          edge('e1', 'start', 'out', 'a'),
+          edge('e2', 'a', 'out', 'if'),
+          edge('e3', 'if', 'yes', 'b'),
+          edge('e4', 'if', 'no', 's'),
+          edge('e5', 'a', 'field:token', 'b', 'var:orderId'),
+          edge('e6', 'a', 'status', 's', 'value:message')
+        ]
+      );
+    const cable = (id) => screen.getByTestId(`flow-cable-${id}`);
+
+    it('gives the values of a step one colour, on its cables and where they arrive', async () => {
+      await open(busy());
+      const colour = cable('e5').style.getPropertyValue('--flow-value');
+      expect(colour).not.toBe('');
+      expect(cable('e6').style.getPropertyValue('--flow-value')).toBe(colour);
+      expect(cable('e2').style.getPropertyValue('--flow-value')).toBe('');
+      expect(chip('login · token').closest('.flow-chip').style.getPropertyValue('--flow-value')).toBe(colour);
+      expect(port('a', 'right', 'field:token').style.getPropertyValue('--flow-value')).toBe(colour);
+      expect(port('b', 'left', 'var:orderId').style.getPropertyValue('--flow-value')).toBe(colour);
+    });
+
+    it('tells the good way from the other one', async () => {
+      await open(busy());
+      expect(cable('e3')).toHaveClass('tone-good');
+      expect(cable('e4')).toHaveClass('tone-bad');
+      expect(cable('e2')).not.toHaveClass('tone-good', 'tone-bad');
+      expect(port('if', 'right', 'no')).toHaveClass('tone-bad');
+    });
+
+    it('brings forward the cables of the step under the pointer and of the selected ones', async () => {
+      await open(busy());
+      expect(cable('e1')).not.toHaveClass('dim');
+
+      fireEvent.mouseEnter(screen.getByTestId('flow-piece-s'));
+      expect(cable('e4')).toHaveClass('lit');
+      expect(cable('e6')).toHaveClass('lit');
+      expect(cable('e1')).toHaveClass('dim');
+      expect(cable('e3')).toHaveClass('dim');
+
+      fireEvent.mouseLeave(screen.getByTestId('flow-piece-s'));
+      expect(cable('e1')).not.toHaveClass('dim');
+
+      fireEvent.mouseDown(screen.getByTestId('flow-cable-e3').querySelector('.flow-cable-grab'), { button: 0 });
+      fireEvent.mouseUp(window);
+      expect(cable('e3')).toHaveClass('lit');
+      expect(cable('e4')).toHaveClass('dim');
+    });
+  });
+
   it('takes a field nobody has seen yet by typing its name in the value picker', async () => {
     const flow = makeFlow(
       [node('a', 'request', 400, 120, { pathname: 'login.bru' }), node('each', 'foreach', 720, 120), node('b', 'request', 1040, 120, { pathname: 'get order.bru' })],
