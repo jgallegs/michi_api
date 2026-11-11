@@ -59,6 +59,14 @@ describe('runFlow', () => {
     expect(host.sent[1].variables).toEqual({ code: 201, body: { id: 7 } });
   });
 
+  it('uses the values typed in the step for the variables of its request', async () => {
+    const typedRequest = { ...request('a'), config: { pathname: 'a.bru', variables: { city: 'in {{where}}', page: '', id: 'typed' } } };
+    const flow = flowOf([request('first'), typedRequest], [edge('first', 'out', 'a'), edge('first', 'field:id', 'a', 'var:id')]);
+    const host = makeHost({ first: { status: 200, data: { id: 'wired' } } });
+    await run(flow, host, { environment: { where: 'Lugo' } });
+    expect(host.sent[1].variables).toEqual({ city: 'in Lugo', id: 'wired' });
+  });
+
   it('warns when a wired field has no value', async () => {
     const flow = flowOf([request('a'), request('b')], [edge('a', 'field:missing', 'b', 'var:x')]);
     const host = makeHost();

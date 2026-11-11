@@ -32,9 +32,13 @@ export const readSourcePort = (edge, state) => {
 };
 
 // A setting takes its value from the cable connected to it; without a cable, from the text typed in the step.
-export const createInputReader = ({ node, flow, state, environment }) => (key, typed) => {
-  const edge = flow.edges.find((candidate) => candidate.target === node.id && candidate.targetPort === valuePort(key));
-  return edge ? readSourcePort(edge, state) : interpolate(typed, { ...environment, ...state.variables });
+export const createInputReaders = ({ node, flow, state, environment }) => {
+  const text = (typed) => interpolate(typed, { ...environment, ...state.variables });
+  const input = (key, typed) => {
+    const edge = flow.edges.find((candidate) => candidate.target === node.id && candidate.targetPort === valuePort(key));
+    return edge ? readSourcePort(edge, state) : text(typed);
+  };
+  return { input, text };
 };
 
 const collectWiredVariables = ({ node, flow, state, warn }) => {
@@ -55,9 +59,18 @@ const collectWiredVariables = ({ node, flow, state, warn }) => {
 
 const executeStart = () => ({ port: OUT_PORT, detail: { kind: 'start' } });
 
+// Values typed in the step for the variables of its request; an empty box leaves the usual value.
+const collectTypedVariables = ({ node, text }) =>
+  Object.fromEntries(
+    Object.entries(node.config.variables || {})
+      .filter(([, typed]) => typed !== '' && typed !== undefined && typed !== null)
+      .map(([name, typed]) => [name, text(typed)])
+  );
+
 const executeRequest = async (context) => {
   const { node, state, host } = context;
-  const response = await host.sendRequest(node, { ...state.variables, ...collectWiredVariables(context) });
+  const variables = { ...state.variables, ...collectTypedVariables(context), ...collectWiredVariables(context) };
+  const response = await host.sendRequest(node, variables);
   if (response.cancelled) {
     throw new FlowCancelled('The request was not sent');
   }
