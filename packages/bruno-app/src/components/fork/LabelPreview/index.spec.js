@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import themes from 'themes/index';
 import { FORK_SETTINGS, resetForkSettingsCache, setForkSetting } from 'components/fork/settings/store';
-import LabelPreviewBar from './index';
+import { LabelPreviewBar } from './index';
 
 jest.mock('./zpl', () => ({
   renderZpl: jest.fn(async () => ['QUJD'])

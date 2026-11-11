@@ -15,6 +15,12 @@ export const FORK_SETTING_ENTRIES = [
       'When a response carries a PDF, PNG, JPEG or ZPL label (as base64 or as text, in any field), a bar above the body shows it and lets you save it. ZPL labels are drawn on this machine.'
   },
   {
+    id: FORK_SETTINGS.BARCODES,
+    label: 'Barcodes of response fields',
+    description:
+      'In the folders that ask for it, a bar above the body draws the values of a response as Code 128 barcodes, on this machine. A folder asks with a variable named michi.barcodes that lists the fields to read, for example: shipmentNumber, parcels.code. The collection or a single request can carry the variable too.'
+  },
+  {
     id: FORK_SETTINGS.QR_TOOL,
     label: 'QR code tool',
     description:

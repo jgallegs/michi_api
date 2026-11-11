@@ -7,6 +7,7 @@ const STORAGE_KEY = 'michi.settings';
 export const FORK_SETTINGS = {
   SENSITIVE_WRITES_ONLY: 'sensitiveWritesOnly',
   LABEL_PREVIEW: 'labelPreview',
+  BARCODES: 'barcodes',
   LOCAL_TIME: 'localTime',
   REQUEST_HISTORY: 'requestHistory',
   SPANISH_UI: 'spanishUi',
@@ -18,6 +19,7 @@ export const FORK_SETTINGS = {
 const DEFAULTS = {
   [FORK_SETTINGS.SENSITIVE_WRITES_ONLY]: true,
   [FORK_SETTINGS.LABEL_PREVIEW]: true,
+  [FORK_SETTINGS.BARCODES]: true,
   [FORK_SETTINGS.LOCAL_TIME]: true,
   [FORK_SETTINGS.REQUEST_HISTORY]: true,
   [FORK_SETTINGS.SPANISH_UI]: false,

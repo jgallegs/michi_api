@@ -189,6 +189,24 @@ export const PHRASES = {
   'Labels in the response': 'Etiquetas de la respuesta',
   'Show': 'Ver',
   'Label saved': 'Etiqueta guardada',
+  'Barcodes in the response': 'Códigos de barras de la respuesta',
+  'All': 'Todos',
+  'One at a time': 'De uno en uno',
+  'Previous barcode': 'Código anterior',
+  'Next barcode': 'Código siguiente',
+  'Copy number': 'Copiar número',
+  'Copy all the numbers': 'Copiar todos los números',
+  'Number copied': 'Número copiado',
+  'Numbers copied': 'Números copiados',
+  'Could not copy': 'No se ha podido copiar',
+  'Barcode saved': 'Código de barras guardado',
+  'Could not save the barcode': 'No se ha podido guardar el código de barras',
+  'The barcode could not be drawn': 'No se ha podido dibujar el código de barras',
+  'This value cannot be drawn as Code 128: only letters, digits and common signs, up to 80 characters.':
+    'Este valor no se puede dibujar como Code 128: solo letras, números y signos corrientes, hasta 80 caracteres.',
+  'Barcodes of response fields': 'Códigos de barras de campos de la respuesta',
+  'In the folders that ask for it, a bar above the body draws the values of a response as Code 128 barcodes, on this machine. A folder asks with a variable named michi.barcodes that lists the fields to read, for example: shipmentNumber, parcels.code. The collection or a single request can carry the variable too.':
+    'En las carpetas que lo piden, una barra encima del cuerpo dibuja valores de la respuesta como códigos de barras Code 128, en este equipo. Una carpeta lo pide con una variable llamada michi.barcodes que lista los campos a leer, por ejemplo: shipmentNumber, parcels.code. La variable también puede ir en la colección o en una sola petición.',
   'Request history': 'Historial de peticiones',
   'Open request history': 'Abrir el historial de peticiones',
   'Filter by request, URL, environment or status': 'Filtrar por petición, URL, entorno o estado',
@@ -626,6 +644,8 @@ export const PHRASES = {
 // Texts with a variable part.
 export const PATTERNS = [
   [/^(\d+) labels? in this response \((.+)\)$/, (count, kinds) => `${count} ${count === '1' ? 'etiqueta' : 'etiquetas'} en esta respuesta (${kinds})`],
+  [/^(\d+) barcodes? in this response \((.+)\)$/, (count, names) => `${count} ${count === '1' ? 'código de barras' : 'códigos de barras'} en esta respuesta (${names})`],
+  [/^(\d+) of (\d+)$/, (position, total) => `${position} de ${total}`],
   [/^Changes \((\d+)\)$/, (count) => `Cambios (${count})`],
   [/^Item number (\d+)$/, (position) => `Elemento número ${position}`],
   [/^List (\d+)$/, (position) => `Lista ${position}`],

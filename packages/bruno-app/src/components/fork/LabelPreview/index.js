@@ -6,6 +6,7 @@ import { Document, Page } from 'react-pdf';
 import Modal from 'components/Modal';
 import Button from 'ui/Button';
 import { FORK_SETTINGS, useForkSetting } from 'components/fork/settings/store';
+import BarcodeBar from 'components/fork/Barcodes';
 import { findLabels, LABEL_KINDS } from './detect';
 import StyledWrapper from './StyledWrapper';
 
@@ -93,7 +94,7 @@ const LabelBody = ({ label }) => {
   return <img alt="Label" src={`data:${LABEL_KINDS[label.kind].mime};base64,${label.base64}`} />;
 };
 
-const LabelPreviewBar = ({ data, item }) => {
+export const LabelPreviewBar = ({ data, item }) => {
   const enabled = useForkSetting(FORK_SETTINGS.LABEL_PREVIEW);
   const labels = useMemo(() => (enabled ? findLabels(data) : []), [enabled, data]);
   const [open, setOpen] = useState(false);
@@ -139,4 +140,12 @@ const LabelPreviewBar = ({ data, item }) => {
   );
 };
 
-export default LabelPreviewBar;
+// The response has one place for the fork above its body (H-24): every bar that reads the body goes in it.
+const ResponseBars = ({ data, item }) => (
+  <>
+    <LabelPreviewBar data={data} item={item} />
+    <BarcodeBar data={data} item={item} />
+  </>
+);
+
+export default ResponseBars;

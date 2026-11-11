@@ -12,6 +12,7 @@ Pestaña en *Preferences* (icono de la gata). Cada función del fork tiene su in
 |---|---|
 | Confirm only write requests in sensitive environments | Activado |
 | Preview labels found in responses | Activado |
+| Barcodes of response fields ([codigos-de-barras.md](codigos-de-barras.md)) | Activado |
 | QR code tool | Activado |
 | Show script panels (bru.visualize) | Activado |
 | Keep a request history | Activado |
