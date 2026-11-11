@@ -53,6 +53,14 @@ const describeOutcome = (detail, port) => {
         tag: { text: detail.result ? 'Yes' : 'No', translate: true },
         parts: [short(detail.left), word(OPERATOR_LABELS[detail.operator]), short(detail.right), '→', word(detail.result ? 'Yes' : 'No')]
       };
+    case 'validation': {
+      const verdict = detail.valid ? 'Valid' : 'Not valid';
+      return {
+        tag: { text: verdict, translate: true, tone: detail.valid ? 'ok' : 'bad' },
+        ...(detail.valid ? {} : { tone: 'warning' }),
+        parts: [short(detail.left), word(OPERATOR_LABELS[detail.operator]), short(detail.right), '→', word(verdict)]
+      };
+    }
     case 'repeat':
       return { parts: port === 'exit' ? [word('Nothing to repeat')] : [word('Round'), '1', word('of'), `${detail.times}`] };
     case 'leave':

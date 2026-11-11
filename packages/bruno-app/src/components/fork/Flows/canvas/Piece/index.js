@@ -2,6 +2,7 @@ import React from 'react';
 import {
   IconAlertCircle,
   IconArrowsSplit2,
+  IconShieldCheck,
   IconChevronDown,
   IconChevronRight,
   IconClock,
@@ -28,6 +29,7 @@ export const STEP_ICONS = {
   start: IconPlayerPlay,
   request: IconSend,
   if: IconArrowsSplit2,
+  validate: IconShieldCheck,
   repeat: IconRepeat,
   foreach: IconListDetails,
   leave: IconLogout,

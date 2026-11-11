@@ -118,6 +118,13 @@ const executeIf = (context) => {
   return { port: result ? 'yes' : 'no', detail };
 };
 
+// Tells apart an answer that came back fine but carries an error inside: when the value is the one
+// that means so, the flow goes on through "Not valid" and what hangs from "Valid" never sees it.
+const executeValidate = (context) => {
+  const { result, detail } = compareInputs(context);
+  return { port: result ? 'invalid' : 'valid', detail: { ...detail, kind: 'validation', valid: !result } };
+};
+
 const executeRepeat = ({ node, state, input }) => {
   const times = Number(input('times', node.config.times));
   if (!Number.isInteger(times) || times < 0 || times > MAX_REPEAT_TIMES) {
@@ -204,6 +211,7 @@ export const NODE_DEFINITIONS = {
   request: { outputs: [OUT_PORT], execute: executeRequest },
   setvalue: { outputs: [OUT_PORT], execute: executeSetValue },
   if: { outputs: ['yes', 'no'], execute: executeIf },
+  validate: { outputs: ['valid', 'invalid'], execute: executeValidate },
   repeat: { outputs: ['body', 'exit'], loop: true, execute: executeRepeat },
   foreach: { outputs: ['body', 'exit'], loop: true, execute: executeForEach },
   leave: { outputs: [], execute: executeLeave },

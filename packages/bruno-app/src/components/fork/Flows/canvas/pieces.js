@@ -139,6 +139,19 @@ const ifRows = (node) => {
   ];
 };
 
+// Reads as a sentence: "Not valid if [a value] [is equal to] [that]".
+const validateRows = (node) => {
+  const operator = node.config?.operator || 'equals';
+  const operators = COMPARISON_OPERATORS.map((name) => ({ value: name, label: OPERATOR_LABELS[name] }));
+  return [
+    typed('left', 'Not valid if', 'A value'),
+    { id: 'operator', control: { type: 'select', path: ['operator'], options: operators, fallback: 'equals' } },
+    ...(isSingleValueOperator(operator) ? [] : [typed('right', 'That', 'The value that is not valid')]),
+    { id: 'valid', label: 'Valid', right: order('valid') },
+    { id: 'invalid', label: 'Not valid', right: order('invalid') }
+  ];
+};
+
 const listAppendRows = (node) => {
   const config = node.config || {};
   const fields = config.fields || [];
@@ -183,6 +196,7 @@ export const PIECES = {
   start: { title: 'Start', headerOut: true, rows: () => [] },
   request: { title: 'Request', headerIn: true, headerOut: true, rows: requestRows },
   if: { title: 'If', headerIn: true, rows: ifRows },
+  validate: { title: 'Validate', headerIn: true, rows: validateRows },
   repeat: {
     title: 'Repeat',
     headerIn: true,
@@ -214,7 +228,7 @@ export const PIECES = {
 };
 
 // The steps offered when adding one; Start is always there and never added by hand.
-export const ADDABLE_PIECES = ['request', 'if', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop'];
+export const ADDABLE_PIECES = ['request', 'if', 'validate', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop'];
 
 // Everything the canvas needs to draw a step: its rows and where each port sits inside it.
 export const describePiece = (node, flow, request) => {

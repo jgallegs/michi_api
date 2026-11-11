@@ -88,6 +88,24 @@ export const BLOCK_GROUPS = [
         ]
       },
       {
+        id: 'validate-field',
+        title: 'Validate a field of the response',
+        description: 'For answers that come back OK but carry an error inside: they are told apart and left out.',
+        steps: [
+          step('call', 'request', 0, 0),
+          step('check', 'validate', 1, 0, { operator: 'equals' }),
+          step('note', 'note', 2, 1.2, { message: 'The response is not valid' })
+        ],
+        cables: [next('call', 'check'), ['check', 'invalid', 'note', 'in']],
+        guide: [
+          { step: 'call', text: 'Choose the request', check: 'request' },
+          { step: 'check', text: 'On Validate, click the square of "Not valid if" and choose the field to look at', check: 'input:left' },
+          { step: 'check', text: 'Choose how it compares and type in "That" the value that means it is not valid', check: 'input:right' },
+          RUN,
+          { step: 'check', text: 'Pull a cable out of Valid to go on with what uses the response', check: 'output:valid' }
+        ]
+      },
+      {
         id: 'retry',
         title: 'Retry until it works',
         description: 'Sends the request again, waiting a little, until the response is OK.',
@@ -162,6 +180,32 @@ export const BLOCK_GROUPS = [
         cables: [['repeat', 'body', 'call', 'in'], next('call', 'add'), ['call', 'field:', 'add', 'value:value'], ['list', 'field:items', 'add', 'list']],
         guide: [
           { step: 'call', text: 'Choose the request to repeat', check: 'request' },
+          { step: 'repeat', text: 'Set how many times it repeats', check: 'manual' },
+          RUN
+        ]
+      },
+      {
+        id: 'collect-valid',
+        title: 'Repeat a call and keep only the valid responses',
+        description: 'Each round looks at a field of the response; the ones that are not valid stay out of the list.',
+        steps: [
+          step('repeat', 'repeat', 0, 0, { times: '3' }),
+          step('call', 'request', 1, 0),
+          step('check', 'validate', 2, 0, { operator: 'equals' }),
+          step('add', 'listappend', 3, 0, { mode: 'value' }),
+          step('list', 'list', 3, 1.2)
+        ],
+        cables: [
+          ['repeat', 'body', 'call', 'in'],
+          next('call', 'check'),
+          ['check', 'valid', 'add', 'in'],
+          ['call', 'field:', 'add', 'value:value'],
+          ['list', 'field:items', 'add', 'list']
+        ],
+        guide: [
+          { step: 'call', text: 'Choose the request to repeat', check: 'request' },
+          { step: 'check', text: 'On Validate, click the square of "Not valid if" and choose the field to look at', check: 'input:left' },
+          { step: 'check', text: 'Choose how it compares and type in "That" the value that means it is not valid', check: 'input:right' },
           { step: 'repeat', text: 'Set how many times it repeats', check: 'manual' },
           RUN
         ]

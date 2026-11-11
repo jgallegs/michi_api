@@ -510,6 +510,20 @@ describe('FlowCanvas', () => {
       expect(current().nodes[2]).toMatchObject({ type: 'request', config: { pathname: 'get order.bru' } });
     });
 
+    it('hangs a Validate step from the field of a response, ready to say what is not valid', async () => {
+      await open(makeFlow([node('a', 'request', 400, 120, { pathname: 'login.bru', fields: ['code'] })], [edge('e1', 'start', 'out', 'a')]));
+      fireEvent.mouseDown(port('a', 'right', 'field:code'), { button: 0 });
+      fireEvent.mouseUp(window);
+      pick('Validate');
+      const added = current().nodes[2];
+      expect(added).toMatchObject({ type: 'validate', config: { operator: 'equals' } });
+      expect(current().edges[1]).toMatchObject({ source: 'a', sourcePort: 'field:code', target: added.id, targetPort: 'value:left' });
+      expect(chip('login · code')).toBeInTheDocument();
+      expect(screen.getByText('Not valid if')).toBeInTheDocument();
+      expect(port(added.id, 'right', 'valid')).toBeInTheDocument();
+      expect(port(added.id, 'right', 'invalid')).toBeInTheDocument();
+    });
+
     it('offers what can be added with the right button, where the pointer is', async () => {
       await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
       const canvas = screen.getByTestId('flow-canvas');

@@ -141,7 +141,7 @@ describe('flow pieces', () => {
     };
 
     it('offers the steps and the requests of the collection as two separate lists', () => {
-      expect(listPieceOptions(flow, collection, null).map((option) => option.type)).toEqual(['if', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop']);
+      expect(listPieceOptions(flow, collection, null).map((option) => option.type)).toEqual(['if', 'validate', 'repeat', 'foreach', 'leave', 'list', 'listappend', 'setvalue', 'wait', 'note', 'stop']);
       const requests = listPieceOptions(flow, collection, null, ADD.REQUESTS);
       expect(requests.map((option) => option.config.pathname)).toEqual(['login.bru', 'orders/get order.bru']);
       expect(requests.map((option) => option.group)).toEqual([undefined, 'orders']);
@@ -157,7 +157,7 @@ describe('flow pieces', () => {
       expect(listPieceOptions(flow, collection, fromStart, ADD.REQUESTS).map((option) => option.label)).toEqual(['login', 'get order']);
 
       const fromValue = { nodeId: 'a', port: 'field:session.token', side: 'right' };
-      expect(listPieceOptions(flow, collection, fromValue).map((option) => option.label)).toEqual(['Repeat', 'For each item', 'Add to list', 'Set variable', 'Wait', 'Note', 'Stop']);
+      expect(listPieceOptions(flow, collection, fromValue).map((option) => option.label)).toEqual(['Validate', 'Repeat', 'For each item', 'Add to list', 'Set variable', 'Wait', 'Note', 'Stop']);
       expect(listPieceOptions(flow, collection, fromValue, ADD.REQUESTS).map((option) => option.label)).toEqual(['login', 'get order']);
     });
 

@@ -8,6 +8,7 @@ export const snap = (value) => Math.round(value / GRID) * GRID;
 
 const DEFAULT_CONFIG = {
   if: { check: 'success' },
+  validate: { operator: 'equals' },
   repeat: { times: '3' },
   wait: { seconds: '1' },
   listappend: { mode: 'value' }
