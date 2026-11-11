@@ -73,8 +73,9 @@ const createStepResolver = (flow, state, onEvent) => (node, port) => {
 
 // Runs a flow step by step. It knows nothing about the app: requests go through host.sendRequest. Runs
 // that fail, are cancelled or pause return a snapshot that can be passed back as options.resume to go on
-// from that step. With options.step the run pauses after each step.
-export const runFlow = async (flow, host, { onEvent = () => {}, signal, environment = {}, startNodeId, resume, step = false } = {}) => {
+// from that step. With options.step the run pauses after each step, and options.stepDelay waits those
+// milliseconds before each step so a run can be followed on screen.
+export const runFlow = async (flow, host, { onEvent = () => {}, signal, environment = {}, startNodeId, resume, step = false, stepDelay = 0 } = {}) => {
   const issues = validateFlow(flow, { startNodeId: resume?.nodeId || startNodeId });
   if (issues.length) {
     return { status: RUN_STATUS.INVALID, issues };
@@ -102,6 +103,9 @@ export const runFlow = async (flow, host, { onEvent = () => {}, signal, environm
     const runnable = { ...node, config: node.config || {} };
     const warn = (message) => onEvent({ type: 'warning', nodeId: currentId, message });
     try {
+      if (stepDelay && node.type !== 'start') {
+        await sleep(stepDelay, signal);
+      }
       const outcome = await NODE_DEFINITIONS[node.type].execute({ node: runnable, flow, state, host, signal, sleep, warn, ...createInputReaders({ node: runnable, flow, state, environment }) });
       onEvent({ type: 'node-finished', nodeId, port: outcome.port, detail: outcome.detail });
       if (outcome.stop) {

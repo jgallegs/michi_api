@@ -3,6 +3,7 @@ import { FORK_SETTINGS, useForkSetting } from 'components/fork/settings/store';
 import { useCollectionFlows, useFlow } from '../store';
 import { flowIdFromTabType } from '../selection';
 import FlowCanvas from '../FlowCanvas';
+import OutputPanel from '../run/OutputPanel';
 
 const Message = ({ children }) => <p style={{ padding: '1rem' }}>{children}</p>;
 
@@ -26,8 +27,9 @@ const FlowTab = ({ tab, collection }) => {
   }
 
   return (
-    <div className="flex flex-col flex-1 w-full h-full" style={{ minHeight: 0 }} data-testid="flow-tab">
+    <div className="flex flex-1 w-full h-full" style={{ minHeight: 0 }} data-testid="flow-tab">
       <FlowCanvas key={flow.id} collection={collection} flow={flow} />
+      <OutputPanel />
     </div>
   );
 };

@@ -5,7 +5,8 @@ import { createFlow as buildFlow, flowSignature, normalizeFlow, normalizeFolder 
 // Flows of every open collection, keyed by collection path. "saved" mirrors .michi.json; "drafts" holds
 // edits not yet written, so switching tabs keeps unsaved work until the app is closed or the flow is
 // saved or discarded. The file is re-read when the window regains focus, so a git pull shows up at once.
-const EMPTY_ENTRY = { saved: {}, drafts: {}, loaded: false, loading: false, error: null };
+// "bases" remembers the saved version each draft started from, to tell when the file changed under it.
+const EMPTY_ENTRY = { saved: {}, drafts: {}, bases: {}, loaded: false, loading: false, error: null };
 
 const entries = new Map();
 const listeners = new Set();
@@ -83,31 +84,45 @@ export const isFlowDirty = (collectionPath, flowId) => {
 
 export const useFlowDirty = (collectionPath, flowId) => useSyncExternalStore(subscribe, () => isFlowDirty(collectionPath, flowId));
 
+// A flow someone else changed (a git pull, usually) while it has unsaved edits here: saving replaces their version.
+export const isFlowStale = (collectionPath, flowId) => {
+  const { saved, drafts, bases } = getEntry(collectionPath);
+  return Boolean(drafts[flowId] && saved[flowId] && bases[flowId] !== undefined && flowSignature(saved[flowId]) !== bases[flowId]);
+};
+
+export const useFlowStale = (collectionPath, flowId) => useSyncExternalStore(subscribe, () => isFlowStale(collectionPath, flowId));
+
+const without = (map, key) => {
+  const next = { ...map };
+  delete next[key];
+  return next;
+};
+
 export const updateFlowDraft = (collectionPath, flowId, updater) => {
   const current = getFlow(collectionPath, flowId);
   if (!current) {
     return;
   }
-  const { drafts } = getEntry(collectionPath);
-  setEntry(collectionPath, { drafts: { ...drafts, [flowId]: updater(current) } });
+  const { saved, drafts, bases } = getEntry(collectionPath);
+  const startsDraft = !drafts[flowId] && saved[flowId];
+  setEntry(collectionPath, {
+    drafts: { ...drafts, [flowId]: updater(current) },
+    bases: startsDraft ? { ...bases, [flowId]: flowSignature(saved[flowId]) } : bases
+  });
 };
 
 export const discardFlowDraft = (collectionPath, flowId) => {
-  const { drafts } = getEntry(collectionPath);
+  const { drafts, bases } = getEntry(collectionPath);
   if (!drafts[flowId]) {
     return;
   }
-  const next = { ...drafts };
-  delete next[flowId];
-  setEntry(collectionPath, { drafts: next });
+  setEntry(collectionPath, { drafts: without(drafts, flowId), bases: without(bases, flowId) });
 };
 
 const persist = async (collectionPath, flow) => {
   await flowsApi.save(collectionPath, flow);
-  const { saved, drafts } = getEntry(collectionPath);
-  const nextDrafts = { ...drafts };
-  delete nextDrafts[flow.id];
-  setEntry(collectionPath, { saved: { ...saved, [flow.id]: flow }, drafts: nextDrafts });
+  const { saved, drafts, bases } = getEntry(collectionPath);
+  setEntry(collectionPath, { saved: { ...saved, [flow.id]: flow }, drafts: without(drafts, flow.id), bases: without(bases, flow.id) });
   return flow;
 };
 
@@ -133,18 +148,16 @@ export const renameFlow = async (collectionPath, flowId, { name, folder }) => {
   const nextSaved = { ...base, ...meta };
   await flowsApi.save(collectionPath, nextSaved);
   const nextDrafts = drafts[flowId] ? { ...drafts, [flowId]: { ...drafts[flowId], ...meta } } : drafts;
-  setEntry(collectionPath, { saved: { ...saved, [flowId]: nextSaved }, drafts: nextDrafts });
+  const { bases } = getEntry(collectionPath);
+  const nextBases = drafts[flowId] ? { ...bases, [flowId]: flowSignature(nextSaved) } : bases;
+  setEntry(collectionPath, { saved: { ...saved, [flowId]: nextSaved }, drafts: nextDrafts, bases: nextBases });
   return nextSaved;
 };
 
 export const deleteFlow = async (collectionPath, flowId) => {
   await flowsApi.delete(collectionPath, flowId);
-  const { saved, drafts } = getEntry(collectionPath);
-  const nextSaved = { ...saved };
-  const nextDrafts = { ...drafts };
-  delete nextSaved[flowId];
-  delete nextDrafts[flowId];
-  setEntry(collectionPath, { saved: nextSaved, drafts: nextDrafts });
+  const { saved, drafts, bases } = getEntry(collectionPath);
+  setEntry(collectionPath, { saved: without(saved, flowId), drafts: without(drafts, flowId), bases: without(bases, flowId) });
 };
 
 export const reloadLoadedCollections = () => {

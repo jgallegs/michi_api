@@ -3,10 +3,17 @@ jest.mock('utils/common', () => {
   return { uuid: () => `new-${(next += 1)}` };
 });
 jest.mock('react-hot-toast', () => ({ __esModule: true, default: { success: jest.fn(), error: jest.fn() } }));
+jest.mock('../run/controller', () => ({
+  RUN_MODE: { RUN: 'run', STEP: 'step', CONTINUE: 'continue' },
+  startRun: jest.fn(() => Promise.resolve()),
+  stopRun: jest.fn()
+}));
+jest.mock('components/fork/SensitiveEnvironment/store', () => ({ useIsSensitiveEnvironment: (collection, environment) => environment?.name === 'Live' }));
 
 import '@testing-library/jest-dom';
 import React from 'react';
 import { DndProvider } from 'react-dnd';
+import { Provider } from 'react-redux';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ThemeProvider } from 'styled-components';
 import { act, fireEvent, render, screen } from '@testing-library/react';
@@ -14,12 +21,16 @@ import lightTheme from 'themes/light/light';
 import { FLOW_VERSION } from '../model';
 import { getFlow, loadFlows, resetFlowsStore, useFlow } from '../store';
 import { resetHistory } from '../canvas/history';
+import { startRun, stopRun } from '../run/controller';
+import { RUN_PHASE, patchRunSession, resetRunSessions } from '../run/session';
 import FlowCanvas from './index';
 
 const COLLECTION = '/collections/shop';
 const collection = {
   uid: 'c1',
   pathname: COLLECTION,
+  activeEnvironmentUid: 'e1',
+  environments: [{ uid: 'e1', name: 'Local', variables: [] }, { uid: 'e2', name: 'Live', variables: [] }],
   items: [
     { type: 'http-request', name: 'login', pathname: `${COLLECTION}/login.bru`, request: { method: 'post', url: 'http://localhost:9/login' } },
     { type: 'http-request', name: 'get order', pathname: `${COLLECTION}/get order.bru`, request: { method: 'get', url: 'http://localhost:9/{{orderId}}' } }
@@ -38,19 +49,23 @@ const makeFlow = (nodes = [], edges = []) => ({
   edges
 });
 
-const Harness = () => {
+const reduxStore = { getState: () => ({ collections: { collections: [collection] } }), dispatch: jest.fn(), subscribe: () => () => {} };
+
+const Harness = ({ shown = collection }) => {
   const flow = useFlow(COLLECTION, 'f1');
-  return flow ? <FlowCanvas collection={collection} flow={flow} /> : null;
+  return flow ? <FlowCanvas collection={shown} flow={flow} /> : null;
 };
 
-const open = async (flow) => {
+const open = async (flow, shown) => {
   window.ipcRenderer = { invoke: jest.fn(async (channel, path, saved) => (channel === 'fork:flows:list' ? [flow] : saved)) };
   await act(() => loadFlows(COLLECTION));
   render(
     <ThemeProvider theme={lightTheme}>
-      <DndProvider backend={HTML5Backend}>
-        <Harness />
-      </DndProvider>
+      <Provider store={reduxStore}>
+        <DndProvider backend={HTML5Backend}>
+          <Harness shown={shown} />
+        </DndProvider>
+      </Provider>
     </ThemeProvider>
   );
 };
@@ -63,6 +78,9 @@ describe('FlowCanvas', () => {
   beforeEach(() => {
     resetFlowsStore();
     resetHistory();
+    resetRunSessions();
+    startRun.mockClear();
+    stopRun.mockClear();
   });
 
   afterEach(() => {
@@ -180,5 +198,77 @@ describe('FlowCanvas', () => {
     });
     expect(window.ipcRenderer.invoke).toHaveBeenCalledWith('fork:flows:save', COLLECTION, expect.objectContaining({ id: 'f1' }));
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+  });
+  it('warns when the flow changed in the collection under unsaved edits, and can take that version', async () => {
+    await open(makeFlow([node('w', 'wait', 400, 120)], [edge('e1', 'start', 'out', 'w')]));
+    fireEvent.click(screen.getByTestId('flow-tidy'));
+    expect(screen.queryByTestId('flow-stale')).not.toBeInTheDocument();
+
+    window.ipcRenderer.invoke.mockResolvedValue([makeFlow([node('theirs', 'stop', 400, 120)], [])]);
+    await act(() => loadFlows(COLLECTION));
+    expect(screen.getByTestId('flow-stale')).toBeInTheDocument();
+    expect(screen.getByTestId('flow-piece-w')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('flow-discard'));
+    expect(screen.queryByTestId('flow-stale')).not.toBeInTheDocument();
+    expect(screen.getByTestId('flow-piece-theirs')).toBeInTheDocument();
+    expect(screen.getByTestId('flow-undo')).toBeDisabled();
+  });
+
+  describe('running', () => {
+    const walk = () => makeFlow([node('w', 'wait', 400, 120), node('l', 'list', 400, 300)], [edge('e1', 'start', 'out', 'w')]);
+    const started = (mode) => expect(startRun).toHaveBeenLastCalledWith(expect.objectContaining({ collectionUid: 'c1', collectionPath: COLLECTION, flowId: 'f1', mode }));
+
+    it('runs, steps and shows the environment it runs against', async () => {
+      await open(walk());
+      expect(screen.getByTestId('flow-environment')).toHaveTextContent('Local');
+      expect(screen.getByTestId('flow-environment')).not.toHaveClass('sensitive');
+
+      fireEvent.click(screen.getByTestId('flow-run'));
+      started('run');
+      fireEvent.click(screen.getByTestId('flow-step'));
+      started('step');
+      fireEvent.keyDown(screen.getByTestId('flow-canvas'), { key: 'Enter', ctrlKey: true });
+      expect(startRun).toHaveBeenCalledTimes(3);
+      expect(screen.queryByTestId('flow-continue')).not.toBeInTheDocument();
+    });
+
+    it('warns when the environment is sensitive', async () => {
+      await open(walk(), { ...collection, activeEnvironmentUid: 'e2' });
+      expect(screen.getByTestId('flow-environment')).toHaveClass('sensitive');
+      expect(screen.getByTestId('flow-environment')).toHaveTextContent('Live');
+    });
+
+    it('offers to stop while it runs', async () => {
+      await open(walk());
+      act(() => patchRunSession('f1', { phase: RUN_PHASE.RUNNING, steps: { w: { state: 'running' } } }));
+      expect(screen.getByTestId('flow-piece-w')).toHaveClass('run-running');
+      expect(screen.queryByTestId('flow-run')).not.toBeInTheDocument();
+      expect(screen.getByTestId('flow-step')).toBeDisabled();
+
+      fireEvent.click(screen.getByTestId('flow-stop'));
+      expect(stopRun).toHaveBeenCalledWith('f1');
+    });
+
+    it('shows what the run left on each step and continues from where it stopped', async () => {
+      await open(walk());
+      act(() =>
+        patchRunSession('f1', {
+          phase: RUN_PHASE.PAUSED,
+          steps: { start: { state: 'done' }, w: { state: 'failed', tag: { text: '2 s' } } },
+          lists: { l: 3 },
+          resume: { nodeId: 'w', state: {} }
+        })
+      );
+      expect(screen.getByTestId('flow-piece-start')).toHaveClass('run-done');
+      expect(screen.getByTestId('flow-piece-w')).toHaveClass('run-waiting');
+      expect(screen.getByTestId('flow-piece-w')).toHaveTextContent('2 s');
+      expect(screen.getByTestId('flow-piece-l')).toHaveTextContent('3');
+
+      fireEvent.click(screen.getByLabelText('Continue from this step'));
+      started('continue');
+      fireEvent.click(screen.getByTestId('flow-continue'));
+      expect(startRun).toHaveBeenCalledTimes(2);
+    });
   });
 });

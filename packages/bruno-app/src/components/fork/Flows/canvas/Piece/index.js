@@ -8,6 +8,7 @@ import {
   IconList,
   IconPlayerPlay,
   IconPlayerStop,
+  IconPlayerTrackNext,
   IconPlaylistAdd,
   IconPlug,
   IconPlus,
@@ -169,12 +170,24 @@ const Row = ({ node, row, request, sources, onConfig, onAction }) => {
   );
 };
 
-const Piece = ({ node, description, request, title, position, selected, dimmed, issues, portState, sources, onMouseDown, onPortMouseDown, onConfig, onAction }) => {
+// What the last run left on a step: how it went and, where it stopped, a button to go on from there.
+const RunMark = ({ run }) => (
+  <>
+    {run.tag ? <span className={`flow-tag tone-${run.tag.tone || 'plain'} ${run.tag.translate ? '' : 'fork-no-translate'}`}>{run.tag.text}</span> : null}
+    {run.onContinue ? (
+      <button type="button" className="flow-continue" aria-label="Continue from this step" title="Continue from this step" onClick={run.onContinue}>
+        <IconPlayerTrackNext size={13} strokeWidth={2} />
+      </button>
+    ) : null}
+  </>
+);
+
+const Piece = ({ node, description, request, title, position, selected, dimmed, issues, run, portState, sources, onMouseDown, onPortMouseDown, onConfig, onAction }) => {
   const Icon = ICONS[node.type] || IconAlertCircle;
   const hasCustomTitle = title !== description.title;
   return (
     <div
-      className={`flow-piece type-${node.type} ${selected ? 'selected' : ''} ${dimmed ? 'dimmed' : ''} ${issues.length ? 'has-issue' : ''}`}
+      className={`flow-piece type-${node.type} ${selected ? 'selected' : ''} ${dimmed ? 'dimmed' : ''} ${issues.length ? 'has-issue' : ''} ${run.state ? `run-${run.state}` : ''}`}
       style={{ left: position.x, top: position.y, width: PIECE_WIDTH, height: description.height }}
       title={dimmed ? 'This step is not connected to Start, so it does not run' : undefined}
       data-testid={`flow-piece-${node.id}`}
@@ -184,6 +197,7 @@ const Piece = ({ node, description, request, title, position, selected, dimmed, 
       <div className="flow-piece-header">
         <Icon size={15} strokeWidth={1.75} className="flow-piece-icon" />
         <span className={`flow-piece-title ${hasCustomTitle ? 'fork-no-translate' : ''}`}>{title}</span>
+        <RunMark run={run} />
         {issues.length ? (
           <span className="flow-issue" title={issues.map((item) => item.message).join('\n')} data-testid={`flow-issue-${node.id}`}>
             <IconAlertCircle size={15} strokeWidth={1.75} />

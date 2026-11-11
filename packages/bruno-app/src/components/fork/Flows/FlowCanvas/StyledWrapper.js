@@ -42,6 +42,19 @@ const StyledWrapper = styled.div`
   .flow-cable.value .flow-cable-line { stroke: var(--flow-value); stroke-width: 1.5; stroke-dasharray: 5 4; }
   .flow-cable.selected .flow-cable-line { stroke-width: 3.5; }
   .flow-cable.draft .flow-cable-line { opacity: 0.7; }
+  .flow-cable-pulse {
+    fill: none;
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-dasharray: 10 110;
+    stroke-dashoffset: 10;
+    animation: flow-pulse 0.45s linear forwards;
+  }
+  .flow-cable.order .flow-cable-pulse { stroke: var(--flow-order); }
+  .flow-cable.value .flow-cable-pulse { stroke: var(--flow-value); }
+  @keyframes flow-pulse {
+    to { stroke-dashoffset: -100; }
+  }
   .flow-cable-grab {
     fill: none;
     stroke: transparent;
@@ -81,6 +94,19 @@ const StyledWrapper = styled.div`
       box-shadow: 0 0 0 2px var(--flow-order);
     }
     &.dimmed { opacity: 0.55; }
+    &.run-running {
+      border-color: var(--flow-order);
+      animation: flow-working 0.9s ease-in-out infinite alternate;
+    }
+    &.run-done { border-color: ${(props) => props.theme.status.success.border}; }
+    &.run-failed {
+      border-color: ${(props) => props.theme.status.danger.border};
+      box-shadow: 0 0 0 2px ${(props) => props.theme.status.danger.border};
+    }
+    &.run-waiting {
+      border-color: ${(props) => props.theme.status.warning.border};
+      box-shadow: 0 0 0 2px ${(props) => props.theme.status.warning.border};
+    }
     &.has-issue { border-color: ${(props) => props.theme.status.warning.border}; }
   }
 
@@ -105,6 +131,37 @@ const StyledWrapper = styled.div`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  @keyframes flow-working {
+    from { box-shadow: 0 0 0 2px var(--flow-order); }
+    to { box-shadow: 0 0 0 5px var(--flow-order); }
+  }
+  .flow-tag {
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border-radius: 9px;
+    font-size: ${(props) => props.theme.font.size.xs};
+    font-weight: 600;
+    color: ${(props) => props.theme.colors.text.muted};
+    background: ${(props) => props.theme.background.base};
+    border: 1px solid ${(props) => props.theme.border.border2};
+
+    &.tone-ok { color: ${(props) => props.theme.status.success.text}; border-color: ${(props) => props.theme.status.success.border}; }
+    &.tone-bad { color: ${(props) => props.theme.status.danger.text}; border-color: ${(props) => props.theme.status.danger.border}; }
+  }
+  .flow-continue {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    color: ${(props) => props.theme.background.base};
+    background: var(--flow-order);
+    cursor: pointer;
   }
   .flow-issue { display: inline-flex; color: ${(props) => props.theme.status.warning.text}; }
   .flow-issue-text {
@@ -291,6 +348,27 @@ const StyledWrapper = styled.div`
 
     &:hover:not(:disabled) { background: ${(props) => props.theme.background.crust}; }
     &:disabled { opacity: 0.4; cursor: default; }
+  }
+  .flow-tool.run { color: ${(props) => props.theme.background.base}; background: var(--flow-order); }
+  .flow-tool.run:hover:not(:disabled) { background: ${(props) => props.theme.primary.strong}; }
+  .flow-tool.stop { color: ${(props) => props.theme.status.danger.text}; }
+  .flow-environment {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 160px;
+    height: 22px;
+    margin: 0 4px;
+    padding: 0 8px;
+    overflow: hidden;
+    white-space: nowrap;
+    border-radius: 11px;
+    font-size: ${(props) => props.theme.font.size.xs};
+    font-weight: 600;
+    color: ${(props) => props.theme.status.success.text};
+    background: ${(props) => props.theme.status.success.background};
+
+    &.sensitive { color: ${(props) => props.theme.status.danger.text}; background: ${(props) => props.theme.status.danger.background}; }
   }
   .flow-tool-separator { width: 1px; height: 16px; background: ${(props) => props.theme.border.border1}; }
   .flow-tool-spacer { flex: 1; }
