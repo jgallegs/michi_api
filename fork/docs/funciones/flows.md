@@ -13,7 +13,7 @@ Para empezar a usarla sin leer todo esto está la [guía rápida](flows-guia.md)
    - Tirar de un triángulo y soltar el cable en vacío: sale un selector con los pasos que encajan y las peticiones de la colección. El paso elegido nace ya conectado.
    - Arrastrar una petición desde la barra lateral al lienzo.
    - Doble clic en vacío, o el botón **Add step**.
-3. Conectar valores: cada petición enseña a la izquierda las variables que usa (`{{token}}`) y a la derecha lo que devuelve. Se une una salida con una entrada tirando un cable, o pulsando el cuadrado de la entrada y eligiendo el valor de la lista. En esa lista también se puede escribir el nombre de un campo que todavía no se ha visto (`envios.info.id`): se ofrece en cada paso que entrega campos y, al elegirlo, queda añadido. Con **Add a field** se añade un campo de la respuesta, también anidado, sin haber ejecutado antes.
+3. Conectar valores: cada petición enseña a la izquierda las variables que usa (`{{token}}`) y a la derecha lo que devuelve. Se une una salida con una entrada tirando un cable, o pulsando el cuadrado de la entrada y eligiendo el valor de la lista. En esa lista también se puede escribir el nombre de un campo que todavía no se ha visto (`envios.info.id`): se ofrece en cada paso que entrega campos y, al elegirlo, queda añadido. Con **Add a field** se añade un campo de la respuesta, también anidado, sin haber ejecutado antes (ver [Los campos de una respuesta](#los-campos-de-una-respuesta)).
 4. **Run** ejecuta el flow contra el entorno que se ve al lado del botón. **Step** ejecuta un paso y espera. Si una petición no se puede enviar, la ejecución se queda en ese paso y se retoma con **Continue** o con el botón del propio paso.
 5. **Save** guarda el flow en la colección. Mientras no se guarde, los cambios se conservan al cambiar de pestaña, hasta que se cierre la app.
 
@@ -32,6 +32,22 @@ Para empezar a usarla sin leer todo esto está la [guía rápida](flows-guia.md)
 | Wait | Espera unos segundos |
 | Note | Escribe un mensaje en la salida y sigue |
 | Stop | Termina el flow con un mensaje |
+
+### Los campos de una respuesta
+
+La lista de **Add a field**, y la de valores de otros pasos, ofrece los campos de la respuesta de cada petición. Los saca, por este orden, de:
+
+| De dónde | Cuándo |
+|---|---|
+| La última respuesta recibida | En esta sesión, enviada desde su pestaña o desde un flow |
+| Un ejemplo guardado en la petición | Siempre |
+| Lo visto en sesiones anteriores | Cada respuesta que llega deja recordados los nombres de sus campos, venga de un flow o de la pestaña de la petición. Se guardan en este ordenador, y solo los nombres: nunca un valor de una respuesta |
+| Un documento OpenAPI o Swagger | Si en **API Specs** hay abierto uno con una ruta y un método que encajen con la petición, se lee el esquema de su respuesta correcta. En la lista sale como *from the API spec* |
+| Los scripts de la petición | Los campos que mencionan (`res.body.token`, `res.getBody().id`…). Se leen como texto, no se ejecuta nada. En la lista sale como *from the script* |
+
+Lo que no aparece se puede escribir a mano, también como en los scripts: `pedidos[2].id`.
+
+**Listas.** Un campo que pasa por una lista lee, si no se dice otra cosa, el primer elemento. En su fila sale una ficha con el elemento que lee (`#1`); al pulsarla se elige **The first item**, **The last item** o se escribe una posición contando desde 1. Una lista entera se entrega tal cual (`all`) y también se puede pedir uno solo de sus elementos. Para pasar por todos está el paso **For each item**.
 
 ### Los bloques
 
@@ -99,6 +115,7 @@ El panel **Output**, a la derecha, cuenta lo que hace cada ejecución: código y
 | Dónde se guarda | En `.michi.json`, en la raíz de la colección: los flows en la clave `flows` y los bloques propios en `flowBlocks` ([decisiones.md](../decisiones.md), DEC-26 y DEC-27). Las peticiones se apuntan por su ruta dentro de la colección, así que flows y bloques sirven en cualquier equipo |
 | Idioma | Con *Spanish interface* encendido, el lienzo, la galería, la guía y la ayuda salen en español, y los mensajes que un bloque escribe dentro de sus pasos (el de **Stop**, por ejemplo) también. El buscador de los selectores encuentra los pasos por su nombre en los dos idiomas |
 | Ventanas estrechas | La barra del lienzo va quitando el texto de sus botones, primero los menos necesarios, y deja el icono. El nombre sigue saliendo al dejar el ratón encima |
+| Campos recordados | Los nombres de los campos vistos en cada respuesta se guardan en este ordenador (no en la colección), así que cada persona los tiene al enviar la petición una vez. Con *Flows* apagado no se guarda nada ([decisiones.md](../decisiones.md), DEC-28) |
 | Bruno oficial | Ignora `.michi.json`: la colección funciona igual, sin los flows |
 | Mover o renombrar una petición | El paso la pierde y pide elegirla otra vez |
 | Trabajo en equipo | Si un `pull` trae otra versión de un flow que se está editando, la barra lo avisa y deja descartar los cambios propios. Guardar sin descartar pisa la versión que llegó |
@@ -116,6 +133,7 @@ Todo el código está en `packages/bruno-app/src/components/fork/Flows/` y en `p
 |---|---|
 | `engine/` | El motor: en qué orden van los pasos (`graph.js`), qué hace cada uno (`nodes.js`) y la ejecución con pausa, paso a paso y reanudación (`run.js`). No sabe nada de la app: las peticiones salen por un `host` que se le pasa |
 | `canvas/` | El lienzo sin React: descripción de cada pieza y sus puertos (`pieces.js`), edición del flow (`editing.js`), trazado de cables (`routing.js`), colocación sin solapes y ordenar (`layout.js`), deshacer (`history.js`), lectura de las peticiones de la colección (`requests.js`) y contenido de los selectores (`pickers.js`). Más los componentes `Piece`, `Cables`, `Picker` y `Toolbar` |
+| `fields/` | Qué campos tiene la respuesta de una petición antes de enviarla: rutas y posiciones en listas (`paths.js`), lectura de documentos OpenAPI (`spec.js`), lectura de los scripts como texto (`script.js`), lo recordado entre sesiones (`memory.js`) y el observador que anota cada respuesta que llega (`watch.js`, instalado desde `ForkRoot`) |
 | `FlowCanvas/` | El componente que junta lo anterior: selección, arrastres, zoom, teclado y soltar desde la barra lateral |
 | `blocks/` | Los bloques: el catálogo de los que trae Michi (`catalog.js`), cómo se montan, se insertan y se guardan los propios (`building.js`), la guía y cómo sabe que un punto está hecho (`guide.js`), los bloques de cada colección (`store.js`) y los componentes `Gallery`, `GuidePanel`, `HelpPanel` y `SaveBlockModal` |
 | `run/` | La ejecución en la app: `host.js` envía cada petición con `sendNetworkRequest`, como hace Bruno; `controller.js` pide la confirmación de entorno sensible y traduce los eventos del motor; `session.js` guarda el estado de cada ejecución y la salida; `OutputPanel/` la pinta |
