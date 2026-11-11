@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { flowsApi } from './api';
-import { createFlow as buildFlow, flowSignature, normalizeFlow, normalizeFolder } from './model';
+import { MAX_FLOW_NAME_LENGTH, createFlow as buildFlow, flowSignature, normalizeFlow, normalizeFolder } from './model';
 
 // Flows of every open collection, keyed by collection path. "saved" mirrors .michi.json; "drafts" holds
 // edits not yet written, so switching tabs keeps unsaved work until the app is closed or the flow is
@@ -135,6 +135,24 @@ export const saveFlow = (collectionPath, flowId) => {
 };
 
 export const createFlow = (collectionPath, { name, folder }) => persist(collectionPath, buildFlow({ name, folder }));
+
+// A copy of a flow as it is on screen, edits not yet saved included, under a name nobody has: the same
+// one with a number after it.
+export const duplicateFlow = (collectionPath, flowId) => {
+  const flow = getFlow(collectionPath, flowId);
+  if (!flow) {
+    return Promise.reject(new Error('Flow not found'));
+  }
+  const { saved, drafts } = getEntry(collectionPath);
+  const taken = Object.values({ ...saved, ...drafts }).map((other) => other.name);
+  const nameWith = (number) => `${flow.name.slice(0, MAX_FLOW_NAME_LENGTH - 8)} (${number})`;
+  let number = 2;
+  while (taken.includes(nameWith(number))) {
+    number += 1;
+  }
+  const copy = buildFlow({ name: nameWith(number), folder: flow.folder });
+  return persist(collectionPath, { ...copy, nodes: flow.nodes, edges: flow.edges });
+};
 
 // Renames or moves a flow without saving pending graph edits: the saved copy gets the new name and
 // folder, and a draft, if any, keeps its edits with the same new name and folder.
