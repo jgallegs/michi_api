@@ -94,6 +94,27 @@ describe('cable routing', () => {
       expect(moved.get('b')).toEqual([90]);
     });
 
+    it('turns beside a step instead of under it', () => {
+      // The middle of the gap falls under a step that sits between both ends.
+      const between = { x: 150, y: 20, width: 240, height: 120 };
+      const moved = spreadCables([cable('a', 'one', { x: 0, y: 160 }, { x: 480, y: 60 })], [between]);
+      expect(moved.get('a')).toEqual([400]);
+    });
+
+    it('goes round a step when every straight way is under it', () => {
+      const between = { x: 100, y: 0, width: 240, height: 120 };
+      const moved = spreadCables([cable('a', 'one', { x: 0, y: 60 }, { x: 440, y: 60 })], [between]);
+      expect(moved.get('a')).toEqual([STUB, 140, 440 - STUB]);
+      const points = routePoints({ x: 0, y: 60 }, { x: 440, y: 60 }, moved.get('a'));
+      expect(isOrthogonal(points)).toBe(true);
+    });
+
+    it('does not count the steps a cable starts and ends at', () => {
+      const source = { id: 's', x: -240, y: 0, width: 240, height: 100 };
+      const target = { id: 't', x: 200, y: 60, width: 240, height: 100 };
+      expect(spreadCables([cable('a', 'one', { x: 0, y: 20 }, { x: 200, y: 80 }, { ends: ['s', 't'] })], [source, target]).size).toBe(0);
+    });
+
     it('keeps the turn between both ports however crowded the gap is', () => {
       const crowd = Array.from({ length: 12 }, (unused, index) => cable(`c${index}`, `n${index}`, { x: 0, y: index * 10 }, { x: 80, y: 300 + index * 10 }));
       const moved = spreadCables(crowd);

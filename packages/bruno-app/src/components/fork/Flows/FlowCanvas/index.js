@@ -248,7 +248,10 @@ const FlowCanvas = ({ collection, flow }) => {
 
   // The cables nobody shaped make room for each other. The ones of the selected steps stand out; resting
   // the pointer on a step also makes the rest step back, which is how a busy flow is followed.
-  const lanes = spreadCables(routed.map(({ edge, start, end, bends, fixed }) => ({ id: edge.id, net: `${edge.source}|${edge.sourcePort}`, start, end, bends, fixed })));
+  const lanes = spreadCables(
+    routed.map(({ edge, start, end, bends, fixed }) => ({ id: edge.id, net: `${edge.source}|${edge.sourcePort}`, ends: [edge.source, edge.target], start, end, bends, fixed })),
+    flow.nodes.filter((node) => pieces.has(node.id)).map(boxOf)
+  );
   const underPointer = hovered && !gesture && !moving ? [hovered] : [];
   const touches = (nodeIds, edge) => nodeIds.includes(edge.source) || nodeIds.includes(edge.target);
   const cables = routed.map((cable) => {

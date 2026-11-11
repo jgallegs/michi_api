@@ -36,9 +36,13 @@ export const routePoints = (start, end, bends) => {
 
 // Room between two cables that run side by side, and how far a cable may be pushed off its middle.
 export const LANE = 10;
-const LANES_EACH_SIDE = 8;
+const LANES_EACH_SIDE = 24;
+// What each fault of a way costs: the cheapest way wins. Going under a step is worse than crossing a few
+// cables, and running along another cable is the worst, because both read as one.
 const CROSSING_COST = 100;
+const THROUGH_COST = 400;
 const OVERLAP_COST = 1000;
+const ROUND_COST = 3;
 const MAX_CABLES_TO_SPREAD = 200;
 
 const stretchesOf = (points) => points.slice(1).map((to, index) => ({ from: points[index], to }));
@@ -65,16 +69,46 @@ const runsOver = (a, b) => {
   return Math.min(bottomA, bottomB) > Math.max(topA, topB);
 };
 
+// A stretch that goes under a step, where it cannot be seen, or so close to its edge that it reads as
+// part of it. A cable has to touch the steps it joins, so those only count when it goes under them.
+const CLEARANCE = LANE - 1;
+
+const goesThrough = (stretch, box, isOwn) => {
+  const room = isOwn ? -1 : CLEARANCE;
+  const [left, right] = span(stretch.from.x, stretch.to.x);
+  const [top, bottom] = span(stretch.from.y, stretch.to.y);
+  return right > box.x - room && left < box.x + box.width + room && bottom > box.y - room && top < box.y + box.height + room;
+};
+
+const faultsOf = (stretches, cable, placed, boxes) => {
+  let cost = 0;
+  stretches.forEach((mine) => {
+    boxes.forEach((box) => {
+      cost += goesThrough(mine, box, (cable.ends || []).includes(box.id)) ? THROUGH_COST : 0;
+    });
+    placed.forEach((other) => {
+      if (other.net !== cable.net) {
+        other.stretches.forEach((theirs) => {
+          cost += (crosses(mine, theirs) ? CROSSING_COST : 0) + (runsOver(mine, theirs) ? OVERLAP_COST : 0);
+        });
+      }
+    });
+  });
+  return cost;
+};
+
 // Cables nobody has shaped all turn in the middle of the gap they cross, so several of them end up on
-// top of each other and cross more than they need. This moves the turn of each one sideways, in steps
-// of a lane, to where it runs over no other cable and crosses the fewest. Cables that leave the same
-// output ("net") belong together and may share a line. Returns the new turns of the cables that move.
-export const spreadCables = (cables) => {
+// top of each other, cross more than they need or hide under a step. This moves the turn of each one
+// sideways, in steps of a lane, to where it has the fewest faults; when every straight way goes under a
+// step, the cable goes round it, below or above. Cables that leave the same output ("net") belong
+// together and may share a line. "boxes" are the steps, and "ends" the two a cable joins. Returns the
+// new turns of the cables that move.
+export const spreadCables = (cables, boxes = []) => {
   const moved = new Map();
   if (cables.length > MAX_CABLES_TO_SPREAD) {
     return moved;
   }
-  const isFree = (cable) => !cable.fixed && cable.bends.length === 1 && cable.start.y !== cable.end.y;
+  const isFree = (cable) => !cable.fixed && cable.bends.length === 1;
   const placed = cables.filter((cable) => !isFree(cable)).map((cable) => ({ net: cable.net, stretches: stretchesOf(routePoints(cable.start, cable.end, cable.bends)) }));
   cables
     .filter(isFree)
@@ -82,36 +116,38 @@ export const spreadCables = (cables) => {
     .forEach((cable) => {
       const middle = cable.bends[0];
       let best = null;
+      const consider = (bends, effort) => {
+        const stretches = stretchesOf(routePoints(cable.start, cable.end, bends));
+        const cost = effort + faultsOf(stretches, cable, placed, boxes);
+        if (!best || cost < best.cost) {
+          best = { bends, cost, stretches };
+        }
+      };
       for (let attempt = 0; attempt <= 2 * LANES_EACH_SIDE; attempt += 1) {
         const offset = (attempt % 2 ? 1 : -1) * Math.ceil(attempt / 2) * LANE;
         const x = middle + offset;
-        if (x < cable.start.x + STUB || x > cable.end.x - STUB) {
-          continue;
+        if (x >= cable.start.x + STUB && x <= cable.end.x - STUB) {
+          consider([x], Math.abs(offset) / LANE);
+          // Lanes are tried from the middle outwards: the first one without a fault is the best there is.
+          if (best.cost < CROSSING_COST) {
+            break;
+          }
         }
-        const stretches = stretchesOf(routePoints(cable.start, cable.end, [x]));
-        let cost = Math.abs(offset) / LANE;
-        placed
-          .filter((other) => other.net !== cable.net)
-          .forEach((other) => {
-            stretches.forEach((mine) => {
-              other.stretches.forEach((theirs) => {
-                cost += (crosses(mine, theirs) ? CROSSING_COST : 0) + (runsOver(mine, theirs) ? OVERLAP_COST : 0);
-              });
-            });
-          });
-        if (!best || cost < best.cost) {
-          best = { x, cost, stretches };
-        }
-        if (cost === 0) {
-          break;
+      }
+      if (best && best.cost >= THROUGH_COST) {
+        const inTheWay = boxes.filter((box) => best.stretches.some((stretch) => goesThrough(stretch, box, (cable.ends || []).includes(box.id))));
+        if (inTheWay.length) {
+          const below = Math.max(...inTheWay.map((box) => box.y + box.height)) + 2 * LANE;
+          const above = Math.min(...inTheWay.map((box) => box.y)) - 2 * LANE;
+          [below, above].forEach((y) => consider([cable.start.x + STUB, snap(y), cable.end.x - STUB], ROUND_COST));
         }
       }
       if (!best) {
         return;
       }
       placed.push({ net: cable.net, stretches: best.stretches });
-      if (best.x !== middle) {
-        moved.set(cable.id, [best.x]);
+      if (best.bends.length !== 1 || best.bends[0] !== middle) {
+        moved.set(cable.id, best.bends);
       }
     });
   return moved;
