@@ -47,6 +47,32 @@ Para que una carpeta deje de dibujarlos basta con desmarcar la variable o borrar
 - **Save** guarda el código como PNG (`barcode-<valor>.png`) con el mismo diálogo que *Download response*.
 - El código se dibuja siempre en negro sobre blanco, con su margen, sea cual sea el tema de la app.
 
+## La sesión: todos los códigos de un tirón
+
+Cada respuesta que llega a una carpeta que pide códigos deja los suyos en la **sesión** de la colección, la envíe una pestaña o un flow. Al crear diez envíos, los diez quedan juntos.
+
+- La barra lo dice a la derecha: *"In this session: 12"* → **Show all** abre la ventana con todos, agrupados por petición y hora.
+- **Save all as a page** guarda un HTML con todos los códigos, cada uno con su número, para imprimirlo o enviarlo.
+- Un valor que ya está en la sesión no se repite (consultar un envío que se acaba de crear no lo duplica).
+- **Clear session** la vacía. Si la respuesta que se está viendo no trae códigos, la barra sigue saliendo mientras la sesión tenga algo.
+- La sesión vive en memoria: se pierde al cerrar la app. Guarda como mucho 500 códigos por colección, los más recientes.
+
+**Limpiar también lo que guardan los scripts.** Si los scripts de la colección llevan su propia lista de lo creado en una variable de sesión (`bru.setVar`), una segunda variable de la carpeta dice cuáles olvidar al limpiar:
+
+```
+michi.barcodes.clear = history
+```
+
+*Clear session* borra entonces esas variables de sesión además de la lista de códigos. Sin esa variable no toca ninguna.
+
+## En Flows: códigos de lo que guarda una lista
+
+El informe de una lista (*View report*) tiene el botón **Barcodes** cuando alguna columna trae códigos. Abre la misma ventana con un código por valor.
+
+- Arriba se eligen las columnas a dibujar. De entrada salen marcadas las que parecen códigos: sin espacios, con cifras y de seis caracteres o más.
+- Cada código va bajo su elemento de la lista, con su número y el resto de sus datos (*"#3 · Paq 10"*), así se sabe de qué caso es.
+- No depende de la variable de carpeta: vale para cualquier lista.
+
 ## Detalles
 
 | Tema | Comportamiento |
@@ -70,5 +96,9 @@ Para que una carpeta deje de dibujarlos basta con desmarcar la variable o borrar
 | `components/fork/Barcodes/fields.js` | Lee la variable, con su orden de preferencia, y saca los valores de la respuesta |
 | `components/fork/Barcodes/BarcodeImage.js` | El código como SVG |
 | `components/fork/Barcodes/png.js` | El código como PNG, para guardarlo |
-| `components/fork/Barcodes/index.js` | La barra y la ventana |
+| `components/fork/Barcodes/index.js` | La barra de la respuesta |
+| `components/fork/Barcodes/BarcodeModal.js` | La ventana, común a la respuesta, la sesión y las listas de Flows |
+| `components/fork/Barcodes/session.js`, `watch.js` | La sesión de cada colección y quien apunta en ella las respuestas que llegan (instalado desde `ForkRoot.js`) |
+| `components/fork/Barcodes/page.js`, `save.js` | La página HTML con todos los códigos y el guardado |
+| `components/fork/Barcodes/fromItems.js` | Los códigos de una lista de Flows |
 | `components/fork/LabelPreview/index.js` | Monta las dos barras (etiquetas y códigos) en el hueco de H-24 |
