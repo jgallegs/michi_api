@@ -5,6 +5,7 @@ import { ThemeProvider } from 'styled-components';
 import themes from 'themes/index';
 import { resetForkSettingsCache } from 'components/fork/settings/store';
 import ReportModal from 'components/fork/Flows/report/ReportModal';
+import { getVisualizations, resetVisualizations, setVisualizations } from 'components/fork/Visualizations/store';
 import BarcodeBar from './index';
 import { addToSession, getSession, resetSessions } from './session';
 
@@ -41,6 +42,7 @@ describe('barcode session in the response bar', () => {
     localStorage.clear();
     resetForkSettingsCache();
     resetSessions();
+    resetVisualizations();
     window.ipcRenderer = { invoke: jest.fn(() => Promise.resolve({ success: true })) };
   });
 
@@ -80,8 +82,10 @@ describe('barcode session in the response bar', () => {
     expect(screen.getByTestId('barcode-session-open')).toBeTruthy();
   });
 
-  it('clears the session, and the session variables the folder names', () => {
+  it('clears the session, the session variables the folder names and the panels drawn from them', () => {
     addToSession('c1', 'Create shipment · 10:00', [code('1234')]);
+    setVisualizations({ itemUid: 'r1', requestUid: 'q1', visualizations: [{ name: 'Session', content: '<p>1234</p>' }] });
+    setVisualizations({ itemUid: 'elsewhere', requestUid: 'q2', visualizations: [{ name: 'Other', content: '<p></p>' }] });
     const state = makeState(variables([{ name: 'michi.barcodes.clear', value: 'history, missing', enabled: true }]), { history: '[1]', token: 'keep' });
     const dispatch = renderBar({ shipmentNumber: '1234' }, state);
 
@@ -93,16 +97,20 @@ describe('barcode session in the response bar', () => {
     expect(screen.queryByTestId('barcode-session')).toBeNull();
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch.mock.calls[0][0].payload).toEqual({ collectionUid: 'c1', runtimeVariables: { token: 'keep' } });
+    expect(getVisualizations('r1')).toBeNull();
+    expect(getVisualizations('elsewhere')).not.toBeNull();
   });
 
-  it('leaves the variables of the app alone when the folder names none', () => {
+  it('leaves the variables and the panels of the app alone when the folder names none', () => {
     addToSession('c1', 'Create shipment · 10:00', [code('1234')]);
+    setVisualizations({ itemUid: 'r1', requestUid: 'q1', visualizations: [{ name: 'Session', content: '<p>1234</p>' }] });
     const dispatch = renderBar({ shipmentNumber: '1234' }, makeState(variables(), { history: '[1]' }));
     act(() => {
       fireEvent.click(screen.getByTestId('barcode-session-clear'));
     });
     expect(getSession('c1')).toEqual([]);
     expect(dispatch).not.toHaveBeenCalled();
+    expect(getVisualizations('r1')).not.toBeNull();
   });
 });
 

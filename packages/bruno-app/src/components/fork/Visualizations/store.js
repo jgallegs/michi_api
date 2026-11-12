@@ -30,6 +30,16 @@ export const showPanel = (itemUid, name) => {
   emit();
 };
 
+// Drops the panels of these requests: what a script drew from a list that has just been cleared.
+export const forgetVisualizations = (itemUids) => {
+  const gone = (itemUids || []).filter((itemUid) => state[itemUid]);
+  if (!gone.length) {
+    return;
+  }
+  state = Object.fromEntries(Object.entries(state).filter(([itemUid]) => !gone.includes(itemUid)));
+  emit();
+};
+
 export const subscribeToVisualizations = (listener) => {
   listeners.add(listener);
   return () => listeners.delete(listener);

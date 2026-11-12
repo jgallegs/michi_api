@@ -63,7 +63,7 @@ Cada respuesta que llega a una carpeta que pide códigos deja los suyos en la **
 michi.barcodes.clear = history
 ```
 
-*Clear session* borra entonces esas variables de sesión además de la lista de códigos. Sin esa variable no toca ninguna.
+*Clear session* borra entonces esas variables de sesión además de la lista de códigos, y quita los paneles que los scripts de la colección habían pintado (`bru.visualize`), que seguirían enseñando la lista vieja. El siguiente envío empieza las dos listas de cero. Sin esa variable no toca ni variables ni paneles.
 
 ## En Flows: códigos de lo que guarda una lista
 

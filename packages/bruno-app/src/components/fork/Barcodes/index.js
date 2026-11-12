@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
-import { IconBarcode } from '@tabler/icons';
-import { findCollectionByItemUid, getTreePathFromCollectionToItem } from 'utils/collections';
+import { IconBarcode, IconEye, IconTrash } from '@tabler/icons';
+import { findCollectionByItemUid, flattenItems, getTreePathFromCollectionToItem } from 'utils/collections';
 import { runtimeVariablesUpdateEvent } from 'providers/ReduxStore/slices/collections';
 import { FORK_SETTINGS, useForkSetting } from 'components/fork/settings/store';
+import { forgetVisualizations } from 'components/fork/Visualizations/store';
 import BarcodeModal from './BarcodeModal';
 import { barcodeFieldsFor, collectBarcodes, sessionVariablesFor } from './fields';
 import { clearSession, useSession } from './session';
@@ -48,13 +49,17 @@ const BarcodeBar = ({ data, item }) => {
   const count = barcodes.length === 1 ? '1 barcode' : `${barcodes.length} barcodes`;
 
   // Clearing also forgets the session variables the folder names in "michi.barcodes.clear", for a
-  // collection whose scripts keep their own list of what was created.
+  // collection whose scripts keep their own list of what was created, and the panels those scripts
+  // drew from that list, which would otherwise go on showing it.
   const clear = () => {
     const forget = path ? sessionVariablesFor(collection, path) : NO_NAMES;
     const variables = collection.runtimeVariables || {};
     if (forget.some((name) => name in variables)) {
       const kept = Object.fromEntries(Object.entries(variables).filter(([name]) => !forget.includes(name)));
       dispatch(runtimeVariablesUpdateEvent({ collectionUid: collection.uid, runtimeVariables: kept }));
+    }
+    if (forget.length) {
+      forgetVisualizations(flattenItems(collection.items || []).map((entry) => entry.uid));
     }
     clearSession(collection.uid);
     setOpen(null);
@@ -65,20 +70,23 @@ const BarcodeBar = ({ data, item }) => {
     <StyledWrapper>
       <div className="bar" data-testid="barcode-bar">
         <IconBarcode size={14} strokeWidth={1.5} />
-        <span>{barcodes.length ? `${count} in this response (${names})` : 'No barcodes in this response'}</span>
+        <span className="bar-text">{barcodes.length ? `${count} in this response (${names})` : 'No barcodes in this response'}</span>
         {barcodes.length ? (
-          <button type="button" className="link" onClick={() => setOpen('response')} data-testid="barcode-open">
-            Show
+          <button type="button" className="bar-button" onClick={() => setOpen('response')} data-testid="barcode-open">
+            <IconEye size={13} strokeWidth={1.75} />
+            <span>Show</span>
           </button>
         ) : null}
         {session.length ? (
           <span className="bar-session" data-testid="barcode-session">
             <span>{`In this session: ${session.length}`}</span>
-            <button type="button" className="link" onClick={() => setOpen('session')} data-testid="barcode-session-open">
-              Show all
+            <button type="button" className="bar-button" onClick={() => setOpen('session')} data-testid="barcode-session-open">
+              <IconBarcode size={13} strokeWidth={1.75} />
+              <span>Show all</span>
             </button>
-            <button type="button" className="link" onClick={clear} data-testid="barcode-session-clear">
-              Clear session
+            <button type="button" className="bar-button" onClick={clear} data-testid="barcode-session-clear">
+              <IconTrash size={13} strokeWidth={1.75} />
+              <span>Clear session</span>
             </button>
           </span>
         ) : null}

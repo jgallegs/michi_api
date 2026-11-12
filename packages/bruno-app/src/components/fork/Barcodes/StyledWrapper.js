@@ -1,10 +1,12 @@
 import styled from 'styled-components';
 
 const StyledWrapper = styled.div`
+  /* In a narrow response the session moves to a line of its own instead of squeezing the texts. */
   .bar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.3rem 0.5rem;
     padding: 0.3rem 0.75rem;
     font-size: 0.75rem;
     color: ${(props) => props.theme.status.info.text};
@@ -12,16 +14,38 @@ const StyledWrapper = styled.div`
     border-bottom: 1px solid ${(props) => props.theme.status.info.border};
   }
 
-  .link {
+  .bar svg {
+    flex-shrink: 0;
+  }
+
+  .bar-text {
+    min-width: 0;
+  }
+
+  .bar-button {
+    display: inline-flex;
+    flex-shrink: 0;
+    white-space: nowrap;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.6rem;
     font-weight: 600;
-    text-decoration: underline;
+    color: ${(props) => props.theme.status.info.text};
+    background: ${(props) => props.theme.bg};
+    border: 1px solid ${(props) => props.theme.status.info.text};
+    border-radius: 4px;
+  }
+
+  .bar-button:hover {
+    filter: brightness(0.95);
   }
 
   .bar-session {
     display: inline-flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.5rem;
     margin-left: auto;
+    white-space: nowrap;
   }
 
   .barcode-columns {
