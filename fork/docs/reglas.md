@@ -6,13 +6,13 @@ El código propio va aparte, en carpetas `fork/`. En el código de Bruno solo se
 
 - **DEBE** / **NO DEBE**: obligatorio, sin excepciones. Una pull request que incumple una regla se rechaza aunque funcione.
 - Cada regla tiene un código (`R-xx`). Se cita en las revisiones ("incumple R-04").
-- Si hay dudas de si algo está permitido, no lo está hasta que el otro mantenedor diga que sí.
+- Si hay dudas de si algo está permitido, no lo está hasta que el mantenedor principal diga que sí.
 
 ## A. Cambios en el código de Bruno
 
 - **R-01 · Código propio en carpetas propias.** Todo el código propio DEBE ir en carpetas `fork/` ([arquitectura-y-enganches.md](arquitectura-y-enganches.md)). Bruno no usa ese nombre, así que ahí no habrá conflictos al actualizar.
 - **R-02 · En ficheros de Bruno, solo enganches registrados.** Solo se puede añadir la llamada mínima al código propio (1–3 líneas y un `import`), marcada con `[FORK H-xx]` y apuntada en `fork/HOOKS.md`.
-- **R-03 · Un enganche nuevo necesita aprobación** del otro mantenedor, antes de programarlo.
+- **R-03 · Un enganche nuevo necesita aprobación** del mantenedor principal, antes de programarlo.
 - **R-04 · Prohibido reformatear código de Bruno.** Nada de Prettier, `eslint --fix`, renombrados, reordenar imports, cambiar comillas o espacios en ficheros de Bruno.
 - **R-05 · Nada de refactors ni arreglos "de paso"** en código de Bruno. Los bugs de Bruno se reportan al proyecto oficial.
 - **R-06 · Comprobación automática.** Antes de abrir una pull request se ejecuta `node fork/scripts/check-diff.mjs`. Si falla, la pull request no se abre.
@@ -45,7 +45,7 @@ Si el propio Bruno cambia su formato entre versiones, eso no depende del fork. P
 
 - **R-20 · `main` protegida.** Sin push directo. Todo entra por pull request.
 - **R-21 · Prohibido el force-push** en cualquier rama. Nunca se reescribe historia publicada.
-- **R-22 · El otro revisa.** Toda pull request la aprueba el mantenedor que no la ha hecho.
+- **R-22 · Aprueba el principal.** Las pull requests del segundo mantenedor las aprueba el mantenedor principal. Las del principal no necesitan aprobación: la protección de `main` le deja fusionarlas, y el segundo puede revisarlas si quiere (DEC-30).
 - **R-23 · Una función por rama y por pull request.** Ramas cortas: máximo 3 días sin fusionar.
 - **R-24 · Tests de cada función** en `fork/` (por ejemplo: "una petición a un entorno sensible sin confirmar no sale").
 - **R-25 · Evidencias reales en la pull request:** salida de `check-diff`, tests y build.
@@ -57,7 +57,7 @@ Si el propio Bruno cambia su formato entre versiones, eso no depende del fork. P
 - **R-30 · Publicar y actualizar Bruno** lo hace el mantenedor principal, o el segundo si es urgente ([actualizar-desde-bruno.md](actualizar-desde-bruno.md), [compilar-y-publicar.md](compilar-y-publicar.md)).
 - **R-31 · Siempre sobre tags publicados de Bruno** (`vX.Y.Z`), nunca sobre su `main`.
 - **R-32 · Versión:** `v<versión Bruno>-fork.<n>` (ejemplo: `v4.3.0-fork.11`).
-- **R-33 · Dependencias congeladas.** No se añaden, quitan ni actualizan paquetes, ni se toca `package-lock.json`, fuera del procedimiento de actualización, salvo aprobación de los dos mantenedores. Un cambio aprobado se registra como enganche de tipo `dependencias` en `fork/HOOKS.md`.
+- **R-33 · Dependencias congeladas.** No se añaden, quitan ni actualizan paquetes, ni se toca `package-lock.json`, fuera del procedimiento de actualización, salvo aprobación del mantenedor principal. Un cambio aprobado se registra como enganche de tipo `dependencias` en `fork/HOOKS.md`.
 - **R-34 · Ritmo:** actualización mensual, e inmediata si hay un parche de seguridad. Nunca más de 2 versiones menores por detrás.
 
 ## G. Seguridad (detalle en [seguridad.md](seguridad.md))

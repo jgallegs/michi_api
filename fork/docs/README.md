@@ -5,8 +5,8 @@ Michi es un fork de [Bruno](https://github.com/usebruno/bruno) (licencia MIT) qu
 Estos documentos son las reglas y procedimientos del fork. Son obligatorios para cualquiera que cambie el código:
 
 1. Nadie toca el fork sin haber leído [reglas.md](reglas.md).
-2. Si algo no está cubierto por las reglas, no se hace: se pregunta a los mantenedores y, si se aprueba, se añade aquí.
-3. Las reglas solo cambian con el visto bueno de los mantenedores y una entrada en [decisiones.md](decisiones.md).
+2. Si algo no está cubierto por las reglas, no se hace: se pregunta al mantenedor principal y, si lo aprueba, se añade aquí.
+3. Las reglas solo cambian con el visto bueno del mantenedor principal y una entrada en [decisiones.md](decisiones.md).
 
 La presentación para usuarios está en [.github/README.md](../../.github/README.md); la guía rápida de mantenimiento, en [fork/README.md](../README.md); el registro de enganches, en [fork/HOOKS.md](../HOOKS.md), y los cambios de cada versión, en [fork/CHANGELOG.md](../CHANGELOG.md).
 
@@ -38,7 +38,7 @@ La presentación para usuarios está en [.github/README.md](../../.github/README
 
 | Rol | Qué hace |
 |---|---|
-| Mantenedor principal | Aprueba enganches, dependencias y actualizaciones de Bruno. Etiqueta y publica versiones |
-| Segundo mantenedor | Revisa las pull requests del principal. Lo sustituye en actualizaciones urgentes |
+| Mantenedor principal | Decide. Aprueba enganches, dependencias, cambios de reglas, actualizaciones de Bruno y las pull requests del segundo. Fusiona las suyas sin esperar aprobación. Etiqueta y publica versiones |
+| Segundo mantenedor | Pide al principal la aprobación de sus pull requests, enganches y dependencias. Puede revisar las del principal, sin que haga falta su aprobación. Lo sustituye en actualizaciones urgentes |
 
-Cada pull request la revisa el mantenedor que no la ha hecho.
+Las pull requests del segundo mantenedor las aprueba el principal; las del principal no necesitan aprobación (R-22).
