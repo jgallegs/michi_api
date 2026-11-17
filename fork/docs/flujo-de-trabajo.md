@@ -1,6 +1,6 @@
 # Flujo de trabajo
 
-Se reserva la tarea en una issue, se trabaja en una rama corta propia, se hace commit en cuanto algo funciona y push en el acto, cada mañana se trae `main` a la rama con merge (nunca rebase ni force-push), se abre una pull request en borrador desde el primer push, la revisa el otro mantenedor y se fusiona con squash.
+Se reserva la tarea en una issue, se trabaja en una rama corta propia, se hace commit en cuanto algo funciona y push en el acto, cada mañana se trae `main` a la rama con merge (nunca rebase ni force-push), se abre una pull request en borrador desde el primer push, la aprueba el mantenedor principal (las suyas las fusiona él) y se fusiona con squash.
 
 ## 1. Por qué se pisa el trabajo y qué lo evita
 
@@ -63,7 +63,7 @@ Al terminar la sesión: `git status` limpio y `git log origin/<rama>..HEAD` vac�
 
 1. Desde el primer push, se abre una pull request en borrador (*Draft*) enlazada a la issue. Así el otro mantenedor ve en qué se está trabajando.
 2. Cuando esté lista, se quita el borrador y se pegan las evidencias (R-25).
-3. Revisa el otro mantenedor (R-22). Las correcciones van en commits nuevos.
+3. Si la ha hecho el segundo mantenedor, la aprueba el principal (R-22); las del principal se fusionan sin esperar. Las correcciones van en commits nuevos.
 4. Se fusiona con **squash**. Quien fusiona revisa que el mensaje final tenga el formato correcto.
 5. Se borra la rama.
 

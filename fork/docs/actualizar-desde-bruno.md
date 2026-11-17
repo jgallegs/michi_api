@@ -44,7 +44,7 @@ Los ejemplos usan `v4.4.0` como versión nueva.
    - **`.github/dependabot.yml`:** el de Bruno, con `open-pull-requests-limit: 0` y la marca de H-30 en cada entrada.
    - **Ficheros binarios reemplazados** (icono de la ventana, H-07): conservar el del fork.
    - **Ficheros dentro de `fork/`:** no deberían tener conflicto. Si lo tienen, algo se ha hecho fuera de las reglas: parar y revisar.
-   - **Si la zona del enganche ha desaparecido en Bruno:** parar. Hay que diseñar el enganche de nuevo, con una pull request aparte aprobada por los dos mantenedores.
+   - **Si la zona del enganche ha desaparecido en Bruno:** parar. Hay que diseñar el enganche de nuevo, con una pull request aparte aprobada por el mantenedor principal.
 5. Actualizar `fork/UPSTREAM_VERSION` con el tag nuevo y, si algún enganche ha cambiado de sitio, su fila en `fork/HOOKS.md`.
 6. Instalar, compilar y probar:
    ```bash
@@ -52,7 +52,7 @@ Los ejemplos usan `v4.4.0` como versión nueva.
    ```
    Después, el build de escritorio, los tests de Bruno y de `fork/`, y `node fork/scripts/check-diff.mjs`. Si Bruno ha cambiado alguna frase de la interfaz que el fork sustituye por el nombre de la app, `branding-phrases.spec.js` falla: hay que actualizar la lista.
 7. Repasar la lista de comprobación de abajo.
-8. Abrir la pull request `update/v4.4.0` → `main` con la plantilla de [flujo-de-trabajo.md](flujo-de-trabajo.md) y las evidencias. La aprueba el otro mantenedor y se fusiona con merge commit, sin squash.
+8. Abrir la pull request `update/v4.4.0` → `main` con la plantilla de [flujo-de-trabajo.md](flujo-de-trabajo.md) y las evidencias. Si la ha hecho el segundo mantenedor, la aprueba el principal (R-22). Se fusiona con merge commit, sin squash.
 9. Publicar `v4.4.0-fork.1` siguiendo [compilar-y-publicar.md](compilar-y-publicar.md).
 
 ## Lista de comprobación de cada actualización
