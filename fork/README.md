@@ -23,6 +23,8 @@ Comprueba que fuera de `fork/` solo cambian enganches registrados, y que no hay 
 node fork/scripts/build-win.mjs
 ```
 
+En un clon nuevo, antes: `npm ci` y los paquetes internos de Bruno (los `npm run build:*` de [docs/compilar-y-publicar.md](docs/compilar-y-publicar.md), paso 4).
+
 Genera en `packages/bruno-electron/out/` el instalador (`Michi-Setup-<versión>.exe`) y el ejecutable portable (`Michi-<versión>-portable.exe`). La identidad de la app (nombre, `appId`, icono, versión `<upstream>-fork.<n>`) está en `fork/packaging/` y extiende la configuración de Bruno sin modificarla. La app se instala y guarda sus datos (`%APPDATA%\Michi`) aparte de una instalación del Bruno oficial. El número de versión del fork está en `fork/packaging/RELEASE`.
 
 También genera `out/fast-portable/`: un lanzador (`Michi.vbs` y la carpeta `Michi/` con `launcher.ps1` y el `.zip` de la app) para usar la app sin instalarla. Descomprime solo la primera vez de cada versión, en `%LOCALAPPDATA%\Michi-portable\<versión>`, y comparte los datos con la versión instalada (`%APPDATA%\Michi`).

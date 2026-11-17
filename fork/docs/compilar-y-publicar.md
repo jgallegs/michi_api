@@ -1,6 +1,6 @@
 # Compilar y publicar
 
-Publica el mantenedor principal (R-30). Se compila desde el tag, en una carpeta limpia, con `npm ci`. Los ficheros se publican con su `.sha256` en las [Releases del repositorio](https://github.com/jgallegs/michi_api/releases), y se conservan las versiones anteriores para poder volver atrás.
+Publica el mantenedor principal (R-30). Se compila desde el tag, en una carpeta limpia, con `npm ci` y los paquetes internos de Bruno compilados. Los ficheros se publican con su `.sha256` en las [Releases del repositorio](https://github.com/jgallegs/michi_api/releases), y se conservan las versiones anteriores para poder volver atrás.
 
 ## Estado
 
@@ -55,7 +55,21 @@ Problema conocido en Windows sin permisos de administrador: electron-builder fal
    ```bash
    git clone --branch v4.3.0-fork.11 <url-del-repositorio> fork-build
    ```
-   Después, `npm ci` y `node fork/scripts/build-win.mjs`.
+   Después, `npm ci`, los paquetes internos de Bruno y `node fork/scripts/build-win.mjs`:
+   ```bash
+   npm ci
+   npm run build:graphql-docs
+   npm run build:bruno-query
+   npm run build:bruno-common
+   npm run build:bruno-converters
+   npm run build:bruno-requests
+   npm run build:schema-types
+   npm run build:bruno-filestore
+   npm run build:bruno-sqlite
+   npm run sandbox:bundle-libraries --workspace=packages/bruno-js
+   node fork/scripts/build-win.mjs
+   ```
+   En un clon nuevo los paquetes internos (`@usebruno/common` y compañía) no están compilados, y sin ellos el build web falla con errores como "Can't resolve '@usebruno/common/utils'". Son los pasos de compilación de `npm run setup` de Bruno; `setup` no se usa aquí porque borra `node_modules` y reinstala con `npm i`, que puede instalar versiones distintas de las del `package-lock.json`.
 5. Comprobar que el paquete no contiene ficheros locales ni palabras prohibidas (`check-diff` sobre el tag y un vistazo al contenido empaquetado).
 6. Preparar el zip sin instalar: comprimir el contenido de `out/fast-portable/` (`Michi.vbs` y la carpeta `Michi/`) como `Michi-<versión>-sin-instalar.zip`.
 7. Calcular el hash de cada fichero que se va a publicar y guardarlo en un `.sha256` al lado:

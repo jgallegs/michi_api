@@ -50,7 +50,7 @@ Los ejemplos usan `v4.4.0` como versión nueva.
    ```bash
    npm ci
    ```
-   Después, el build de escritorio, los tests de Bruno y de `fork/`, y `node fork/scripts/check-diff.mjs`. Si Bruno ha cambiado alguna frase de la interfaz que el fork sustituye por el nombre de la app, `branding-phrases.spec.js` falla: hay que actualizar la lista.
+   Después, los paquetes internos de Bruno (los `npm run build:*` de [compilar-y-publicar.md](compilar-y-publicar.md), paso 4, por si la versión nueva añade o cambia alguno), el build de escritorio, los tests de Bruno y de `fork/`, y `node fork/scripts/check-diff.mjs`. Si Bruno ha cambiado alguna frase de la interfaz que el fork sustituye por el nombre de la app, `branding-phrases.spec.js` falla: hay que actualizar la lista.
 7. Repasar la lista de comprobación de abajo.
 8. Abrir la pull request `update/v4.4.0` → `main` con la plantilla de [flujo-de-trabajo.md](flujo-de-trabajo.md) y las evidencias. La aprueba el otro mantenedor y se fusiona con merge commit, sin squash.
 9. Publicar `v4.4.0-fork.1` siguiendo [compilar-y-publicar.md](compilar-y-publicar.md).

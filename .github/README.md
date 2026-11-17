@@ -134,8 +134,19 @@ Hace falta Node.js 22 o posterior y Windows.
 
 ```bash
 npm ci
+npm run build:graphql-docs
+npm run build:bruno-query
+npm run build:bruno-common
+npm run build:bruno-converters
+npm run build:bruno-requests
+npm run build:schema-types
+npm run build:bruno-filestore
+npm run build:bruno-sqlite
+npm run sandbox:bundle-libraries --workspace=packages/bruno-js
 node fork/scripts/build-win.mjs
 ```
+
+Los `npm run build:*` compilan los paquetes internos de Bruno; solo hace falta repetirlos si cambian esos paquetes.
 
 El instalador, el portable y el `.zip` del lanzador quedan en `packages/bruno-electron/out/`.
 
