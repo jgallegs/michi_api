@@ -1,9 +1,12 @@
+jest.mock('../../report/export', () => ({ ...jest.requireActual('../../report/export'), saveAsFile: jest.fn() }));
+
 import '@testing-library/jest-dom';
 import React from 'react';
 import { ThemeProvider } from 'styled-components';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import lightTheme from 'themes/light/light';
-import { appendRunLog, resetRunSessions } from '../session';
+import { saveAsFile } from '../../report/export';
+import { appendRunLog, patchRunRecord, resetRunSessions } from '../session';
 import OutputPanel from './index';
 
 const show = () =>
@@ -46,6 +49,28 @@ describe('flow output', () => {
     expect(screen.queryByText('{"token": "T1"}')).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Show the details'));
     expect(screen.getByText('{"token": "T1"}')).toBeInTheDocument();
+  });
+
+  it('saves the report of a whole run once it has ended', () => {
+    show();
+    let headerId;
+    act(() => {
+      headerId = appendRunLog({ flowId: 'f1', kind: 'header', label: { text: 'Order walk' }, parts: ['Local'] });
+      appendRunLog({ flowId: 'f1', kind: 'step', tone: 'ok', label: { text: 'login' }, parts: ['200 OK'], result: { status: 200, duration: 12 } });
+      patchRunRecord(headerId, { flowId: 'f1', flowName: 'Order walk', collectionName: 'Shop', environmentName: 'Local', startedAt: 0, endedAt: null, outcome: null });
+    });
+    expect(screen.queryByTestId('flow-output-run-report')).not.toBeInTheDocument();
+
+    act(() => patchRunRecord(headerId, { endedAt: 1500, outcome: 'completed', tests: { passed: 0, failed: 0 }, lists: [{ name: 'Seen', items: ['x'] }] }));
+    fireEvent.click(screen.getByTestId('flow-output-run-report'));
+
+    expect(saveAsFile).toHaveBeenCalledTimes(1);
+    const [name, page, type] = saveAsFile.mock.calls[0];
+    expect(name).toMatch(/^Order-walk-.*\.html$/);
+    expect(type).toBe('text/html');
+    expect(page).toContain('<h1>Order walk</h1>');
+    expect(page).toContain('<td>login</td>');
+    expect(page).toContain('<span>Seen</span>');
   });
 
   it('can be hidden and shown again, keeping what it had', () => {

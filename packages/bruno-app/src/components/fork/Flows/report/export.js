@@ -3,7 +3,7 @@ import { toGrid } from './table';
 // A report leaves the app as text: tab separated for a spreadsheet, as a table for a mail or a document,
 // and as a page of its own to keep or send.
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
-const escape = (text) => String(text).replace(/[&<>"]/g, (character) => ESCAPES[character]);
+export const escape = (text) => String(text).replace(/[&<>"]/g, (character) => ESCAPES[character]);
 const flat = (text) => String(text).replace(/[\t\r\n]+/g, ' ');
 
 export const toTsv = (report, numberTitle = '#') =>
