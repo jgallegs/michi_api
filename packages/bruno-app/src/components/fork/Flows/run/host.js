@@ -32,12 +32,17 @@ const testsOf = (item) => {
   };
 };
 
-export const createRunHost = ({ store, collectionUid, collectionPath, signal }) => {
+// "checkEnvironment" confirms a sensitive environment before each request (see run/controller.js): the
+// flow sends on its own, without the confirmation Bruno's send goes through.
+export const createRunHost = ({ store, collectionUid, collectionPath, signal, checkEnvironment }) => {
   let sending = null;
 
   const readCollection = () => findCollectionByUid(store.getState().collections.collections, collectionUid);
 
   const sendRequest = async (node, variables) => {
+    if (checkEnvironment && !(await checkEnvironment())) {
+      return { cancelled: true };
+    }
     const collection = readCollection();
     const item = collection ? findRequestItem(collection, node.config.pathname) : null;
     if (!item) {

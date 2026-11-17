@@ -350,7 +350,7 @@ export const COURSE = [
         title: 'Real data and sensitive environments',
         text: [
           'A flow sends real requests. One that creates shipments in a loop creates real shipments in the environment that is chosen: look at the name next to Run before pressing it.',
-          'In an environment marked as sensitive the name is red and the app asks for confirmation once per run. If you change the environment before continuing, it asks again.'
+          'In an environment marked as sensitive the name is red and the app asks for confirmation before sending anything. It asks again if the environment changes, even in the middle of a run, and when you try a step or start from one.'
         ]
       },
       {

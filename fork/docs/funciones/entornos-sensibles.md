@@ -52,6 +52,7 @@ Las dos formas comparten los mismos ajustes: son la misma app y guardan sus dato
 | CLI `bru` | No aplica: la marca vive en la app de escritorio ([reglas.md](../reglas.md), R-15) |
 | Si la ventana de confirmación no se puede montar | Se usa la confirmación nativa del sistema: una request a un entorno sensible nunca sale sin preguntar |
 | Solo escrituras | Con *Confirm only write requests* (activo por defecto, en *Preferences → Michi*), GET, HEAD, OPTIONS y consultas GraphQL salen sin preguntar ([fork-9-a-11.md](fork-9-a-11.md)) |
+| Flujos | Un flow envía sus peticiones por su cuenta, sin pasar por `sendRequest` (H-03), así que se protege aparte: pide confirmación antes de enviar nada y cada petición vuelve a comprobar el entorno, por si ha cambiado a mitad de la ejecución. Se pregunta siempre, también con *Confirm only write requests* ([flows.md](flows.md)) |
 | Desactivar | Basta con apagar el interruptor del entorno (R-14) |
 
 ## Cómo está hecho

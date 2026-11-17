@@ -152,6 +152,49 @@ describe('running a flow', () => {
     expect(getRunSession('f1').phase).toBe(RUN_PHASE.PAUSED);
   });
 
+  it('asks once per run while the environment stays the same', async () => {
+    const store = makeStore();
+    sendNetworkRequest.mockResolvedValue(answer(200, { session: { token: 'T1' } }));
+
+    await finish(start(store));
+
+    expect(sendNetworkRequest).toHaveBeenCalledTimes(2);
+    expect(confirmFlowInSensitiveEnvironment).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks again when the environment changes in the middle of a run, and sends nothing more when refused', async () => {
+    const store = makeStore();
+    sendNetworkRequest.mockImplementationOnce(async () => {
+      store.collection.activeEnvironmentUid = 'e2';
+      return answer(200, { session: { token: 'T1' } });
+    });
+    confirmFlowInSensitiveEnvironment.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    await finish(start(store));
+
+    expect(confirmFlowInSensitiveEnvironment).toHaveBeenCalledTimes(2);
+    expect(confirmFlowInSensitiveEnvironment.mock.calls[1][0].activeEnvironmentUid).toBe('e2');
+    expect(sendNetworkRequest).toHaveBeenCalledTimes(1);
+    expect(getRunSession('f1')).toMatchObject({ phase: RUN_PHASE.PAUSED, outcome: RUN_STATUS.CANCELLED });
+  });
+
+  it('sends to the new environment only once it is confirmed', async () => {
+    const store = makeStore();
+    sendNetworkRequest
+      .mockImplementationOnce(async () => {
+        store.collection.activeEnvironmentUid = 'e2';
+        return answer(200, { session: { token: 'T1' } });
+      })
+      .mockResolvedValueOnce(answer(200, {}));
+
+    await finish(start(store));
+
+    expect(confirmFlowInSensitiveEnvironment).toHaveBeenCalledTimes(2);
+    expect(sendNetworkRequest).toHaveBeenCalledTimes(2);
+    expect(sendNetworkRequest.mock.calls[1][2].uid).toBe('e2');
+    expect(getRunSession('f1').outcome).toBe(RUN_STATUS.COMPLETED);
+  });
+
   it('runs one step at a time', async () => {
     const store = makeStore();
     sendNetworkRequest.mockResolvedValue(answer(200, {}));
@@ -247,6 +290,20 @@ describe('running a flow', () => {
     await finish(startRun({ store, collectionUid: 'c1', collectionPath: COLLECTION, flowId: 'f1', from: 'a', only: true }));
     expect(sendNetworkRequest).toHaveBeenCalledTimes(1);
     expect(getRunSession('f1').phase).toBe(RUN_PHASE.PAUSED);
+    // Starting from a step or trying one is a new decision, so it asks again.
+    expect(confirmFlowInSensitiveEnvironment).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not send a step it is trying when the sensitive environment is refused', async () => {
+    const store = makeStore();
+    sendNetworkRequest.mockResolvedValue(answer(200, { session: { token: 'T-1' } }));
+    await finish(start(store));
+    sendNetworkRequest.mockClear();
+    confirmFlowInSensitiveEnvironment.mockResolvedValue(false);
+
+    await finish(startRun({ store, collectionUid: 'c1', collectionPath: COLLECTION, flowId: 'f1', from: 'a', only: true }));
+
+    expect(sendNetworkRequest).not.toHaveBeenCalled();
   });
 
   it('passes the answers to the questions of Start, and tells what happens inside a flow run by a step', async () => {

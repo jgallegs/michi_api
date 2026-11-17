@@ -269,8 +269,8 @@ export const FLOWS_COURSE = {
     'Datos de verdad y entornos sensibles',
   'A flow sends real requests. One that creates shipments in a loop creates real shipments in the environment that is chosen: look at the name next to Run before pressing it.':
     'Un flow envía peticiones de verdad. Uno que crea envíos en bucle crea envíos reales en el entorno elegido: mira el nombre que hay junto a Ejecutar antes de pulsarlo.',
-  'In an environment marked as sensitive the name is red and the app asks for confirmation once per run. If you change the environment before continuing, it asks again.':
-    'En un entorno marcado como sensible el nombre sale en rojo y la app pide confirmación una vez por ejecución. Si cambias de entorno antes de continuar, vuelve a pedirla.',
+  'In an environment marked as sensitive the name is red and the app asks for confirmation before sending anything. It asks again if the environment changes, even in the middle of a run, and when you try a step or start from one.':
+    'En un entorno marcado como sensible el nombre sale en rojo y la app pide confirmación antes de enviar nada. Vuelve a pedirla si cambia el entorno, aunque sea a mitad de la ejecución, y al probar un paso o empezar desde uno.',
   'Saving and sharing':
     'Guardar y compartir',
   'Save keeps the flow in the collection, in a file the official Bruno ignores. With the next push, the team has it.':

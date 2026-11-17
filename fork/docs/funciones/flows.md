@@ -171,7 +171,7 @@ El panel **Output**, a la derecha, cuenta lo que hace cada ejecución: código y
 | Tema | Comportamiento |
 |---|---|
 | Sin código | Un flow no ejecuta JavaScript. `{{nombre}}` en un texto es una sustitución, nunca una expresión. Los scripts que tenga cada petición sí se ejecutan, como al enviarla a mano |
-| Entornos sensibles | Con un entorno marcado como *Sensitive*, el nombre sale en rojo junto a **Run** y la ejecución pide confirmación una vez por flow, y otra si se cambia de entorno antes de continuar ([entornos-sensibles.md](entornos-sensibles.md)) |
+| Entornos sensibles | Con un entorno marcado como *Sensitive*, el nombre sale en rojo junto a **Run** y la ejecución pide confirmación antes de enviar nada. Cada petición comprueba el entorno justo antes de salir: si ha cambiado, aunque sea a mitad de la ejecución (mientras espera o hace una pregunta), vuelve a preguntar, y si se cancela el flow se para y se puede continuar. Solo se aprovecha la confirmación al continuar una ejecución pausada en el mismo entorno; probar un paso o empezar desde uno pregunta otra vez ([entornos-sensibles.md](entornos-sensibles.md)) |
 | Un 500 no detiene el flow | Una respuesta de error es una respuesta: para reaccionar a ella está el paso **If**. Solo detiene el flow un fallo real, como no poder conectar |
 | Pasos sueltos | Lo que no está conectado a **Start** se ve atenuado y no se ejecuta ni se valida, así que se pueden dejar piezas de reserva |
 | Avisos | Un paso mal montado lleva un aviso encima con lo que le falta. **Run** escribe esos mismos avisos en la salida y no envía nada |
@@ -203,7 +203,7 @@ Todo el código está en `packages/bruno-app/src/components/fork/Flows/` y en `p
 | `report/` | Los informes: de los datos a filas y columnas (`table.js`), a texto, tabla y página HTML (`export.js`), de la salida de una ejecución a filas (`runReport.js`) y la ventana `ReportModal` |
 | `data/` | La tabla de datos: de texto pegado a columnas y filas (`parse.js`) y la ventana `TableModal` |
 | `course/` | El curso guiado: las lecciones (`lessons.js`, con su español en `SpanishUi/flowsCourse.js`), el progreso de cada persona (`progress.js`) y el panel `CoursePanel` |
-| `run/` | La ejecución en la app: `host.js` envía cada petición con `sendNetworkRequest`, como hace Bruno; `controller.js` pide la confirmación de entorno sensible y traduce los eventos del motor; `session.js` guarda el estado de cada ejecución y la salida; `OutputPanel/` la pinta |
+| `run/` | La ejecución en la app: `host.js` envía cada petición con `sendNetworkRequest`, como hace Bruno; `controller.js` pide la confirmación de entorno sensible (también antes de cada petición, a través de `host.js`, porque los flows no pasan por el `sendRequest` de Bruno ni por H-03) y traduce los eventos del motor; `session.js` guarda el estado de cada ejecución y la salida; `OutputPanel/` la pinta |
 
 - Un flow es un JSON con `nodes` (tipo, posición y ajustes) y `edges` (de qué puerto a qué puerto, y los codos si se les ha dado forma).
 - Cada flow tiene su `version`. Un flow de una versión que la app no conoce no se abre ni se sobrescribe.

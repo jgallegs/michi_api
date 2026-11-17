@@ -102,17 +102,28 @@ const readCollection = (store, collectionUid) => findCollectionByUid(store.getSt
 
 const environmentOf = (collection) => findEnvironmentInCollection(collection, collection.activeEnvironmentUid) || null;
 
-// A sensitive environment is confirmed once per run, and again if the environment changes before continuing.
-const confirmEnvironment = async (flowId, collection, isFresh) => {
-  const environmentUid = collection.activeEnvironmentUid || null;
-  if (!isFresh && getRunSession(flowId).confirmedEnvironment === environmentUid) {
-    return true;
-  }
-  const confirmed = await confirmFlowInSensitiveEnvironment(collection);
-  if (confirmed) {
-    patchRunSession(flowId, { confirmedEnvironment: environmentUid });
-  }
-  return confirmed;
+// A sensitive environment is confirmed before a run sends anything. Only a paused run that goes on in
+// the same environment keeps the confirmation it had: trying a step or starting from one asks again.
+// Every request checks it too, right before it goes out, so switching to another environment while
+// the run waits or asks something never sends to a sensitive one without asking.
+const createEnvironmentCheck = ({ store, collectionUid, flowId, confirmed }) => {
+  let confirmedEnvironment = confirmed;
+  return async () => {
+    const collection = readCollection(store, collectionUid);
+    if (!collection) {
+      return false;
+    }
+    const environmentUid = collection.activeEnvironmentUid || null;
+    if (confirmedEnvironment === environmentUid) {
+      return true;
+    }
+    const accepted = await confirmFlowInSensitiveEnvironment(collection);
+    if (accepted) {
+      confirmedEnvironment = environmentUid;
+      patchRunSession(flowId, { confirmedEnvironment: environmentUid });
+    }
+    return accepted;
+  };
 };
 
 export const stopRun = (flowId) => {
@@ -137,12 +148,14 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
 
   const previous = getRunSession(flowId);
   const isFresh = !from && (mode === RUN_MODE.RUN || !previous.resume);
+  const isResuming = !from && !isFresh;
   const controller = new AbortController();
-  const host = createRunHost({ store, collectionUid, collectionPath, signal: controller.signal });
+  const checkEnvironment = createEnvironmentCheck({ store, collectionUid, flowId, confirmed: isResuming ? previous.confirmedEnvironment : undefined });
+  const host = createRunHost({ store, collectionUid, collectionPath, signal: controller.signal, checkEnvironment });
   active.set(flowId, { controller, host });
 
   try {
-    if (!(await confirmEnvironment(flowId, collection, isFresh))) {
+    if (!(await checkEnvironment())) {
       return;
     }
 
