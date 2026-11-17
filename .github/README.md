@@ -48,6 +48,16 @@ Por defecto solo pregunta en las peticiones que escriben (POST, PUT, PATCH, DELE
 
 La marca se guarda en un fichero `.michi.json` en la raíz de la colección. Si lo subes a git, todo el equipo tiene los mismos entornos protegidos. El Bruno oficial ignora ese fichero. Si un `git pull` lo deja con un conflicto sin resolver, Michi trata todos los entornos de la colección como sensibles hasta que lo arregles y no escribe en él.
 
+### Flujos
+
+Una sección **Flows** en la barra lateral para encadenar las peticiones de una colección en un lienzo, sin escribir código: lo que devuelve una petición pasa a la siguiente con un cable, y hay pasos para repetir, recorrer listas, comprobar y validar respuestas o ejecutar otro flujo. Al ejecutarlo ves cada paso en vivo y puedes probar uno solo o seguir desde donde falló. Trae bloques ya hechos y un curso guiado dentro de la app.
+
+Viene **apagado**: se enciende en *Preferences → Michi*. Los flujos se guardan en `.michi.json`, así que se comparten con git igual que los entornos sensibles. En un entorno sensible piden confirmación antes de enviar nada, y otra vez si el entorno cambia a mitad de la ejecución.
+
+![Un flujo ejecutándose en el lienzo](../fork/docs/img/flows-ejecucion.png)
+
+Más detalle en la [guía rápida](../fork/docs/funciones/flows-guia.md).
+
 ### Panel Git
 
 En la barra lateral hay una sección **Git** para el repositorio de la colección que tienes abierta: rama, cambios sin subir, commits pendientes de traer y la lista de ficheros modificados.

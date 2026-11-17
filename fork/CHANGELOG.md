@@ -1,11 +1,17 @@
 # Changelog
 
-## v4.3.0-fork.13 (2026-11-10)
+## v4.3.0-fork.13 (2026-11-17)
 
 Base: Bruno v4.3.0.
 
+- **Flujos**: encadenar las peticiones de una colección en un lienzo visual, sin código, y ejecutarlas viendo cada paso ([funciones/flows.md](docs/funciones/flows.md)). **Apagado por defecto** mientras es nuevo: se enciende en Preferencias → Michi.
+  - Lienzo con piezas y cables: petición, valor, condición, validar la respuesta, repetir y recorrer listas, salir del bucle, añadir a una lista, listas y tablas de datos, esperar, nota, parar y ejecutar otro flow.
+  - Ejecución con salida en vivo, paso a paso, continuar tras un fallo, probar un solo paso o empezar desde uno, preguntas al empezar, tests de las peticiones e informe de las listas.
+  - Bloques prehechos y bloques propios del equipo (DEC-27), campos de la respuesta conocidos de antemano (DEC-28) y curso guiado dentro de la app.
+  - Los flows y bloques van en `.michi.json` (DEC-26, DEC-27) y los que llegan con un `git pull` aparecen sin reabrir la app. Lo personal (vista de los cables, progreso del curso, campos vistos) se queda en el equipo (DEC-28, DEC-29).
+- **Flujos en entornos sensibles**: un flow pide confirmación antes de enviar nada, y cada petición vuelve a comprobar el entorno justo antes de salir, así que cambiar a un entorno sensible a mitad de la ejecución nunca envía sin preguntar. Probar un paso o empezar desde uno también pregunta.
 - **`.michi.json` dañado ya no se pisa**: si el fichero existe pero no se puede leer (por ejemplo, con un conflicto de git sin resolver), la app no escribe en él y todos los entornos de la colección cuentan como sensibles hasta que se arregla. El aviso del selector lo explica y no deja cambiar las marcas. Antes se trataba como vacío: se perdía la protección sin aviso y la siguiente escritura borraba su contenido.
-- **Sección Flujos** (DEC-26), **apagada por defecto** en Preferencias → Michi porque todavía no hay lienzo. En la barra lateral se crean, renombran, mueven de carpeta y borran los flows de la colección, y cada uno se abre en su pestaña, que por ahora solo enseña el nombre. Se guardan en la clave `flows` de `.michi.json`, con validación (id, versión, nombre de hasta 120 caracteres, 2 MB por flow). Enganche nuevo H-37 (canales `fork:flows:*`).
+- Enganche nuevo H-37 (canales `fork:flows:*`). Los flows se validan al guardar (id, versión, nombre de hasta 120 caracteres, 2 MB por flow).
 - **Registro de secciones y pestañas del fork** (`components/fork/registry`): H-18 a H-21 dejan de nombrar Git y cuelgan de esa lista, así que una sección o pestaña nueva ya no necesita enganches. El selector de colección es común para Git y Flujos.
 - La lectura y escritura de `.michi.json` pasa a un módulo común (`collection-settings-file.js`) para entornos sensibles y flows.
 
