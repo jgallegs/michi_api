@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.3.0-fork.14 (2026-11-17)
+
+Base: Bruno v4.3.0.
+
+- **Informe de una ejecución de Flujos**: en el panel *Salida*, cada ejecución tiene el botón *Guardar el informe de la ejecución* al terminar, al pararla o si falla. Guarda una página HTML que se abre sola, sin red: cabecera con el flow, la colección, el entorno, cuándo empezó, cuánto tardó, cómo acabó y los tests; un resumen de peticiones que fueron bien y mal y una tarjeta por lista; cada lista como tabla, y todos los pasos con su estado, código, tiempo y la respuesta plegada. Las credenciales salen enmascaradas, como en el historial (`Flows/report/runPage.js`).
+- **Reglas 3.1** (DEC-30, R-22): el mantenedor principal aprueba las pull requests, enganches y dependencias del segundo mantenedor, y las suyas no necesitan aprobación. La protección de `main` sigue: pull request obligatoria, sin push directo ni force-push.
+- La guía rápida de Flows explica el informe.
+
 ## v4.3.0-fork.13 (2026-11-17)
 
 Base: Bruno v4.3.0.

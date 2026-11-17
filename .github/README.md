@@ -29,7 +29,7 @@ Las dos guardan los datos en `%APPDATA%\Michi`, así que puedes pasar de una a o
 Los ejecutables no están firmados, así que Windows SmartScreen puede avisar la primera vez: *Más información → Ejecutar de todas formas*. Si quieres comprobar el fichero, cada descarga lleva al lado su `.sha256`:
 
 ```powershell
-Get-FileHash .\Michi-Setup-4.3.0-fork.13.exe -Algorithm SHA256
+Get-FileHash .\Michi-Setup-4.3.0-fork.14.exe -Algorithm SHA256
 ```
 
 ## Qué añade a Bruno
@@ -50,7 +50,7 @@ La marca se guarda en un fichero `.michi.json` en la raíz de la colección. Si 
 
 ### Flujos
 
-Una sección **Flows** en la barra lateral para encadenar las peticiones de una colección en un lienzo, sin escribir código: lo que devuelve una petición pasa a la siguiente con un cable, y hay pasos para repetir, recorrer listas, comprobar y validar respuestas o ejecutar otro flujo. Al ejecutarlo ves cada paso en vivo y puedes probar uno solo o seguir desde donde falló. Trae bloques ya hechos y un curso guiado dentro de la app.
+Una sección **Flows** en la barra lateral para encadenar las peticiones de una colección en un lienzo, sin escribir código: lo que devuelve una petición pasa a la siguiente con un cable, y hay pasos para repetir, recorrer listas, comprobar y validar respuestas o ejecutar otro flujo. Al ejecutarlo ves cada paso en vivo y puedes probar uno solo o seguir desde donde falló. Al acabar, guardas un informe HTML de la ejecución con cada paso, las listas y los tests. Trae bloques ya hechos y un curso guiado dentro de la app.
 
 Viene **apagado**: se enciende en *Preferences → Michi*. Los flujos se guardan en `.michi.json`, así que se comparten con git igual que los entornos sensibles. En un entorno sensible piden confirmación antes de enviar nada, y otra vez si el entorno cambia a mitad de la ejecución.
 
@@ -126,7 +126,7 @@ Sí, las colecciones son las mismas. Lo que añade Michi (confirmaciones, histor
 No. Es un fork independiente y no está relacionado con el equipo de Bruno. Si algo falla en Michi, abre un issue aquí, no en el repositorio de Bruno.
 
 **¿Cada cuánto se actualiza con Bruno?**
-Michi va sobre una versión concreta de Bruno (ahora la 4.3.0). Cuando sale una nueva, se actualiza la base y se publica una versión nueva de Michi. El número de versión lo indica: `4.3.0-fork.13` es la decimotercera versión de Michi sobre Bruno 4.3.0.
+Michi va sobre una versión concreta de Bruno (ahora la 4.3.0). Cuando sale una nueva, se actualiza la base y se publica una versión nueva de Michi. El número de versión lo indica: `4.3.0-fork.14` es la decimocuarta versión de Michi sobre Bruno 4.3.0.
 
 ## Compilar desde el código
 
