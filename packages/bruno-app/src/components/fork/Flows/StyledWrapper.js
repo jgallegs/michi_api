@@ -7,6 +7,38 @@ const StyledWrapper = styled.div`
   .muted { color: ${(props) => props.theme.colors.text.muted}; margin: 0.25rem; }
   .error { color: ${(props) => props.theme.status.danger.text}; margin: 0.25rem; }
 
+  .flow-search {
+    width: 100%;
+    height: 1.5rem;
+    margin: 0 0 0.25rem;
+    padding: 0 0.375rem;
+    box-sizing: border-box;
+    font: inherit;
+    color: inherit;
+    background: ${(props) => props.theme.input.bg};
+    border: 1px solid ${(props) => props.theme.input.border};
+    border-radius: 0.25rem;
+    outline: none;
+
+    &:focus { border-color: ${(props) => props.theme.input.focusBorder}; }
+  }
+
+  .flow-run-mark {
+    flex-shrink: 0;
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 50%;
+
+    &.ok { background: ${(props) => props.theme.status.success.text}; }
+    &.bad { background: ${(props) => props.theme.status.danger.text}; }
+    &.warning { background: ${(props) => props.theme.status.warning.text}; }
+    &.running { background: ${(props) => props.theme.primary.solid}; animation: flow-run-mark 0.9s ease-in-out infinite alternate; }
+  }
+  @keyframes flow-run-mark {
+    from { opacity: 1; }
+    to { opacity: 0.3; }
+  }
+
   .flow-folder {
     display: flex;
     align-items: center;

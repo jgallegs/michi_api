@@ -1,4 +1,5 @@
 import {
+  confirmFlowInSensitiveEnvironment,
   confirmRunInSensitiveEnvironment,
   confirmSendInSensitiveEnvironment,
   getPendingConfirmation,
@@ -128,6 +129,12 @@ describe('sensitive environment guard', () => {
     confirmSendInSensitiveEnvironment(buildCollection('e1'), item);
     await settle();
     expect(getPendingConfirmation()).not.toBeNull();
+  });
+
+  it('asks before running a flow', async () => {
+    confirmFlowInSensitiveEnvironment(buildCollection('e1'));
+    await settle();
+    expect(getPendingConfirmation()).toMatchObject({ kind: 'flow', request: null });
   });
 
   it('asks before a collection run', async () => {

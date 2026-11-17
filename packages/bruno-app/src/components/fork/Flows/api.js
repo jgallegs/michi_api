@@ -14,5 +14,8 @@ const invoke = async (channel, ...args) => {
 export const flowsApi = {
   list: (collectionPath) => invoke('fork:flows:list', collectionPath),
   save: (collectionPath, flow) => invoke('fork:flows:save', collectionPath, flow),
-  delete: (collectionPath, flowId) => invoke('fork:flows:delete', collectionPath, flowId)
+  delete: (collectionPath, flowId) => invoke('fork:flows:delete', collectionPath, flowId),
+  listBlocks: (collectionPath) => invoke('fork:flows:blocks:list', collectionPath),
+  saveBlock: (collectionPath, block) => invoke('fork:flows:blocks:save', collectionPath, block),
+  deleteBlock: (collectionPath, blockId) => invoke('fork:flows:blocks:delete', collectionPath, blockId)
 };

@@ -130,3 +130,7 @@ export const confirmSendInSensitiveEnvironment = (collection, item) => {
 export const confirmRunInSensitiveEnvironment = (collection) => {
   return requestConfirmation({ kind: 'runner', collection });
 };
+
+export const confirmFlowInSensitiveEnvironment = (collection) => {
+  return requestConfirmation({ kind: 'flow', collection });
+};

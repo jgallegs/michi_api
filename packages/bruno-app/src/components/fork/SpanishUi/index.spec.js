@@ -16,6 +16,7 @@ describe('Spanish interface', () => {
     expect(translatePhrase('Headers')).toBe('Cabeceras');
     expect(translatePhrase('  Save ')).toBe('  Guardar ');
     expect(translatePhrase('2 labels in this response (PDF, ZPL)')).toBe('2 etiquetas en esta respuesta (PDF, ZPL)');
+    expect(translatePhrase('List · orders')).toBe('Lista · orders');
     expect(translatePhrase('Unknown text')).toBeNull();
     expect(translatePhrase('Cabeceras')).toBeNull();
     expect(translatePhrase('constructor')).toBeNull();

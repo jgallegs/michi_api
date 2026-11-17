@@ -7,7 +7,9 @@ import {
   deleteFlow,
   discardFlowDraft,
   getFlow,
+  installFlowsReload,
   isFlowDirty,
+  isFlowStale,
   loadFlows,
   renameFlow,
   resetFlowsStore,
@@ -18,7 +20,8 @@ import {
 
 const COLLECTION = 'C:\\collections\\demo';
 
-const makeFlow = (id, name, extra = {}) => ({ id, name, version: FLOW_VERSION, folder: '', nodes: [], edges: [], ...extra });
+const START = { id: 'start', type: 'start', x: 80, y: 120, config: {} };
+const makeFlow = (id, name, extra = {}) => ({ id, name, version: FLOW_VERSION, folder: '', nodes: [START], edges: [], ...extra });
 
 describe('flows store', () => {
   let files;
@@ -67,7 +70,7 @@ describe('flows store', () => {
 
     updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, nodes: [{ id: 'n1', type: 'request' }] }));
     expect(isFlowDirty(COLLECTION, 'f1')).toBe(true);
-    expect(files[COLLECTION].f1.nodes).toEqual([]);
+    expect(files[COLLECTION].f1.nodes).toEqual([START]);
 
     await saveFlow(COLLECTION, 'f1');
     expect(isFlowDirty(COLLECTION, 'f1')).toBe(false);
@@ -84,6 +87,42 @@ describe('flows store', () => {
     updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, name: 'Edited' }));
     discardFlowDraft(COLLECTION, 'f1');
     expect(getFlow(COLLECTION, 'f1').name).toBe('One');
+  });
+
+  it('tells when a flow with unsaved edits changed in the collection, until it is saved or discarded', async () => {
+    files[COLLECTION] = { f1: makeFlow('f1', 'One') };
+    await loadFlows(COLLECTION);
+    updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, nodes: [...flow.nodes, { id: 'mine', type: 'wait' }] }));
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(false);
+
+    await loadFlows(COLLECTION);
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(false);
+
+    files[COLLECTION] = { f1: makeFlow('f1', 'One', { nodes: [START, { id: 'theirs', type: 'stop' }] }) };
+    await loadFlows(COLLECTION);
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(true);
+    expect(getFlow(COLLECTION, 'f1').nodes.map((node) => node.id)).toEqual(['start', 'mine']);
+
+    discardFlowDraft(COLLECTION, 'f1');
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(false);
+    expect(getFlow(COLLECTION, 'f1').nodes.map((node) => node.id)).toEqual(['start', 'theirs']);
+
+    updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, nodes: [START] }));
+    files[COLLECTION] = { f1: makeFlow('f1', 'One', { nodes: [START, { id: 'again', type: 'stop' }] }) };
+    await loadFlows(COLLECTION);
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(true);
+    await saveFlow(COLLECTION, 'f1');
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(false);
+    expect(files[COLLECTION].f1.nodes).toEqual([START]);
+  });
+
+  it('does not take its own rename for a change made elsewhere', async () => {
+    files[COLLECTION] = { f1: makeFlow('f1', 'One') };
+    await loadFlows(COLLECTION);
+    updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, nodes: [...flow.nodes, { id: 'mine', type: 'wait' }] }));
+    await renameFlow(COLLECTION, 'f1', { name: 'Renamed', folder: '' });
+    await loadFlows(COLLECTION);
+    expect(isFlowStale(COLLECTION, 'f1')).toBe(false);
   });
 
   it('renames without saving the pending graph edits', async () => {
@@ -112,6 +151,36 @@ describe('flows store', () => {
     window.ipcRenderer.invoke = jest.fn(() => Promise.reject(new Error(`Error invoking remote method 'fork:flows:list': Error: .michi.json cannot be read`)));
     const { result } = renderHook(() => useCollectionFlows(COLLECTION));
     await waitFor(() => expect(result.current.error).toBe('.michi.json cannot be read'));
+  });
+
+  it('reads a collection again when its file changes on disk, if it was loaded', async () => {
+    let tell;
+    const stop = jest.fn();
+    window.ipcRenderer.on = jest.fn((channel, handler) => {
+      tell = handler;
+      return stop;
+    });
+    const uninstall = installFlowsReload();
+    expect(window.ipcRenderer.on).toHaveBeenCalledWith('main:fork-flows-changed', expect.any(Function));
+
+    files[COLLECTION].f1 = makeFlow('f1', 'Mine');
+    await loadFlows(COLLECTION);
+    updateFlowDraft(COLLECTION, 'f1', (flow) => ({ ...flow, name: 'Being edited' }));
+    files[COLLECTION].f9 = makeFlow('f9', 'Written from outside');
+    tell({ collectionPath: 'C:\\collections\\other' });
+    tell({});
+    expect(window.ipcRenderer.invoke).toHaveBeenCalledTimes(1);
+    tell({ collectionPath: COLLECTION });
+
+    await waitFor(() => expect(getFlow(COLLECTION, 'f9')?.name).toBe('Written from outside'));
+    expect(getFlow(COLLECTION, 'f1').name).toBe('Being edited');
+    uninstall();
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing about file changes outside the desktop app', () => {
+    delete window.ipcRenderer;
+    expect(() => installFlowsReload()()).not.toThrow();
   });
 
   it('records the error when the file cannot be read', async () => {

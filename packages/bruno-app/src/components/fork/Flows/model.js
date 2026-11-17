@@ -20,12 +20,18 @@ export const normalizeFolder = (folder) =>
 export const isValidFlowName = (name) =>
   typeof name === 'string' && name.trim().length > 0 && name.trim().length <= MAX_FLOW_NAME_LENGTH;
 
+// Ids only have to be unique inside a flow, and a fixed one keeps a flow read twice identical.
+const createStartNode = () => ({ id: 'start', type: 'start', x: 80, y: 120, config: {} });
+
+// Every flow has the step it starts from; flows saved before it existed get one when they are read.
+const withStartNode = (nodes) => (nodes.some((node) => node?.type === 'start') ? nodes : [createStartNode(), ...nodes]);
+
 export const createFlow = ({ name, folder }) => ({
   id: uuid(),
   version: FLOW_VERSION,
   name: name.trim(),
   folder: normalizeFolder(folder),
-  nodes: [],
+  nodes: withStartNode([]),
   edges: []
 });
 
@@ -41,7 +47,7 @@ export const normalizeFlow = (raw) => {
     ...raw,
     name: raw.name.trim(),
     folder: normalizeFolder(raw.folder),
-    nodes: Array.isArray(raw.nodes) ? raw.nodes : [],
+    nodes: withStartNode(Array.isArray(raw.nodes) ? raw.nodes : []),
     edges: Array.isArray(raw.edges) ? raw.edges : []
   };
 };

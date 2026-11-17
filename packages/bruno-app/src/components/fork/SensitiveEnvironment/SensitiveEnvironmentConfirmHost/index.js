@@ -12,6 +12,12 @@ import {
 import { SNOOZE_MINUTES } from '../store';
 import StyledWrapper from './StyledWrapper';
 
+const INTRODUCTIONS = {
+  request: 'You are about to send a request using ',
+  runner: 'You are about to run the collection runner using ',
+  flow: 'You are about to run a flow using '
+};
+
 const SensitiveEnvironmentConfirmHost = () => {
   const pending = useSyncExternalStore(subscribeToConfirmations, getPendingConfirmation);
   const [snooze, setSnooze] = useState(false);
@@ -29,7 +35,7 @@ const SensitiveEnvironmentConfirmHost = () => {
   }
 
   const { kind, environment, request } = pending;
-  const isRunner = kind === 'runner';
+  const isRun = kind !== 'request';
   const cancel = () => resolvePendingConfirmation({ confirmed: false });
   const confirm = () => resolvePendingConfirmation({ confirmed: true, snooze });
 
@@ -48,7 +54,7 @@ const SensitiveEnvironmentConfirmHost = () => {
         <div className="warning">
           <IconAlertTriangle size={18} strokeWidth={2} className="warning-icon" />
           <div>
-            {isRunner ? 'You are about to run the collection runner using ' : 'You are about to send a request using '}
+            {INTRODUCTIONS[kind]}
             <strong>{environment.name}</strong>
             , marked as a sensitive environment.
           </div>
@@ -73,7 +79,7 @@ const SensitiveEnvironmentConfirmHost = () => {
             Cancel
           </Button>
           <Button type="button" color="danger" onClick={confirm} data-testid="sensitive-env-confirm-btn">
-            {isRunner ? 'Run anyway' : 'Send anyway'}
+            {isRun ? 'Run anyway' : 'Send anyway'}
           </Button>
         </div>
       </Modal>

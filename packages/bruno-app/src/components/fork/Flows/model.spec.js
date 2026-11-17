@@ -2,6 +2,8 @@ jest.mock('utils/common', () => ({ uuid: () => 'generated-uid' }));
 
 import { FLOW_VERSION, createFlow, groupFlowsByFolder, isValidFlowName, listFolders, normalizeFlow, normalizeFolder } from './model';
 
+const START = { id: 'start', type: 'start', x: 80, y: 120, config: {} };
+
 describe('flow model', () => {
   it('normalises folder labels', () => {
     expect(normalizeFolder(' Shipments / Warehouse ')).toBe('Shipments/Warehouse');
@@ -16,9 +18,9 @@ describe('flow model', () => {
     expect(isValidFlowName(42)).toBe(false);
   });
 
-  it('creates an empty flow with the current version', () => {
+  it('creates a flow with only its Start step and the current version', () => {
     const flow = createFlow({ name: '  Login  ', folder: 'auth/' });
-    expect(flow).toMatchObject({ version: FLOW_VERSION, name: 'Login', folder: 'auth', nodes: [], edges: [] });
+    expect(flow).toMatchObject({ version: FLOW_VERSION, name: 'Login', folder: 'auth', nodes: [START], edges: [] });
     expect(flow.id).toMatch(/^[A-Za-z0-9_-]+$/);
   });
 
@@ -28,9 +30,11 @@ describe('flow model', () => {
       version: FLOW_VERSION,
       name: 'A',
       folder: 'x',
-      nodes: [],
+      nodes: [START],
       edges: []
     });
+    const stored = { id: 'f2', version: FLOW_VERSION, name: 'B', nodes: [{ id: 'mine', type: 'start' }, { id: 'a', type: 'wait' }], edges: [] };
+    expect(normalizeFlow(stored).nodes).toEqual(stored.nodes);
     expect(normalizeFlow({ id: 'f1', version: 2, name: 'A' })).toBeNull();
     expect(normalizeFlow({ version: FLOW_VERSION, name: 'A' })).toBeNull();
     expect(normalizeFlow('junk')).toBeNull();

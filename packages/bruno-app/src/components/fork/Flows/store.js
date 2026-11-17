@@ -1,11 +1,14 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { flowsApi } from './api';
-import { createFlow as buildFlow, flowSignature, normalizeFlow, normalizeFolder } from './model';
+import { onCollectionFileChange } from './fileChanges';
+import { MAX_FLOW_NAME_LENGTH, createFlow as buildFlow, flowSignature, normalizeFlow, normalizeFolder } from './model';
 
 // Flows of every open collection, keyed by collection path. "saved" mirrors .michi.json; "drafts" holds
 // edits not yet written, so switching tabs keeps unsaved work until the app is closed or the flow is
-// saved or discarded. The file is re-read when the window regains focus, so a git pull shows up at once.
-const EMPTY_ENTRY = { saved: {}, drafts: {}, loaded: false, loading: false, error: null };
+// saved or discarded. The file is re-read when it changes on disk and when the window regains focus, so
+// a git pull or a flow written from outside shows up at once.
+// "bases" remembers the saved version each draft started from, to tell when the file changed under it.
+const EMPTY_ENTRY = { saved: {}, drafts: {}, bases: {}, loaded: false, loading: false, error: null };
 
 const entries = new Map();
 const listeners = new Set();
@@ -61,6 +64,12 @@ export const getFlow = (collectionPath, flowId) => {
   return entry.drafts[flowId] || entry.saved[flowId] || null;
 };
 
+// Every flow of a collection as it is on screen, edits not yet saved included.
+export const getCollectionFlows = (collectionPath) => {
+  const { saved, drafts } = getEntry(collectionPath);
+  return Object.values({ ...saved, ...drafts });
+};
+
 export const useFlow = (collectionPath, flowId) => useSyncExternalStore(subscribe, () => getFlow(collectionPath, flowId));
 
 const findFlowName = (flowId) => {
@@ -83,31 +92,45 @@ export const isFlowDirty = (collectionPath, flowId) => {
 
 export const useFlowDirty = (collectionPath, flowId) => useSyncExternalStore(subscribe, () => isFlowDirty(collectionPath, flowId));
 
+// A flow someone else changed (a git pull, usually) while it has unsaved edits here: saving replaces their version.
+export const isFlowStale = (collectionPath, flowId) => {
+  const { saved, drafts, bases } = getEntry(collectionPath);
+  return Boolean(drafts[flowId] && saved[flowId] && bases[flowId] !== undefined && flowSignature(saved[flowId]) !== bases[flowId]);
+};
+
+export const useFlowStale = (collectionPath, flowId) => useSyncExternalStore(subscribe, () => isFlowStale(collectionPath, flowId));
+
+const without = (map, key) => {
+  const next = { ...map };
+  delete next[key];
+  return next;
+};
+
 export const updateFlowDraft = (collectionPath, flowId, updater) => {
   const current = getFlow(collectionPath, flowId);
   if (!current) {
     return;
   }
-  const { drafts } = getEntry(collectionPath);
-  setEntry(collectionPath, { drafts: { ...drafts, [flowId]: updater(current) } });
+  const { saved, drafts, bases } = getEntry(collectionPath);
+  const startsDraft = !drafts[flowId] && saved[flowId];
+  setEntry(collectionPath, {
+    drafts: { ...drafts, [flowId]: updater(current) },
+    bases: startsDraft ? { ...bases, [flowId]: flowSignature(saved[flowId]) } : bases
+  });
 };
 
 export const discardFlowDraft = (collectionPath, flowId) => {
-  const { drafts } = getEntry(collectionPath);
+  const { drafts, bases } = getEntry(collectionPath);
   if (!drafts[flowId]) {
     return;
   }
-  const next = { ...drafts };
-  delete next[flowId];
-  setEntry(collectionPath, { drafts: next });
+  setEntry(collectionPath, { drafts: without(drafts, flowId), bases: without(bases, flowId) });
 };
 
 const persist = async (collectionPath, flow) => {
   await flowsApi.save(collectionPath, flow);
-  const { saved, drafts } = getEntry(collectionPath);
-  const nextDrafts = { ...drafts };
-  delete nextDrafts[flow.id];
-  setEntry(collectionPath, { saved: { ...saved, [flow.id]: flow }, drafts: nextDrafts });
+  const { saved, drafts, bases } = getEntry(collectionPath);
+  setEntry(collectionPath, { saved: { ...saved, [flow.id]: flow }, drafts: without(drafts, flow.id), bases: without(bases, flow.id) });
   return flow;
 };
 
@@ -121,6 +144,24 @@ export const saveFlow = (collectionPath, flowId) => {
 
 export const createFlow = (collectionPath, { name, folder }) => persist(collectionPath, buildFlow({ name, folder }));
 
+// A copy of a flow as it is on screen, edits not yet saved included, under a name nobody has: the same
+// one with a number after it.
+export const duplicateFlow = (collectionPath, flowId) => {
+  const flow = getFlow(collectionPath, flowId);
+  if (!flow) {
+    return Promise.reject(new Error('Flow not found'));
+  }
+  const { saved, drafts } = getEntry(collectionPath);
+  const taken = Object.values({ ...saved, ...drafts }).map((other) => other.name);
+  const nameWith = (number) => `${flow.name.slice(0, MAX_FLOW_NAME_LENGTH - 8)} (${number})`;
+  let number = 2;
+  while (taken.includes(nameWith(number))) {
+    number += 1;
+  }
+  const copy = buildFlow({ name: nameWith(number), folder: flow.folder });
+  return persist(collectionPath, { ...copy, nodes: flow.nodes, edges: flow.edges });
+};
+
 // Renames or moves a flow without saving pending graph edits: the saved copy gets the new name and
 // folder, and a draft, if any, keeps its edits with the same new name and folder.
 export const renameFlow = async (collectionPath, flowId, { name, folder }) => {
@@ -133,27 +174,35 @@ export const renameFlow = async (collectionPath, flowId, { name, folder }) => {
   const nextSaved = { ...base, ...meta };
   await flowsApi.save(collectionPath, nextSaved);
   const nextDrafts = drafts[flowId] ? { ...drafts, [flowId]: { ...drafts[flowId], ...meta } } : drafts;
-  setEntry(collectionPath, { saved: { ...saved, [flowId]: nextSaved }, drafts: nextDrafts });
+  const { bases } = getEntry(collectionPath);
+  const nextBases = drafts[flowId] ? { ...bases, [flowId]: flowSignature(nextSaved) } : bases;
+  setEntry(collectionPath, { saved: { ...saved, [flowId]: nextSaved }, drafts: nextDrafts, bases: nextBases });
   return nextSaved;
 };
 
 export const deleteFlow = async (collectionPath, flowId) => {
   await flowsApi.delete(collectionPath, flowId);
-  const { saved, drafts } = getEntry(collectionPath);
-  const nextSaved = { ...saved };
-  const nextDrafts = { ...drafts };
-  delete nextSaved[flowId];
-  delete nextDrafts[flowId];
-  setEntry(collectionPath, { saved: nextSaved, drafts: nextDrafts });
+  const { saved, drafts, bases } = getEntry(collectionPath);
+  setEntry(collectionPath, { saved: without(saved, flowId), drafts: without(drafts, flowId), bases: without(bases, flowId) });
 };
 
 export const reloadLoadedCollections = () => {
   [...entries.entries()].filter(([, entry]) => entry.loaded).forEach(([collectionPath]) => loadFlows(collectionPath));
 };
 
+const reloadIfLoaded = (collectionPath) => {
+  if (getEntry(collectionPath).loaded) {
+    loadFlows(collectionPath);
+  }
+};
+
 export const installFlowsReload = () => {
   window.addEventListener('focus', reloadLoadedCollections);
-  return () => window.removeEventListener('focus', reloadLoadedCollections);
+  const stopListening = onCollectionFileChange(reloadIfLoaded);
+  return () => {
+    window.removeEventListener('focus', reloadLoadedCollections);
+    stopListening();
+  };
 };
 
 // Only for tests.
