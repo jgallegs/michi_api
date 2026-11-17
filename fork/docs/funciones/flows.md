@@ -121,6 +121,19 @@ Los tests y aserciones que lleva una petición se ejecutan cuando un flow la env
 
 Cada ejecución empieza en la salida con el nombre del flow; el botón de tabla de esa línea abre su informe: cada paso con su resultado y su hora, con los mismos botones de copiar y guardar que el informe de una lista.
 
+Cuando la ejecución termina, se para o falla, en esa misma línea aparece un segundo botón, **Save the run report**, que guarda toda la ejecución como una sola página HTML para leerla con calma o mandarla:
+
+| Parte | Qué lleva |
+|---|---|
+| Cabecera | Nombre del flow y cómo acabó (*Finished*, *Stopped by a Stop step*, *Stopped*, *Paused* o *Run failed*), colección, entorno, si fue solo un paso o desde un paso, hora de inicio, duración total y recuento de tests |
+| Resumen | Cuántas peticiones salieron, cuántas fueron bien (2xx y con sus tests en verde) y cuántas mal, y una tarjeta por cada lista del flow con su número de elementos. La tarjeta lleva a la tabla de su lista |
+| Listas | Cada lista completa como tabla, igual que en **View report**. Una lista vacía lo dice |
+| Pasos | Todo lo que contó la salida, en orden: hora, paso, estado (bien, mal o aviso), código, tiempo y resultado. La respuesta de cada paso va plegada debajo y se despliega con un clic |
+
+La página no lleva scripts ni carga nada de la red: se abre en cualquier navegador sin conexión. Sale en el idioma de la interfaz. Lo que parece una credencial se enmascara igual que en el historial de peticiones (`token`, `password`, `secret`, `apiKey`, `auth`, `session`… y las cabeceras `Bearer`/`Basic`), en los pasos, en las respuestas y en las columnas de las listas.
+
+Si una ejecución pausada o que falló se continúa, el informe es el de toda ella, desde que empezó; el botón desaparece mientras sigue y vuelve al acabar. **Clear** se lleva también lo necesario para estos informes.
+
 ### La sección de la barra lateral
 
 La sección **Flows** tiene un buscador por nombre o carpeta cuando hay más de un flow, un botón para duplicar un flow (la copia lleva sus pasos y un número detrás del nombre) y un punto junto a cada flow que dice cómo fue su última ejecución desde que se abrió la app.
@@ -200,10 +213,10 @@ Todo el código está en `packages/bruno-app/src/components/fork/Flows/` y en `p
 | `fields/` | Qué campos tiene la respuesta de una petición antes de enviarla: rutas y posiciones en listas (`paths.js`), lectura de documentos OpenAPI (`spec.js`), lectura de los scripts como texto (`script.js`), lo recordado entre sesiones (`memory.js`) y el observador que anota cada respuesta que llega (`watch.js`, instalado desde `ForkRoot`) |
 | `FlowCanvas/` | El componente que junta lo anterior: selección, arrastres, zoom, teclado y soltar desde la barra lateral |
 | `blocks/` | Los bloques: el catálogo de los que trae Michi (`catalog.js`), cómo se montan, se insertan y se guardan los propios (`building.js`), la guía y cómo sabe que un punto está hecho (`guide.js`), los bloques de cada colección (`store.js`) y los componentes `Gallery`, `GuidePanel`, `HelpPanel` y `SaveBlockModal` |
-| `report/` | Los informes: de los datos a filas y columnas (`table.js`), a texto, tabla y página HTML (`export.js`), de la salida de una ejecución a filas (`runReport.js`) y la ventana `ReportModal` |
+| `report/` | Los informes: de los datos a filas y columnas (`table.js`), a texto, tabla y página HTML (`export.js`), de la salida de una ejecución a filas (`runReport.js`), la página con el informe de toda una ejecución (`runPage.js`) y la ventana `ReportModal` |
 | `data/` | La tabla de datos: de texto pegado a columnas y filas (`parse.js`) y la ventana `TableModal` |
 | `course/` | El curso guiado: las lecciones (`lessons.js`, con su español en `SpanishUi/flowsCourse.js`), el progreso de cada persona (`progress.js`) y el panel `CoursePanel` |
-| `run/` | La ejecución en la app: `host.js` envía cada petición con `sendNetworkRequest`, como hace Bruno; `controller.js` pide la confirmación de entorno sensible (también antes de cada petición, a través de `host.js`, porque los flows no pasan por el `sendRequest` de Bruno ni por H-03) y traduce los eventos del motor; `session.js` guarda el estado de cada ejecución y la salida; `OutputPanel/` la pinta |
+| `run/` | La ejecución en la app: `host.js` envía cada petición con `sendNetworkRequest`, como hace Bruno; `controller.js` pide la confirmación de entorno sensible (también antes de cada petición, a través de `host.js`, porque los flows no pasan por el `sendRequest` de Bruno ni por H-03) y traduce los eventos del motor; `session.js` guarda el estado de cada ejecución, la salida y, por cada ejecución, lo que su informe necesita y la salida no tiene (colección, final, listas); `OutputPanel/` la pinta |
 
 - Un flow es un JSON con `nodes` (tipo, posición y ajustes) y `edges` (de qué puerto a qué puerto, y los codos si se les ha dado forma).
 - Cada flow tiene su `version`. Un flow de una versión que la app no conoce no se abre ni se sobrescribe.

@@ -18,7 +18,7 @@ import { FLOW_VERSION } from '../model';
 import { loadFlows, resetFlowsStore } from '../store';
 import { RUN_STATUS } from '../engine/run';
 import { RUN_MODE, startRun, stopRun } from './controller';
-import { RUN_PHASE, getRunLog, getRunSession, resetRunSessions } from './session';
+import { RUN_PHASE, getRunLog, getRunRecord, getRunSession, resetRunSessions } from './session';
 
 const COLLECTION = '/collections/shop';
 const node = (id, type, config = {}) => ({ id, type, x: 0, y: 0, config });
@@ -323,6 +323,36 @@ describe('running a flow', () => {
     expect(sendNetworkRequest).toHaveBeenCalledTimes(2);
     expect(sendNetworkRequest.mock.calls[1][3]).toMatchObject({ token: 'ana', who: 'ana' });
     expect(lines()).toEqual(expect.arrayContaining(['Start who = ana', 'Login flow › login 200 OK · 12 ms', 'Run a flow Ran the flow Login flow']));
+  });
+
+  it('keeps what the report of the whole run needs, also across a failure that is continued', async () => {
+    const listed = {
+      ...flow,
+      nodes: [...flow.nodes, node('l', 'list', { name: 'Seen' }), node('add', 'listappend', { value: 'x' }), node('empty', 'list', { name: 'Never' })],
+      edges: [...flow.edges.filter((cable) => cable.target !== 'b' || cable.targetPort !== 'in'), edge('a', 'out', 'add'), edge('add', 'out', 'b')]
+    };
+    listed.nodes[4].config.list = 'l';
+    resetFlowsStore();
+    window.ipcRenderer.invoke.mockResolvedValue([listed]);
+    await loadFlows(COLLECTION);
+    const store = makeStore();
+    store.collection.name = 'Shop';
+    sendNetworkRequest.mockResolvedValueOnce(answer(200, { session: { token: 'T1' } })).mockResolvedValueOnce({ error: 'connect ECONNREFUSED' });
+
+    await finish(start(store));
+    const headerId = getRunLog()[0].id;
+    expect(getRunSession('f1').runHeaderId).toBe(headerId);
+    expect(getRunRecord(headerId)).toMatchObject({ flowName: 'Order walk', collectionName: 'Shop', environmentName: 'Local', outcome: RUN_STATUS.FAILED, startedAt: expect.any(Number), endedAt: expect.any(Number) });
+    expect(getRunLog().find((entry) => entry.label?.text === 'login').result).toEqual({ status: 200, statusText: 'OK', duration: 12 });
+    expect(getRunLog().find((entry) => entry.label?.text === 'get order').result).toEqual({ error: 'connect ECONNREFUSED' });
+
+    sendNetworkRequest.mockResolvedValueOnce(answer(200, {}));
+    await finish(start(store, RUN_MODE.CONTINUE));
+    expect(getRunRecord(headerId)).toMatchObject({
+      outcome: RUN_STATUS.COMPLETED,
+      tests: { passed: 0, failed: 0 },
+      lists: [{ name: 'Seen', items: ['x'] }, { name: 'Never', items: [] }]
+    });
   });
 
   it('ignores a second start while a flow is running', async () => {

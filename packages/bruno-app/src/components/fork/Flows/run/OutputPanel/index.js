@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { IconChevronDown, IconChevronRight, IconLayoutSidebarRightCollapse, IconListDetails, IconTable, IconTrash } from '@tabler/icons';
+import { IconChevronDown, IconChevronRight, IconFileDownload, IconLayoutSidebarRightCollapse, IconListDetails, IconTable, IconTrash } from '@tabler/icons';
+import { FORK_SETTINGS, getForkSetting } from 'components/fork/settings/store';
 import { say } from '../../language';
 import ReportModal from '../../report/ReportModal';
+import { saveAsFile } from '../../report/export';
 import { buildRunItems, entriesOfRun } from '../../report/runReport';
-import { clearRunLog, useRunLog } from '../session';
+import { buildRunPage, runReportFileName } from '../../report/runPage';
+import { clearRunLog, useRunLog, useRunRecords } from '../session';
 import StyledWrapper from './StyledWrapper';
 
 // Whether the panel is open is remembered while the app is open, across flows.
@@ -16,7 +19,13 @@ const Part = ({ part }) => {
   return <span className={item.translate ? '' : 'fork-no-translate'}>{item.text}</span>;
 };
 
-const Entry = ({ entry, onReport }) => {
+// The whole run as a page of its own: summary, lists and steps (report/runPage.js).
+const saveRunPage = (log, entry, record) => {
+  const page = buildRunPage({ record, entries: entriesOfRun(log, entry.id), say, lang: getForkSetting(FORK_SETTINGS.SPANISH_UI) ? 'es' : 'en' });
+  saveAsFile(runReportFileName(record), page, 'text/html');
+};
+
+const Entry = ({ entry, record, onReport, onSaveRun }) => {
   const [unfolded, setUnfolded] = useState(false);
   const Caret = unfolded ? IconChevronDown : IconChevronRight;
 
@@ -29,6 +38,11 @@ const Entry = ({ entry, onReport }) => {
         <button type="button" className="output-report" title="Report of this run" aria-label="Report of this run" onClick={() => onReport(entry)} data-testid="flow-output-report">
           <IconTable size={13} strokeWidth={1.75} />
         </button>
+        {record?.outcome ? (
+          <button type="button" className="output-report" title="Save the run report" aria-label="Save the run report" onClick={() => onSaveRun(entry, record)} data-testid="flow-output-run-report">
+            <IconFileDownload size={13} strokeWidth={1.75} />
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -56,6 +70,7 @@ const Entry = ({ entry, onReport }) => {
 // Everything the flows have done since the app was opened, until it is cleared.
 const OutputPanel = () => {
   const log = useRunLog();
+  const records = useRunRecords();
   const listRef = useRef(null);
   const [open, setOpen] = useState(rememberedOpen);
   const [reported, setReported] = useState(null);
@@ -95,7 +110,7 @@ const OutputPanel = () => {
         </button>
       </div>
       <div className="output-list" ref={listRef}>
-        {log.length ? log.map((entry) => <Entry key={entry.id} entry={entry} onReport={setReported} />) : <p className="output-empty">What the flows do when they run shows up here.</p>}
+        {log.length ? log.map((entry) => <Entry key={entry.id} entry={entry} record={records[entry.id]} onReport={setReported} onSaveRun={(header, record) => saveRunPage(log, header, record)} />) : <p className="output-empty">What the flows do when they run shows up here.</p>}
       </div>
       {reported ? (
         <ReportModal

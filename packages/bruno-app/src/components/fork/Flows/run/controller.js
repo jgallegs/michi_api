@@ -7,7 +7,7 @@ import { OPERATOR_LABELS } from '../canvas/pieces';
 import { describeRequest } from '../canvas/requests';
 import { say as inWords } from '../language';
 import { createRunHost } from './host';
-import { RUN_PHASE, appendRunLog, getRunSession, patchRunSession } from './session';
+import { RUN_PHASE, appendRunLog, getRunRecord, getRunSession, patchRunRecord, patchRunSession } from './session';
 
 export const RUN_MODE = { RUN: 'run', STEP: 'step', CONTINUE: 'continue' };
 
@@ -46,6 +46,8 @@ const describeOutcome = (detail, port) => {
         tag: { text: `${status} · ${duration ?? 0} ms`, tone: tests?.failed ? 'bad' : tone },
         tone: tests?.failed ? 'warning' : tone,
         parts: [`${status}${statusText ? ` ${statusText}` : ''}`, '·', `${duration ?? 0} ms`, ...tested],
+        // The same, as data, for the report of the run.
+        result: { status, statusText, duration: duration ?? 0, ...(tests ? { tests: { passed: tests.passed, failed: tests.failed } } : {}) },
         detail: tests?.failed ? `${tests.failures.map((failure) => `✗ ${failure}`).join('\n')}\n\n${detailOf(data) ?? ''}` : detailOf(data)
       };
     }
@@ -173,14 +175,25 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
       }
     };
 
+    // The line that opens the run in the output; a paused run that goes on keeps the one it had.
+    let headerId = previous.runHeaderId;
+    const environmentName = environmentOf(collection)?.name || null;
+    const scope = from ? `${inWords(only ? 'only the step' : 'from the step')} ${labelOf(from).translate ? inWords(labelOf(from).text || '') : labelOf(from).text}` : null;
     if (isFresh) {
       patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null, steps: {}, loops: {}, lists: {}, contents: {}, tests: null, hop: null, resume: null });
-      say({ kind: 'header', label: { text: flow.name }, parts: [environmentOf(collection)?.name || word('No environment')] });
+      headerId = say({ kind: 'header', label: { text: flow.name }, parts: [environmentName || word('No environment')] });
     } else if (from) {
       patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null, tests: null, hop: null, resume: null });
-      say({ kind: 'header', label: { text: flow.name }, parts: [environmentOf(collection)?.name || word('No environment'), '·', `${inWords(only ? 'only the step' : 'from the step')} ${labelOf(from).translate ? inWords(labelOf(from).text || '') : labelOf(from).text}`] });
+      headerId = say({ kind: 'header', label: { text: flow.name }, parts: [environmentName || word('No environment'), '·', scope] });
     } else {
       patchRunSession(flowId, { phase: RUN_PHASE.RUNNING, outcome: null });
+      if (headerId && getRunRecord(headerId)) {
+        patchRunRecord(headerId, { outcome: null });
+      }
+    }
+    if (isFresh || from) {
+      patchRunSession(flowId, { runHeaderId: headerId });
+      patchRunRecord(headerId, { flowId, flowName: flow.name, collectionName: collection.name, environmentName, scope, startedAt: Date.now(), endedAt: null, outcome: null });
     }
 
     let left = null;
@@ -197,12 +210,13 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
         count(event.detail);
         const outcome = describeOutcome(event.detail, event.port);
         if (outcome) {
-          say({ kind: 'step', tone: outcome.tone, label, parts: outcome.parts, detail: outcome.detail });
+          say({ kind: 'step', tone: outcome.tone, label, parts: outcome.parts, detail: outcome.detail, result: outcome.result });
         }
       } else if (event.type === 'iteration') {
         say({ kind: 'step', label, parts: [word('Round'), `${event.index}`, word('of'), `${event.times}`] });
       } else if (event.type === 'warning' || event.type === 'node-failed') {
-        say({ kind: 'step', tone: event.type === 'warning' ? 'warning' : 'bad', label, parts: [{ text: event.message || event.error, translate: true }] });
+        const failedRequest = event.type === 'node-failed' && node?.type === 'request';
+        say({ kind: 'step', tone: event.type === 'warning' ? 'warning' : 'bad', label, parts: [{ text: event.message || event.error, translate: true }], ...(failedRequest ? { result: { error: event.error } } : {}) });
       }
     };
 
@@ -230,7 +244,7 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
           contents: event.detail?.kind === 'list' ? { ...session.contents, [event.detail.listNodeId]: event.detail.items } : session.contents
         }));
         if (outcome) {
-          say({ kind: 'step', tone: outcome.tone, label: labelOf(event.nodeId), parts: outcome.parts, detail: outcome.detail });
+          say({ kind: 'step', tone: outcome.tone, label: labelOf(event.nodeId), parts: outcome.parts, detail: outcome.detail, result: outcome.result });
         }
       } else if (event.type === 'iteration') {
         left = { nodeId: event.nodeId, port: 'body' };
@@ -240,7 +254,8 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
         say({ kind: 'step', tone: 'warning', label: labelOf(event.nodeId), parts: [{ text: event.message, translate: true }] });
       } else if (event.type === 'node-failed') {
         patchRunSession(flowId, (session) => ({ steps: { ...session.steps, [event.nodeId]: { state: 'failed' } } }));
-        say({ kind: 'step', tone: 'bad', label: labelOf(event.nodeId), parts: [{ text: event.error, translate: true }] });
+        const failedRequest = flow.nodes.find((candidate) => candidate.id === event.nodeId)?.type === 'request';
+        say({ kind: 'step', tone: 'bad', label: labelOf(event.nodeId), parts: [{ text: event.error, translate: true }], ...(failedRequest ? { result: { error: event.error } } : {}) });
       }
     };
 
@@ -276,6 +291,17 @@ export const startRun = async ({ store, collectionUid, collectionPath, flowId, m
       // A step left half way is no longer running: it is the one to continue from.
       steps: Object.fromEntries(Object.entries(session.steps).map(([nodeId, step]) => [nodeId, step.state === 'running' ? { ...step, state: 'waiting' } : step]))
     }));
+    // The run as it stands for its report: it is written again each time a paused run goes on, unless
+    // the output was cleared meanwhile.
+    if (headerId && getRunRecord(headerId)) {
+      const { contents } = getRunSession(flowId);
+      patchRunRecord(headerId, {
+        endedAt: Date.now(),
+        outcome: result.status,
+        tests: { ...tally },
+        lists: flow.nodes.filter((candidate) => candidate.type === 'list').map((list) => ({ name: list.config?.name || '', items: contents?.[list.id] || [] }))
+      });
+    }
   } finally {
     active.delete(flowId);
   }

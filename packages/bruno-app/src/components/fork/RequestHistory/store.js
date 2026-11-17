@@ -8,6 +8,7 @@ export const EXCERPT_LENGTH = 1000;
 export const MASK = '***';
 
 const SENSITIVE_NAME = /(token|password|passwd|pwd|secret|api[-_]?key|apikey|auth|signature|session|credential)/i;
+export const isSensitiveName = (name) => SENSITIVE_NAME.test(String(name));
 
 const listeners = new Set();
 let cache = null;
@@ -56,7 +57,7 @@ export const maskUrl = (url) => {
   }
 };
 
-const maskText = (text) =>
+export const maskText = (text) =>
   text
     .replace(/("([^"\\]*)"\s*:\s*)"(?:[^"\\]|\\.)*"/g, (match, prefix, key) => (SENSITIVE_NAME.test(key) ? `${prefix}"${MASK}"` : match))
     .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/g, `$1 ${MASK}`);
