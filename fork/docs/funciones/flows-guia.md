@@ -175,6 +175,15 @@ El informe es de la última ejecución. Si cierras Michi se pierde, así que gu�
 
 Cada ejecución tiene además su propio informe, paso a paso: en **Salida**, pulsa el botón de tabla que hay junto al nombre del flow.
 
+Cuando la ejecución acaba (termina, se para o falla), junto a ese botón aparece otro, **Guardar el informe de la ejecución** (*Save the run report*). Guarda toda la ejecución en una sola página que se abre con cualquier navegador, también sin conexión:
+
+- arriba, el flow, la colección, el entorno, cuándo empezó, cuánto duró, cómo acabó y cuántos tests pasaron;
+- un resumen: cuántas peticiones fueron bien y cuántas mal, y una tarjeta por cada lista con cuántos elementos tiene (pulsa una para ir a su tabla);
+- cada lista completa como tabla;
+- todos los pasos, en orden, con su código y su tiempo. Pulsa **Ver el detalle** debajo de un paso para ver la respuesta.
+
+Las contraseñas, tokens y demás credenciales salen tapadas con `***`, así que la página se puede mandar sin miedo.
+
 ## Ejecutar
 
 | Botón | Qué hace |
